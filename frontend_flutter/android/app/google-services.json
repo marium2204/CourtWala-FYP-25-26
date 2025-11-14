@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "852043784918",
+    "project_id": "courtwala-593cb",
+    "storage_bucket": "courtwala-593cb.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:852043784918:android:05960f77d9c61e153b5f77",
+        "android_client_info": {
+          "package_name": "com.example.temp_flutter_project"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCjsQZKOrZLEU9iG2pAJAMEoskHa_VSI-E"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
