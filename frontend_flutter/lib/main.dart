@@ -1,3 +1,4 @@
+import 'package:courtwala/Admin_Panel/admin_home.dart';
 import 'package:courtwala/Authentication_screens/splash_screen.dart';
 import 'package:courtwala/Owner_Panel/owner_home.dart';
 import 'package:courtwala/Player_Panel/player_home.dart';
@@ -22,7 +23,7 @@ class CourtWalaApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return const MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: CourtOwnerHomeScreen(),
+      home: AdminHomeScreen(),
     );
   }
 }
