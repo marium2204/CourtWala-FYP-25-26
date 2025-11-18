@@ -1,0 +1,294 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  PLAYER
+  COURT_OWNER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  BLOCKED
+  PENDING_APPROVAL
+  SUSPENDED
+}
+
+enum CourtStatus {
+  ACTIVE
+  INACTIVE
+  PENDING_APPROVAL
+  REJECTED
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  REJECTED
+  CANCELLED
+  COMPLETED
+}
+
+enum MatchRequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELLED
+}
+
+enum NotificationType {
+  BOOKING_APPROVED
+  BOOKING_REJECTED
+  BOOKING_CANCELLED
+  MATCH_REQUEST
+  MATCH_ACCEPTED
+  MATCH_REJECTED
+  COURT_APPROVED
+  COURT_REJECTED
+  OWNER_APPROVED
+  OWNER_REJECTED
+  ADMIN_ANNOUNCEMENT
+  TOURNAMENT_JOINED
+  REPORT_RESOLVED
+}
+
+enum ReportType {
+  USER
+  COURT
+  BOOKING
+  OTHER
+}
+
+enum ReportStatus {
+  PENDING
+  RESOLVED
+  DISMISSED
+}
+
+model User {
+  id                   String     @id @default(cuid())
+  email                String     @unique
+  username             String?    @unique
+  password             String
+  firstName            String
+  lastName             String
+  phone                String?
+  profilePicture       String?
+  role                 UserRole   @default(PLAYER)
+  status               UserStatus @default(ACTIVE)
+  skillLevel           String?
+  preferredSports      Json?
+  googleId             String?    @unique
+  emailVerified        Boolean    @default(false)
+  resetPasswordToken   String?
+  resetPasswordExpires DateTime?
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
+
+  // Relations
+  courts                 Court[]
+  bookings               Booking[]               @relation("Booking_Player")
+  opponentBookings       Booking[]               @relation("Booking_Opponent")
+  sentMatchRequests      MatchRequest[]          @relation("SenderMatches")
+  receivedMatchRequests  MatchRequest[]          @relation("ReceiverMatches")
+  tournamentParticipants TournamentParticipant[]
+  sentNotifications      Notification[]          @relation("SenderNotifications")
+  receivedNotifications  Notification[]          @relation("ReceiverNotifications")
+  sentReports            Report[]                @relation("ReporterReports")
+  reportedReports        Report[]                @relation("ReportedUserReports")
+  courtReviews           CourtReview[]
+
+  @@index([email])
+  @@index([role])
+  @@index([status])
+}
+
+model Court {
+  id           String      @id @default(cuid())
+  name         String
+  description  String?
+  location     String
+  sport        String
+  price        Float
+  facilities   Json?
+  images       Json?
+  status       CourtStatus @default(PENDING_APPROVAL)
+  rating       Float       @default(0)
+  totalRatings Int         @default(0)
+  ownerId      String
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  // Relations
+  owner    User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  bookings Booking[]
+  reviews  CourtReview[]
+
+  @@index([ownerId])
+  @@index([sport])
+  @@index([status])
+  @@index([location])
+}
+
+model Booking {
+  id            String        @id @default(cuid())
+  courtId       String
+  playerId      String
+  date          DateTime
+  startTime     String
+  endTime       String
+  status        BookingStatus @default(PENDING)
+  needsOpponent Boolean       @default(false)
+  opponentId    String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  // Relations
+  court    Court @relation(fields: [courtId], references: [id], onDelete: Cascade)
+  player   User  @relation("Booking_Player", fields: [playerId], references: [id], onDelete: Cascade)
+  opponent User? @relation("Booking_Opponent", fields: [opponentId], references: [id])
+
+  @@index([courtId])
+  @@index([playerId])
+  @@index([status])
+  @@index([date])
+}
+
+model MatchRequest {
+  id         String             @id @default(cuid())
+  senderId   String
+  receiverId String
+  bookingId  String?
+  sport      String
+  skillLevel String?
+  message    String?
+  status     MatchRequestStatus @default(PENDING)
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+
+  // Relations
+  sender   User @relation("SenderMatches", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User @relation("ReceiverMatches", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([status])
+}
+
+model Tournament {
+  id                  String   @id @default(cuid())
+  name                String
+  description         String?
+  sport               String
+  skillLevel          String?
+  startDate           DateTime
+  endDate             DateTime
+  maxParticipants     Int
+  currentParticipants Int      @default(0)
+  status              String   @default("UPCOMING")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  // Relations
+  participants TournamentParticipant[]
+
+  @@index([sport])
+  @@index([status])
+}
+
+model TournamentParticipant {
+  id           String   @id @default(cuid())
+  tournamentId String
+  playerId     String
+  joinedAt     DateTime @default(now())
+
+  // Relations
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  player     User       @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, playerId])
+  @@index([tournamentId])
+  @@index([playerId])
+}
+
+model CourtReview {
+  id        String   @id @default(cuid())
+  courtId   String
+  playerId  String
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  court  Court @relation(fields: [courtId], references: [id], onDelete: Cascade)
+  player User  @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([courtId, playerId])
+  @@index([courtId])
+}
+
+model Notification {
+  id         String           @id @default(cuid())
+  receiverId String
+  senderId   String?
+  type       NotificationType
+  title      String
+  message    String
+  data       Json?
+  isRead     Boolean          @default(false)
+  createdAt  DateTime         @default(now())
+
+  // Relations
+  receiver User  @relation("ReceiverNotifications", fields: [receiverId], references: [id], onDelete: Cascade)
+  sender   User? @relation("SenderNotifications", fields: [senderId], references: [id], onDelete: SetNull)
+
+  @@index([receiverId])
+  @@index([isRead])
+  @@index([type])
+}
+
+model Announcement {
+  id             String    @id @default(cuid())
+  title          String
+  message        String
+  targetAudience Json?
+  scheduledAt    DateTime?
+  isActive       Boolean   @default(true)
+  createdBy      String
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([isActive])
+}
+
+model Report {
+  id              String       @id @default(cuid())
+  reporterId      String
+  reportedUserId  String?
+  reportedCourtId String?
+  type            ReportType
+  message         String
+  status          ReportStatus @default(PENDING)
+  resolvedBy      String?
+  resolvedAt      DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  // Relations
+  reporter     User  @relation("ReporterReports", fields: [reporterId], references: [id], onDelete: Cascade)
+  reportedUser User? @relation("ReportedUserReports", fields: [reportedUserId], references: [id], onDelete: SetNull)
+
+  @@index([reporterId])
+  @@index([status])
+  @@index([type])
+}
