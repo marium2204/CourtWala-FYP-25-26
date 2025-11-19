@@ -1,6 +1,6 @@
 module.exports = {
   app: {
-    name: process.env.APP_NAME || 'Supports Court Booking',
+    name: process.env.APP_NAME || 'Sports Court Booking',
     env: process.env.NODE_ENV || 'development',
     port: process.env.PORT || 3000,
     url: process.env.APP_URL || 'http://localhost:3000',

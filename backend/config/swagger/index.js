@@ -10,7 +10,7 @@ const options = {
       description: 'A comprehensive court booking system API with multi-actor support (Players, Court Owners, and Admins)',
       contact: {
         name: 'API Support',
-        email: 'support@courtwala.com',
+        email: 'sport@courtwala.com',
       },
     },
     servers: [

@@ -18,7 +18,7 @@ app.use(express.urlencoded({ extended: true }));
 // Swagger Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
   customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: 'Supports Court Booking API Documentation',
+  customSiteTitle: 'Sports Court Booking API Documentation',
 }));
 
 // Health check
