@@ -30,29 +30,37 @@
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             properties:
  *               firstName:
  *                 type: string
+ *                 minLength: 2
+ *                 maxLength: 50
  *                 example: John
  *               lastName:
  *                 type: string
+ *                 minLength: 2
+ *                 maxLength: 50
  *                 example: Doe
- *               username:
- *                 type: string
- *                 example: johndoe
  *               phone:
  *                 type: string
  *                 example: +1234567890
- *               bio:
- *                 type: string
- *                 example: Professional tennis player
  *               skillLevel:
  *                 type: string
  *                 enum: [BEGINNER, INTERMEDIATE, ADVANCED, PROFESSIONAL]
  *                 example: ADVANCED
+ *               preferredSports:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Comma-separated list or JSON array string
+ *                 example: ["Tennis", "Basketball"]
+ *               profilePicture:
+ *                 type: string
+ *                 format: binary
+ *                 description: Profile picture image file (JPEG, PNG, JPG, WEBP, max 5MB)
  *     responses:
  *       200:
  *         description: Profile updated successfully

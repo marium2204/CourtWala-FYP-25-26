@@ -45,9 +45,11 @@
  *                                 type: string
  *                               type:
  *                                 type: string
- *                               reason:
+ *                               message:
  *                                 type: string
- *                               description:
+ *                               reportedUserId:
+ *                                 type: string
+ *                               reportedCourtId:
  *                                 type: string
  *                               status:
  *                                 type: string
@@ -73,22 +75,24 @@
  *             type: object
  *             required:
  *               - type
- *               - reason
- *               - description
- *               - reportedId
+ *               - message
  *             properties:
  *               type:
  *                 type: string
- *                 enum: [COURT, USER, BOOKING]
+ *                 enum: [USER, COURT, BOOKING, OTHER]
  *                 example: COURT
- *               reason:
+ *               message:
  *                 type: string
- *                 example: Inappropriate behavior
- *               description:
- *                 type: string
+ *                 minLength: 10
+ *                 maxLength: 1000
  *                 example: Detailed description of the issue
- *               reportedId:
+ *               reportedUserId:
  *                 type: string
+ *                 format: uuid
+ *                 example: user123
+ *               reportedCourtId:
+ *                 type: string
+ *                 format: uuid
  *                 example: court123
  *     responses:
  *       201:
@@ -107,9 +111,11 @@
  *                           type: string
  *                         type:
  *                           type: string
- *                         reason:
+ *                         message:
  *                           type: string
- *                         description:
+ *                         reportedUserId:
+ *                           type: string
+ *                         reportedCourtId:
  *                           type: string
  *                         status:
  *                           type: string

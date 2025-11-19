@@ -17,7 +17,7 @@
  *         name: status
  *         schema:
  *           type: string
- *           enum: [ACTIVE, INACTIVE, SUSPENDED]
+ *           enum: [ACTIVE, BLOCKED, PENDING_APPROVAL, SUSPENDED]
  *         description: Filter by status
  *       - in: query
  *         name: page
@@ -82,7 +82,7 @@
  *             properties:
  *               status:
  *                 type: string
- *                 enum: [ACTIVE, INACTIVE, SUSPENDED]
+ *                 enum: [ACTIVE, BLOCKED, SUSPENDED]
  *                 example: ACTIVE
  *     responses:
  *       200:

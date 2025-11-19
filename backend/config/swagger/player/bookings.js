@@ -11,7 +11,7 @@
  *         name: status
  *         schema:
  *           type: string
- *           enum: [PENDING, APPROVED, REJECTED, CANCELLED, COMPLETED]
+ *           enum: [PENDING, CONFIRMED, REJECTED, CANCELLED, COMPLETED]
  *         description: Filter by status
  *       - in: query
  *         name: date
@@ -74,8 +74,8 @@
  *                 example: court123
  *               date:
  *                 type: string
- *                 format: date
- *                 example: '2024-01-15'
+ *                 format: date-time
+ *                 example: '2024-01-15T00:00:00.000Z'
  *               startTime:
  *                 type: string
  *                 pattern: '^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$'

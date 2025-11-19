@@ -33,7 +33,7 @@ class AuthService {
    * Register new user
    */
   static async register(data) {
-    const { email, password, firstName, lastName, role = 'PLAYER', username, phone } = data;
+    const { email, password, firstName, lastName, role = 'PLAYER', username, phone, profilePicture } = data;
 
     // Check if user exists
     const existingUser = await prisma.user.findFirst({
@@ -64,6 +64,7 @@ class AuthService {
         lastName,
         username,
         phone,
+        profilePicture,
         role,
         status,
       },

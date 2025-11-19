@@ -30,7 +30,8 @@
  *                 example: Tennis
  *               skillLevel:
  *                 type: string
- *                 example: Intermediate
+ *                 enum: [BEGINNER, INTERMEDIATE, ADVANCED, PROFESSIONAL]
+ *                 example: INTERMEDIATE
  *               startDate:
  *                 type: string
  *                 format: date-time
@@ -98,20 +99,30 @@
  *             properties:
  *               name:
  *                 type: string
+ *                 minLength: 3
+ *                 maxLength: 100
  *               description:
  *                 type: string
+ *                 maxLength: 1000
+ *               sport:
+ *                 type: string
+ *                 minLength: 2
+ *                 maxLength: 50
+ *               skillLevel:
+ *                 type: string
+ *                 enum: [BEGINNER, INTERMEDIATE, ADVANCED, PROFESSIONAL]
  *               startDate:
  *                 type: string
- *                 format: date
+ *                 format: date-time
  *               endDate:
  *                 type: string
- *                 format: date
+ *                 format: date-time
  *               maxParticipants:
  *                 type: integer
- *               entryFee:
- *                 type: number
- *               prize:
+ *                 minimum: 2
+ *               status:
  *                 type: string
+ *                 enum: [UPCOMING, ONGOING, COMPLETED, CANCELLED]
  *     responses:
  *       200:
  *         description: Tournament updated successfully

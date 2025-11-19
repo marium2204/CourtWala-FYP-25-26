@@ -9,14 +9,18 @@ const TournamentController = require('../controllers/Player/TournamentController
 const ProfileController = require('../controllers/Player/ProfileController');
 const ReportController = require('../controllers/Player/ReportController');
 
+// Validators
+const { validateUpdateProfile, validateChangePassword } = require('../validators/ProfileValidator');
+const { validateSendMatchRequest } = require('../validators/MatchmakingValidator');
+
 // Apply authentication middleware to all routes
 router.use(authenticate);
 router.use(authorize('PLAYER'));
 
 // Profile routes
 router.get('/profile', ProfileController.getProfile);
-router.put('/profile', ProfileController.updateProfile);
-router.post('/profile/change-password', ProfileController.changePassword);
+router.put('/profile', validateUpdateProfile, ProfileController.updateProfile);
+router.post('/profile/change-password', validateChangePassword, ProfileController.changePassword);
 
 // Booking routes
 const { validateCreateBooking } = require('../validators/BookingValidator');
@@ -27,7 +31,7 @@ router.post('/bookings/:id/cancel', BookingController.cancel);
 
 // Matchmaking routes
 router.get('/players/search', MatchmakingController.searchPlayers);
-router.post('/match-requests', MatchmakingController.sendMatchRequest);
+router.post('/match-requests', validateSendMatchRequest, MatchmakingController.sendMatchRequest);
 router.get('/match-requests', MatchmakingController.getMatchRequests);
 router.post('/match-requests/:id/accept', MatchmakingController.acceptMatchRequest);
 router.post('/match-requests/:id/reject', MatchmakingController.rejectMatchRequest);

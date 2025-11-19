@@ -8,7 +8,7 @@
  *       - bearerAuth: []
  *     parameters:
  *       - in: query
- *         name: read
+ *         name: isRead
  *         schema:
  *           type: boolean
  *         description: Filter by read status
@@ -51,7 +51,7 @@
  *                               message:
  *                                 type: string
  *                                 example: Your booking has been approved
- *                               read:
+ *                               isRead:
  *                                 type: boolean
  *                                 example: false
  *                               createdAt:

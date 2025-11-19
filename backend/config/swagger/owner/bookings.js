@@ -11,7 +11,7 @@
  *         name: status
  *         schema:
  *           type: string
- *           enum: [PENDING, APPROVED, REJECTED, CANCELLED, COMPLETED]
+ *           enum: [PENDING, CONFIRMED, REJECTED, CANCELLED, COMPLETED]
  *         description: Filter by status
  *       - in: query
  *         name: date

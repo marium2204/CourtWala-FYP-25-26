@@ -11,7 +11,7 @@
  *         name: status
  *         schema:
  *           type: string
- *           enum: [UPCOMING, ONGOING, COMPLETED]
+ *           enum: [UPCOMING, ONGOING, COMPLETED, CANCELLED]
  *         description: Filter by status
  *       - in: query
  *         name: page
@@ -57,9 +57,9 @@
  *                                 type: integer
  *                               currentParticipants:
  *                                 type: integer
- *                               entryFee:
- *                                 type: number
- *                               prize:
+ *                               sport:
+ *                                 type: string
+ *                               skillLevel:
  *                                 type: string
  *                               status:
  *                                 type: string
@@ -113,9 +113,9 @@
  *                           type: integer
  *                         currentParticipants:
  *                           type: integer
- *                         entryFee:
- *                           type: number
- *                         prize:
+ *                         sport:
+ *                           type: string
+ *                         skillLevel:
  *                           type: string
  *                         status:
  *                           type: string

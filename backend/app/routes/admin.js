@@ -12,6 +12,17 @@ const TournamentService = require('../services/TournamentService');
 const BaseController = require('../controllers/BaseController');
 const { asyncHandler } = require('../utils/ErrorHandler');
 
+// Validators
+const {
+  validateUpdateUserStatus,
+  validateUpdateCourtStatus,
+  validateCreateAnnouncement,
+} = require('../validators/AdminValidator');
+const {
+  validateCreateTournament,
+  validateUpdateTournament,
+} = require('../validators/TournamentValidator');
+
 // Apply authentication middleware to all routes
 router.use(authenticate);
 router.use(authorize('ADMIN'));
@@ -21,29 +32,29 @@ router.get('/dashboard', DashboardController.getStats);
 
 // User management routes
 router.get('/users', UserController.getAll);
-router.put('/users/:id/status', UserController.updateStatus);
+router.put('/users/:id/status', validateUpdateUserStatus, UserController.updateStatus);
 router.post('/owners/:id/approve', UserController.approveOwner);
 router.post('/owners/:id/reject', UserController.rejectOwner);
 
 // Court management routes
 router.get('/courts', CourtController.getAll);
-router.put('/courts/:id/status', CourtController.updateStatus);
+router.put('/courts/:id/status', validateUpdateCourtStatus, CourtController.updateStatus);
 
 // Report management routes
 router.get('/reports', ReportController.getAll);
 router.post('/reports/:id/resolve', ReportController.resolve);
 
 // Announcement routes
-router.post('/announcements', AnnouncementController.create);
+router.post('/announcements', validateCreateAnnouncement, AnnouncementController.create);
 router.get('/announcements', AnnouncementController.getAll);
 
 // Tournament management routes
-router.post('/tournaments', asyncHandler(async (req, res) => {
+router.post('/tournaments', validateCreateTournament, asyncHandler(async (req, res) => {
   const tournament = await TournamentService.create(req.body);
   return BaseController.success(res, tournament, 'Tournament created successfully', 201);
 }));
 
-router.put('/tournaments/:id', asyncHandler(async (req, res) => {
+router.put('/tournaments/:id', validateUpdateTournament, asyncHandler(async (req, res) => {
   const tournament = await TournamentService.update(req.params.id, req.body);
   return BaseController.success(res, tournament, 'Tournament updated successfully');
 }));

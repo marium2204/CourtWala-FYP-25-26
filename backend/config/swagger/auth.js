@@ -7,7 +7,7 @@
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             required:
@@ -24,6 +24,7 @@
  *                 type: string
  *                 format: password
  *                 minLength: 6
+ *                 pattern: '^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)'
  *                 example: Password123
  *               firstName:
  *                 type: string
@@ -48,6 +49,10 @@
  *                 enum: [PLAYER, COURT_OWNER]
  *                 default: PLAYER
  *                 example: PLAYER
+ *               profilePicture:
+ *                 type: string
+ *                 format: binary
+ *                 description: Profile picture image file (JPEG, PNG, JPG, WEBP, max 5MB)
  *     responses:
  *       201:
  *         description: Registration successful
@@ -180,6 +185,7 @@
  *                 type: string
  *                 format: password
  *                 minLength: 6
+ *                 pattern: '^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)'
  *                 example: NewPassword123
  *     responses:
  *       200:

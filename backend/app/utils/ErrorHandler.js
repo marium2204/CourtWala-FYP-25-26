@@ -26,6 +26,20 @@ const asyncHandler = (fn) => {
 const globalErrorHandler = (err, req, res, next) => {
   const ResponseHandler = require('./ResponseHandler');
 
+  // Multer errors (file upload)
+  if (err.code === 'LIMIT_FILE_SIZE') {
+    return ResponseHandler.error(res, 'File too large. Maximum size is 5MB.', 413);
+  }
+  if (err.code === 'LIMIT_FILE_COUNT') {
+    return ResponseHandler.error(res, 'Too many files. Maximum is 10 files.', 413);
+  }
+  if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+    return ResponseHandler.error(res, 'Unexpected file field.', 400);
+  }
+  if (err.message && err.message.includes('Invalid file type')) {
+    return ResponseHandler.error(res, err.message, 400);
+  }
+
   // JSON parsing errors (Express JSON parser)
   if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
     return res.status(400).json({

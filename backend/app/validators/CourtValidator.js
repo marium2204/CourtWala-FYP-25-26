@@ -71,7 +71,71 @@ const validateCreateCourt = [
   handleValidationErrors,
 ];
 
+const validateUpdateCourt = [
+  body('name')
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage('Court name cannot be empty')
+    .isLength({ min: 3, max: 100 })
+    .withMessage('Court name must be between 3 and 100 characters'),
+  body('address')
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage('Address cannot be empty')
+    .isLength({ min: 3, max: 200 })
+    .withMessage('Address must be between 3 and 200 characters'),
+  body('city')
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage('City cannot be empty')
+    .isLength({ min: 2, max: 100 })
+    .withMessage('City must be between 2 and 100 characters'),
+  body('state')
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage('State cannot be empty')
+    .isLength({ min: 2, max: 50 })
+    .withMessage('State must be between 2 and 50 characters'),
+  body('zipCode')
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage('Zip code cannot be empty')
+    .matches(/^\d{5}(-\d{4})?$/)
+    .withMessage('Zip code must be a valid format (e.g., 10001 or 10001-1234)'),
+  body('sport')
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage('Sport cannot be empty')
+    .isLength({ min: 2, max: 50 })
+    .withMessage('Sport must be between 2 and 50 characters'),
+  body('pricePerHour')
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage('Price per hour must be a positive number'),
+  body('amenities')
+    .optional()
+    .isArray()
+    .withMessage('Amenities must be an array'),
+  body('images')
+    .optional()
+    .isArray()
+    .withMessage('Images must be an array'),
+  body('description')
+    .optional()
+    .trim()
+    .isLength({ max: 1000 })
+    .withMessage('Description must not exceed 1000 characters'),
+  handleValidationErrors,
+];
+
 module.exports = {
   validateCreateCourt,
+  validateUpdateCourt,
 };
 

@@ -139,12 +139,28 @@
  *             type: object
  *             required:
  *               - receiverId
+ *               - sport
  *             properties:
  *               receiverId:
  *                 type: string
+ *                 format: uuid
  *                 example: player456
+ *               sport:
+ *                 type: string
+ *                 minLength: 2
+ *                 maxLength: 50
+ *                 example: Tennis
+ *               bookingId:
+ *                 type: string
+ *                 format: uuid
+ *                 example: booking123
+ *               skillLevel:
+ *                 type: string
+ *                 enum: [BEGINNER, INTERMEDIATE, ADVANCED, PROFESSIONAL]
+ *                 example: INTERMEDIATE
  *               message:
  *                 type: string
+ *                 maxLength: 500
  *                 example: Would you like to play a match?
  *     responses:
  *       201:

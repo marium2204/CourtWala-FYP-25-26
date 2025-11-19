@@ -1,13 +1,19 @@
 const BaseController = require('./BaseController');
 const AuthService = require('../services/AuthService');
 const { asyncHandler } = require('../utils/ErrorHandler');
+const { getFileUrl } = require('../utils/FileUpload');
 
 class AuthController extends BaseController {
   /**
    * Register new user
    */
   static register = asyncHandler(async (req, res) => {
-    const result = await AuthService.register(req.body);
+    // Process file upload if present
+    const data = { ...req.body };
+    if (req.file) {
+      data.profilePicture = getFileUrl(req.file.filename);
+    }
+    const result = await AuthService.register(data);
     return BaseController.success(res, result, 'Registration successful', 201);
   });
 

@@ -54,7 +54,7 @@
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             required:
@@ -94,7 +94,14 @@
  *                 type: array
  *                 items:
  *                   type: string
- *                 example: [Parking, Locker Room, Showers]
+ *                 description: Comma-separated list or JSON array string
+ *                 example: ["Parking", "Locker Room", "Showers"]
+ *               images:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *                 description: Court image files (JPEG, PNG, JPG, WEBP, max 5MB each, max 10 files)
  *     responses:
  *       201:
  *         description: Court created successfully
@@ -163,28 +170,51 @@
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             properties:
  *               name:
  *                 type: string
+ *                 minLength: 3
+ *                 maxLength: 100
  *               description:
  *                 type: string
+ *                 maxLength: 1000
  *               address:
  *                 type: string
+ *                 minLength: 3
+ *                 maxLength: 200
  *               city:
  *                 type: string
+ *                 minLength: 2
+ *                 maxLength: 100
  *               state:
  *                 type: string
+ *                 minLength: 2
+ *                 maxLength: 50
  *               zipCode:
  *                 type: string
+ *                 pattern: '^\d{5}(-\d{4})?$'
+ *                 example: '10001'
+ *               sport:
+ *                 type: string
+ *                 minLength: 2
+ *                 maxLength: 50
  *               pricePerHour:
  *                 type: number
+ *                 minimum: 0
  *               amenities:
  *                 type: array
  *                 items:
  *                   type: string
+ *                 description: Comma-separated list or JSON array string
+ *               images:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *                 description: Court image files (JPEG, PNG, JPG, WEBP, max 5MB each, max 10 files)
  *     responses:
  *       200:
  *         description: Court updated successfully

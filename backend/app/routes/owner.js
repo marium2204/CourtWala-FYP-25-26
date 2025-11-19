@@ -15,11 +15,11 @@ router.use(authorize('COURT_OWNER'));
 router.get('/dashboard', DashboardController.getStats);
 
 // Court routes
-const { validateCreateCourt } = require('../validators/CourtValidator');
+const { validateCreateCourt, validateUpdateCourt } = require('../validators/CourtValidator');
 router.get('/courts', CourtController.getMyCourts);
 router.post('/courts', validateCreateCourt, CourtController.create);
 router.get('/courts/:id', CourtController.getById);
-router.put('/courts/:id', CourtController.update);
+router.put('/courts/:id', validateUpdateCourt, CourtController.update);
 router.delete('/courts/:id', CourtController.delete);
 
 // Booking routes

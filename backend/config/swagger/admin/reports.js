@@ -17,7 +17,7 @@
  *         name: type
  *         schema:
  *           type: string
- *           enum: [COURT, USER, BOOKING]
+ *           enum: [USER, COURT, BOOKING, OTHER]
  *         description: Filter by report type
  *       - in: query
  *         name: page
@@ -51,9 +51,11 @@
  *                                 type: string
  *                               type:
  *                                 type: string
- *                               reason:
+ *                               message:
  *                                 type: string
- *                               description:
+ *                               reportedUserId:
+ *                                 type: string
+ *                               reportedCourtId:
  *                                 type: string
  *                               status:
  *                                 type: string

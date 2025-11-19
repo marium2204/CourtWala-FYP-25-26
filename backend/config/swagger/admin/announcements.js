@@ -39,11 +39,17 @@
  *                                 type: string
  *                               title:
  *                                 type: string
- *                               content:
+ *                               message:
  *                                 type: string
- *                               priority:
+ *                               targetAudience:
+ *                                 type: array
+ *                                 items:
+ *                                   type: string
+ *                               scheduledAt:
  *                                 type: string
- *                                 enum: [LOW, MEDIUM, HIGH]
+ *                                 format: date-time
+ *                               isActive:
+ *                                 type: boolean
  *                               createdAt:
  *                                 type: string
  *                                 format: date-time
@@ -64,19 +70,30 @@
  *             type: object
  *             required:
  *               - title
- *               - content
+ *               - message
+ *               - targetAudience
  *             properties:
  *               title:
  *                 type: string
+ *                 minLength: 3
+ *                 maxLength: 200
  *                 example: System Maintenance
- *               content:
+ *               message:
  *                 type: string
+ *                 minLength: 10
+ *                 maxLength: 2000
  *                 example: The system will be under maintenance on Sunday
- *               priority:
+ *               targetAudience:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   enum: [PLAYER, COURT_OWNER]
+ *                 minItems: 1
+ *                 example: [PLAYER, COURT_OWNER]
+ *               scheduledAt:
  *                 type: string
- *                 enum: [LOW, MEDIUM, HIGH]
- *                 default: MEDIUM
- *                 example: HIGH
+ *                 format: date-time
+ *                 example: '2024-06-01T00:00:00.000Z'
  *     responses:
  *       201:
  *         description: Announcement created successfully
@@ -94,10 +111,17 @@
  *                           type: string
  *                         title:
  *                           type: string
- *                         content:
+ *                         message:
  *                           type: string
- *                         priority:
+ *                         targetAudience:
+ *                           type: array
+ *                           items:
+ *                             type: string
+ *                         scheduledAt:
  *                           type: string
+ *                           format: date-time
+ *                         isActive:
+ *                           type: boolean
  *       401:
  *         description: Unauthorized
  *       403:
