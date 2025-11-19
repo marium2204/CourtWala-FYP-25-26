@@ -11,8 +11,8 @@
  *         name: status
  *         schema:
  *           type: string
- *           enum: [PENDING, APPROVED, REJECTED]
- *         description: Filter by status
+ *           enum: [PENDING, PENDING_APPROVAL, ACTIVE, INACTIVE, REJECTED, APPROVED]
+ *         description: Filter by status (PENDING/PENDING_APPROVAL are equivalent, APPROVED maps to ACTIVE)
  *       - in: query
  *         name: page
  *         schema:
@@ -63,6 +63,7 @@
  *               - city
  *               - state
  *               - zipCode
+ *               - sport
  *               - pricePerHour
  *             properties:
  *               name:
@@ -83,6 +84,9 @@
  *               zipCode:
  *                 type: string
  *                 example: '10001'
+ *               sport:
+ *                 type: string
+ *                 example: Tennis
  *               pricePerHour:
  *                 type: number
  *                 example: 50.00

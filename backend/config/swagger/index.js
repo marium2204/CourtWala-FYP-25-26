@@ -119,7 +119,7 @@ const options = {
             },
             address: {
               type: 'string',
-              example: '123 Main St, City',
+              example: '123 Main St',
             },
             city: {
               type: 'string',
@@ -132,6 +132,10 @@ const options = {
             zipCode: {
               type: 'string',
               example: '10001',
+            },
+            sport: {
+              type: 'string',
+              example: 'Tennis',
             },
             pricePerHour: {
               type: 'number',
@@ -153,8 +157,8 @@ const options = {
             },
             status: {
               type: 'string',
-              enum: ['PENDING', 'APPROVED', 'REJECTED'],
-              example: 'APPROVED',
+              enum: ['ACTIVE', 'INACTIVE', 'PENDING_APPROVAL', 'REJECTED'],
+              example: 'PENDING_APPROVAL',
             },
             ownerId: {
               type: 'string',

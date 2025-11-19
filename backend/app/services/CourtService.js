@@ -3,6 +3,28 @@ const { AppError } = require('../utils/ErrorHandler');
 
 class CourtService {
   /**
+   * Normalize status value to match CourtStatus enum
+   */
+  static normalizeStatus(status) {
+    if (!status) return undefined;
+    
+    const statusMap = {
+      'PENDING': 'PENDING_APPROVAL',
+      'PENDING_APPROVAL': 'PENDING_APPROVAL',
+      'ACTIVE': 'ACTIVE',
+      'INACTIVE': 'INACTIVE',
+      'REJECTED': 'REJECTED',
+      'APPROVED': 'ACTIVE', // Map APPROVED to ACTIVE for backward compatibility
+    };
+
+    const normalized = statusMap[status.toUpperCase()];
+    if (!normalized) {
+      throw new AppError(`Invalid status: ${status}. Valid values are: PENDING_APPROVAL, ACTIVE, INACTIVE, REJECTED`, 400);
+    }
+    return normalized;
+  }
+
+  /**
    * Get all courts with filters
    */
   static async getAll(filters = {}) {
@@ -11,7 +33,7 @@ class CourtService {
       location,
       minPrice,
       maxPrice,
-      status = 'ACTIVE',
+      status,
       ownerId,
       limit = 20,
       page = 1,
@@ -20,18 +42,40 @@ class CourtService {
 
     const skip = (page - 1) * limit;
 
+    // Normalize status only if provided (if not provided, fetch all courts)
+    const normalizedStatus = status ? this.normalizeStatus(status) : undefined;
+
     const where = {
-      status,
+      ...(normalizedStatus && { status: normalizedStatus }),
       ...(sport && { sport }),
-      ...(location && { location: { contains: location, mode: 'insensitive' } }),
-      ...(minPrice && { price: { gte: minPrice } }),
-      ...(maxPrice && { price: { lte: maxPrice } }),
+      ...(location && {
+        OR: [
+          { location: { contains: location } },
+          { address: { contains: location } },
+          { city: { contains: location } },
+          { state: { contains: location } },
+        ],
+      }),
+      ...(minPrice && {
+        OR: [
+          { pricePerHour: { gte: minPrice } },
+          { price: { gte: minPrice } },
+        ],
+      }),
+      ...(maxPrice && {
+        OR: [
+          { pricePerHour: { lte: maxPrice } },
+          { price: { lte: maxPrice } },
+        ],
+      }),
       ...(ownerId && { ownerId }),
       ...(search && {
         OR: [
-          { name: { contains: search, mode: 'insensitive' } },
-          { location: { contains: search, mode: 'insensitive' } },
-          { description: { contains: search, mode: 'insensitive' } },
+          { name: { contains: search } },
+          { location: { contains: search } },
+          { address: { contains: search } },
+          { city: { contains: search } },
+          { description: { contains: search } },
         ],
       }),
     };
@@ -126,21 +170,33 @@ class CourtService {
     const {
       name,
       description,
-      location,
+      address,
+      city,
+      state,
+      zipCode,
       sport,
-      price,
-      facilities = [],
+      pricePerHour,
+      amenities = [],
       images = [],
     } = data;
+
+    // Combine address fields into location for backward compatibility
+    const location = `${address}, ${city}, ${state} ${zipCode}`;
 
     return prisma.court.create({
       data: {
         name,
         description,
-        location,
+        address,
+        city,
+        state,
+        zipCode,
+        location, // Generated from address fields
         sport,
-        price: parseFloat(price),
-        facilities,
+        pricePerHour: parseFloat(pricePerHour),
+        price: parseFloat(pricePerHour), // Keep for backward compatibility
+        amenities,
+        facilities: amenities, // Keep for backward compatibility
         images,
         ownerId,
         status: 'PENDING_APPROVAL',
@@ -167,11 +223,29 @@ class CourtService {
     const updateData = {};
     if (data.name) updateData.name = data.name;
     if (data.description !== undefined) updateData.description = data.description;
-    if (data.location) updateData.location = data.location;
+    if (data.address) updateData.address = data.address;
+    if (data.city) updateData.city = data.city;
+    if (data.state) updateData.state = data.state;
+    if (data.zipCode) updateData.zipCode = data.zipCode;
     if (data.sport) updateData.sport = data.sport;
-    if (data.price) updateData.price = parseFloat(data.price);
-    if (data.facilities) updateData.facilities = data.facilities;
+    if (data.pricePerHour !== undefined) {
+      updateData.pricePerHour = parseFloat(data.pricePerHour);
+      updateData.price = parseFloat(data.pricePerHour); // Keep for backward compatibility
+    }
+    if (data.amenities) {
+      updateData.amenities = data.amenities;
+      updateData.facilities = data.amenities; // Keep for backward compatibility
+    }
     if (data.images) updateData.images = data.images;
+
+    // Update location if any address field changed
+    if (data.address || data.city || data.state || data.zipCode) {
+      const newAddress = data.address || court.address;
+      const newCity = data.city || court.city;
+      const newState = data.state || court.state;
+      const newZipCode = data.zipCode || court.zipCode;
+      updateData.location = `${newAddress}, ${newCity}, ${newState} ${newZipCode}`;
+    }
 
     // If updating, set status back to pending if it was approved
     if (court.status === 'ACTIVE' && Object.keys(updateData).length > 0) {
@@ -212,9 +286,12 @@ class CourtService {
     const { status, limit = 20, page = 1 } = filters;
     const skip = (page - 1) * limit;
 
+    // Normalize status if provided
+    const normalizedStatus = status ? this.normalizeStatus(status) : undefined;
+
     const where = {
       ownerId,
-      ...(status && { status }),
+      ...(normalizedStatus && { status: normalizedStatus }),
     };
 
     const [courts, total] = await Promise.all([
@@ -250,13 +327,17 @@ class CourtService {
    * Approve/reject court (Admin only)
    */
   static async updateCourtStatus(id, status) {
-    if (!['ACTIVE', 'INACTIVE', 'REJECTED'].includes(status)) {
-      throw new AppError('Invalid status', 400);
+    // Normalize status (e.g., APPROVED -> ACTIVE, PENDING -> PENDING_APPROVAL)
+    const normalizedStatus = this.normalizeStatus(status);
+    
+    // Only allow ACTIVE, INACTIVE, REJECTED for status updates (admin actions)
+    if (!['ACTIVE', 'INACTIVE', 'REJECTED'].includes(normalizedStatus)) {
+      throw new AppError(`Invalid status for update: ${status}. Valid values are: ACTIVE, INACTIVE, REJECTED`, 400);
     }
 
     return prisma.court.update({
       where: { id },
-      data: { status },
+      data: { status: normalizedStatus },
     });
   }
 }

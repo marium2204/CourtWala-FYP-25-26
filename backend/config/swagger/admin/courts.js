@@ -11,8 +11,8 @@
  *         name: status
  *         schema:
  *           type: string
- *           enum: [PENDING, APPROVED, REJECTED]
- *         description: Filter by status
+ *           enum: [PENDING, PENDING_APPROVAL, ACTIVE, INACTIVE, REJECTED, APPROVED]
+ *         description: Filter by status (PENDING/PENDING_APPROVAL are equivalent, APPROVED maps to ACTIVE)
  *       - in: query
  *         name: page
  *         schema:
@@ -74,8 +74,9 @@
  *             properties:
  *               status:
  *                 type: string
- *                 enum: [APPROVED, REJECTED]
- *                 example: APPROVED
+ *                 enum: [ACTIVE, INACTIVE, REJECTED, APPROVED]
+ *                 description: Status value (APPROVED maps to ACTIVE)
+ *                 example: ACTIVE
  *               reason:
  *                 type: string
  *                 example: Court meets all requirements

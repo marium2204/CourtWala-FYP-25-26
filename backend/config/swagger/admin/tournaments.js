@@ -14,9 +14,10 @@
  *             type: object
  *             required:
  *               - name
- *               - description
+ *               - sport
  *               - startDate
  *               - endDate
+ *               - maxParticipants
  *             properties:
  *               name:
  *                 type: string
@@ -24,23 +25,24 @@
  *               description:
  *                 type: string
  *                 example: Annual summer tournament
+ *               sport:
+ *                 type: string
+ *                 example: Tennis
+ *               skillLevel:
+ *                 type: string
+ *                 example: Intermediate
  *               startDate:
  *                 type: string
- *                 format: date
- *                 example: '2024-06-01'
+ *                 format: date-time
+ *                 example: '2024-06-01T00:00:00.000Z'
  *               endDate:
  *                 type: string
- *                 format: date
- *                 example: '2024-06-30'
+ *                 format: date-time
+ *                 example: '2024-06-30T23:59:59.000Z'
  *               maxParticipants:
  *                 type: integer
+ *                 minimum: 2
  *                 example: 32
- *               entryFee:
- *                 type: number
- *                 example: 50.00
- *               prize:
- *                 type: string
- *                 example: $1000 cash prize
  *     responses:
  *       201:
  *         description: Tournament created successfully

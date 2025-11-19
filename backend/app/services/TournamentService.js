@@ -100,6 +100,27 @@ class TournamentService {
       maxParticipants,
     } = data;
 
+    // Validate required fields
+    if (!name || !name.trim()) {
+      throw new AppError('Tournament name is required', 400);
+    }
+
+    if (!sport || !sport.trim()) {
+      throw new AppError('Sport is required', 400);
+    }
+
+    if (!startDate) {
+      throw new AppError('Start date is required', 400);
+    }
+
+    if (!endDate) {
+      throw new AppError('End date is required', 400);
+    }
+
+    if (!maxParticipants || maxParticipants < 2) {
+      throw new AppError('Max participants must be at least 2', 400);
+    }
+
     if (new Date(startDate) < new Date()) {
       throw new AppError('Start date cannot be in the past', 400);
     }
@@ -110,10 +131,10 @@ class TournamentService {
 
     return prisma.tournament.create({
       data: {
-        name,
-        description,
-        sport,
-        skillLevel,
+        name: name.trim(),
+        description: description?.trim() || null,
+        sport: sport.trim(),
+        skillLevel: skillLevel?.trim() || null,
         startDate: new Date(startDate),
         endDate: new Date(endDate),
         maxParticipants: parseInt(maxParticipants),

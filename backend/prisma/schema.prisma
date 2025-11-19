@@ -116,10 +116,16 @@ model Court {
   id           String      @id @default(cuid())
   name         String
   description  String?
-  location     String
+  address      String
+  city         String
+  state        String
+  zipCode      String
+  location     String      // Kept for backward compatibility, will be generated from address fields
   sport        String
-  price        Float
-  facilities   Json?
+  pricePerHour Float
+  price        Float       // Kept for backward compatibility, will be same as pricePerHour
+  amenities    Json?
+  facilities   Json?       // Kept for backward compatibility, will be same as amenities
   images       Json?
   status       CourtStatus @default(PENDING_APPROVAL)
   rating       Float       @default(0)
@@ -137,6 +143,8 @@ model Court {
   @@index([sport])
   @@index([status])
   @@index([location])
+  @@index([city])
+  @@index([state])
 }
 
 model Booking {
