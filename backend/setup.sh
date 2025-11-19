@@ -39,6 +39,21 @@ port_in_use() {
     return 1
 }
 
+# Function to check if containers are already running
+containers_running() {
+    # Check if any of our containers are running using docker ps
+    local running_containers=$(docker ps --format '{{.Names}}' 2>/dev/null || true)
+    if echo "$running_containers" | grep -qE "courtwala_(backend|db|prisma_studio)"; then
+        return 0
+    fi
+    # Alternative check using docker-compose ps - look for "Up" status
+    local compose_output=$($DOCKER_COMPOSE ps 2>/dev/null || true)
+    if echo "$compose_output" | grep -qE "courtwala_(backend|db|prisma_studio).*Up"; then
+        return 0
+    fi
+    return 1
+}
+
 # Determine docker-compose command (support both docker-compose and docker compose)
 if command_exists docker-compose; then
     DOCKER_COMPOSE="docker-compose"
@@ -65,18 +80,59 @@ fi
 echo -e "${GREEN}✓ Docker and Docker Compose are installed (using: $DOCKER_COMPOSE)${NC}"
 echo ""
 
-# Check if .env file exists
+# Check if .env.example exists, create if not
 echo -e "${YELLOW}[2/7] Checking environment configuration...${NC}"
+if [ ! -f .env.example ]; then
+    echo -e "${YELLOW}⚠ .env.example not found. Creating default .env.example...${NC}"
+    cat > .env.example << 'ENVEOF'
+# Application Configuration
+NODE_ENV=development
+PORT=3000
+APP_NAME=Supports Court Booking
+APP_URL=http://localhost:3000
+
+# Database Configuration (Docker)
+DB_ROOT_PASSWORD=rootpassword
+DB_NAME=courtwala
+DB_USER=courtwala_user
+DB_PASSWORD=courtwala_password
+DB_PORT=3307
+
+# Database URL (automatically set by docker-compose.yml, but can be overridden)
+# DATABASE_URL=mysql://courtwala_user:courtwala_password@db:3306/courtwala
+
+# JWT Configuration
+JWT_SECRET=your-secret-key-change-in-production
+JWT_EXPIRES_IN=7d
+JWT_REFRESH_EXPIRES_IN=30d
+
+# Bcrypt Configuration
+BCRYPT_SALT_ROUNDS=10
+
+# File Upload Configuration
+MAX_FILE_SIZE=5242880
+UPLOAD_PATH=uploads
+
+# Email Configuration (Optional)
+EMAIL_HOST=
+EMAIL_PORT=587
+EMAIL_SECURE=false
+EMAIL_USER=
+EMAIL_PASSWORD=
+EMAIL_FROM=noreply@courtwala.com
+
+# Prisma Studio Configuration
+PRISMA_STUDIO_PORT=5555
+ENVEOF
+    echo -e "${GREEN}✓ Created .env.example file${NC}"
+fi
+
+# Check if .env file exists, create from .env.example if not
 if [ ! -f .env ]; then
     echo -e "${YELLOW}⚠ .env file not found. Creating from .env.example...${NC}"
-    if [ -f .env.example ]; then
-        cp .env.example .env
-        echo -e "${GREEN}✓ Created .env file from .env.example${NC}"
-        echo -e "${YELLOW}⚠ Please review and update .env file with your configuration${NC}"
-    else
-        echo -e "${RED}✗ .env.example not found. Please create .env file manually.${NC}"
-        exit 1
-    fi
+    cp .env.example .env
+    echo -e "${GREEN}✓ Created .env file from .env.example${NC}"
+    echo -e "${YELLOW}⚠ Please review and update .env file with your configuration${NC}"
 else
     echo -e "${GREEN}✓ .env file exists${NC}"
 fi
@@ -89,27 +145,44 @@ if [ -f .env ]; then
 fi
 echo ""
 
-# Check for port conflicts
-echo -e "${YELLOW}[3/7] Checking for port conflicts...${NC}"
+# Check if containers are already running
 DB_PORT=${DB_PORT:-3307}
 APP_PORT=${PORT:-3000}
+PRISMA_STUDIO_PORT=${PRISMA_STUDIO_PORT:-5555}
 
-if port_in_use $DB_PORT; then
-    echo -e "${RED}✗ Port $DB_PORT is already in use${NC}"
-    echo -e "${YELLOW}  Please set a different DB_PORT in your .env file${NC}"
-    echo -e "${YELLOW}  Example: DB_PORT=3308${NC}"
-    exit 1
+if containers_running; then
+    echo -e "${YELLOW}[3/7] Checking for port conflicts...${NC}"
+    echo -e "${GREEN}✓ Containers are already running - skipping port conflict check${NC}"
+    echo -e "${YELLOW}  (Ports are in use by existing containers)${NC}"
+    echo ""
+else
+    # Check for port conflicts only if containers are not running
+    echo -e "${YELLOW}[3/7] Checking for port conflicts...${NC}"
+    
+    if port_in_use $DB_PORT; then
+        echo -e "${RED}✗ Port $DB_PORT is already in use${NC}"
+        echo -e "${YELLOW}  Please set a different DB_PORT in your .env file${NC}"
+        echo -e "${YELLOW}  Example: DB_PORT=3308${NC}"
+        exit 1
+    fi
+
+    if port_in_use $APP_PORT; then
+        echo -e "${RED}✗ Port $APP_PORT is already in use${NC}"
+        echo -e "${YELLOW}  Please set a different PORT in your .env file${NC}"
+        echo -e "${YELLOW}  Example: PORT=3001${NC}"
+        exit 1
+    fi
+
+    if port_in_use $PRISMA_STUDIO_PORT; then
+        echo -e "${RED}✗ Port $PRISMA_STUDIO_PORT (Prisma Studio) is already in use${NC}"
+        echo -e "${YELLOW}  Please set a different PRISMA_STUDIO_PORT in your .env file${NC}"
+        echo -e "${YELLOW}  Example: PRISMA_STUDIO_PORT=5556${NC}"
+        exit 1
+    fi
+
+    echo -e "${GREEN}✓ Ports $DB_PORT (DB), $APP_PORT (App), and $PRISMA_STUDIO_PORT (Prisma Studio) are available${NC}"
+    echo ""
 fi
-
-if port_in_use $APP_PORT; then
-    echo -e "${RED}✗ Port $APP_PORT is already in use${NC}"
-    echo -e "${YELLOW}  Please set a different PORT in your .env file${NC}"
-    echo -e "${YELLOW}  Example: PORT=3001${NC}"
-    exit 1
-fi
-
-echo -e "${GREEN}✓ Ports $DB_PORT (DB) and $APP_PORT (App) are available${NC}"
-echo ""
 
 # Create uploads directory if it doesn't exist
 echo -e "${YELLOW}[4/7] Creating necessary directories...${NC}"
@@ -120,8 +193,13 @@ echo ""
 
 # Stop existing containers if running
 echo -e "${YELLOW}[5/7] Stopping existing containers (if any)...${NC}"
-$DOCKER_COMPOSE down 2>/dev/null || true
-echo -e "${GREEN}✓ Cleaned up existing containers${NC}"
+if containers_running; then
+    echo -e "${YELLOW}  Stopping running containers...${NC}"
+    $DOCKER_COMPOSE down 2>/dev/null || true
+    echo -e "${GREEN}✓ Stopped existing containers${NC}"
+else
+    echo -e "${GREEN}✓ No containers running${NC}"
+fi
 echo ""
 
 # Build and start containers
@@ -264,5 +342,6 @@ echo "  Restart:          $DOCKER_COMPOSE restart"
 echo ""
 echo -e "${GREEN}Backend is running at: http://localhost:${PORT:-3000}${NC}"
 echo -e "${GREEN}API Docs: http://localhost:${PORT:-3000}/api-docs${NC}"
+echo -e "${GREEN}Prisma Studio: http://localhost:${PRISMA_STUDIO_PORT:-5555}${NC}"
 echo ""
 

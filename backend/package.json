@@ -34,6 +34,7 @@
     "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
+    "chokidar": "^3.5.3",
     "nodemon": "^3.0.1",
     "prisma": "^5.7.1"
   }
