@@ -1,4 +1,4 @@
-# Supports Court Booking API
+# Sports Court Booking API
 
 A comprehensive court booking system built with Express.js, Prisma ORM, and MySQL.
 
@@ -43,13 +43,255 @@ backend/
 
 ## Setup Instructions
 
-### 1. Install Dependencies
+### 🐳 Docker Setup (Recommended)
+
+The easiest way to get started is using Docker. This will automatically set up the database, run migrations, seed data, configure auto-reload for development, and set up auto-start on boot.
+
+#### Prerequisites
+
+- Docker and Docker Compose installed
+- Ports 3000 (API) and 3307 (MySQL) available (or configure different ports in `.env`)
+
+#### Quick Start
+
+1. **Run the setup script**:
+   ```bash
+   ./setup.sh
+   ```
+
+   Or if you need sudo for systemd setup:
+   ```bash
+   sudo ./setup.sh
+   ```
+
+   The script will:
+   - Check Docker installation
+   - Create `.env` file from `.env.example` (if needed)
+   - Check for port conflicts
+   - Build and start Docker containers
+   - Run database migrations automatically
+   - Seed the database with default users
+   - Set up auto-start on system boot
+
+2. **Access the application**:
+   - **API Server**: `http://localhost:3000`
+   - **API Documentation (Swagger UI)**: `http://localhost:3000/api-docs`
+   - **Health Check**: `http://localhost:3000/health`
+   - **Prisma Studio**: `http://localhost:5555` (see Database Access section)
+
+#### Docker Services
+
+The Docker setup includes:
+
+- **Backend Service** (`courtwala_backend`): Node.js Express API
+  - Port: `3000` (configurable via `PORT` in `.env`)
+  - Auto-reload enabled in development mode
+  - Prisma Studio port: `5555`
+
+- **Database Service** (`courtwala_db`): MySQL 8.0
+  - Port: `3307` (configurable via `DB_PORT` in `.env`)
+  - Internal port: `3306` (used by backend container)
+  - Data persisted in Docker volume
+
+#### Docker Commands
+
+```bash
+# View logs (all services)
+docker compose logs -f
+
+# View logs (specific service)
+docker compose logs -f backend
+docker compose logs -f db
+
+# Stop containers
+docker compose down
+
+# Start containers
+docker compose up -d
+
+# Restart containers
+docker compose restart
+
+# Restart specific service
+docker compose restart backend
+
+# Rebuild and restart
+docker compose up -d --build
+
+# Force recreate containers
+docker compose up -d --force-recreate
+
+# View running containers
+docker compose ps
+
+# Execute command in container
+docker compose exec backend <command>
+docker compose exec db <command>
+```
+
+#### Development Features
+
+**Auto-Reload (Hot Reload)**
+- Enabled automatically when `NODE_ENV=development` in `.env`
+- Uses `nodemon` to watch for file changes
+- Automatically restarts server when you edit files in:
+  - `app/` directory
+  - `config/` directory
+  - `server.js`
+  - `package.json`
+
+**To enable/disable auto-reload:**
+```bash
+# Development mode (auto-reload enabled)
+NODE_ENV=development
+
+# Production mode (no auto-reload)
+NODE_ENV=production
+```
+
+#### Database Access
+
+**Prisma Studio (Web UI)**
+```bash
+# Start Prisma Studio
+./prisma-studio.sh
+
+# Or manually
+docker compose exec -d backend sh -c "npx prisma studio --hostname 0.0.0.0 --port 5555"
+
+# Access at: http://localhost:5555
+```
+
+**Direct Database Access (MySQL Client)**
+```
+Host: localhost
+Port: 3307
+Username: root
+Password: rootpassword (or DB_ROOT_PASSWORD from .env)
+Database: courtwala (or DB_NAME from .env)
+```
+
+**Application Database User**
+```
+Host: localhost
+Port: 3307
+Username: courtwala_user (or DB_USER from .env)
+Password: courtwala_password (or DB_PASSWORD from .env)
+Database: courtwala
+```
+
+**Connection String Format:**
+```
+mysql://username:password@localhost:3307/database_name
+```
+
+#### Environment Variables
+
+Key environment variables for Docker setup (in `.env`):
+
+```env
+# Application
+NODE_ENV=development          # development or production
+PORT=3000                     # API server port
+APP_URL=http://localhost:3000
+
+# Database (Docker)
+DB_ROOT_PASSWORD=rootpassword
+DB_NAME=courtwala
+DB_USER=courtwala_user
+DB_PASSWORD=courtwala_password
+DB_PORT=3307                  # External MySQL port (avoids conflict with host MySQL)
+
+# JWT
+JWT_SECRET=your-secret-key
+JWT_EXPIRES_IN=7d
+
+# Note: DATABASE_URL is automatically set by docker-compose.yml
+# It points to db:3306 (internal Docker network)
+```
+
+#### Auto-Start on Boot
+
+The setup script automatically configures a systemd service that starts the containers on system boot. To manage it manually:
+
+```bash
+# Check status
+sudo systemctl status courtwala-backend
+
+# Start service
+sudo systemctl start courtwala-backend
+
+# Stop service
+sudo systemctl stop courtwala-backend
+
+# Restart service
+sudo systemctl restart courtwala-backend
+
+# Disable auto-start
+sudo systemctl disable courtwala-backend
+
+# Enable auto-start
+sudo systemctl enable courtwala-backend
+```
+
+#### Troubleshooting
+
+**Port Already in Use:**
+```bash
+# Check what's using the port
+ss -tuln | grep 3000
+ss -tuln | grep 3307
+
+# Change ports in .env file
+PORT=3001
+DB_PORT=3308
+```
+
+**Container Won't Start:**
+```bash
+# Check logs
+docker compose logs backend
+
+# Check container status
+docker compose ps
+
+# Rebuild containers
+docker compose up -d --build --force-recreate
+```
+
+**Database Connection Issues:**
+```bash
+# Check database is healthy
+docker compose ps db
+
+# Check database logs
+docker compose logs db
+
+# Test database connection
+docker compose exec db mysqladmin ping -h localhost -u root -prootpassword
+```
+
+**Auto-reload Not Working:**
+```bash
+# Verify NODE_ENV is set to development
+docker compose exec backend sh -c 'echo $NODE_ENV'
+
+# Check if nodemon is running
+docker compose exec backend ps aux | grep nodemon
+
+# Restart backend
+docker compose restart backend
+```
+
+### 📦 Manual Setup (Without Docker)
+
+#### 1. Install Dependencies
 
 ```bash
 npm install
 ```
 
-### 2. Configure Environment Variables
+#### 2. Configure Environment Variables
 
 Create a `.env` file in the root directory:
 
@@ -74,7 +316,7 @@ MAX_FILE_SIZE=5242880
 UPLOAD_PATH=uploads
 ```
 
-### 3. Set Up Database
+#### 3. Set Up Database
 
 ```bash
 # Generate Prisma Client
@@ -87,7 +329,7 @@ npm run prisma:migrate
 npm run prisma:seed
 ```
 
-### 4. Start the Server
+#### 4. Start the Server
 
 ```bash
 # Development mode (with auto-reload)
@@ -203,9 +445,13 @@ The Swagger UI handles this automatically after you authorize using the "Authori
 
 ## Default Users (from seed)
 
+These users are automatically created when you run the setup:
+
 - **Admin**: admin@courtwala.com / admin123
 - **Court Owner**: owner@courtwala.com / owner123
 - **Player**: player@courtwala.com / player123
+
+> **Note**: These are default credentials for development. Change them in production!
 
 ## Development Principles
 
@@ -213,6 +459,28 @@ The Swagger UI handles this automatically after you authorize using the "Authori
 - **Separation of Concerns**: Controllers, Services, and Routes are separated
 - **Loose Coupling**: Services are independent and can be easily tested
 - **Consistent Responses**: Standardized response format across all endpoints
+
+## Docker Files Overview
+
+- `Dockerfile` - Backend application container definition
+- `docker-compose.yml` - Multi-container orchestration (backend + database)
+- `docker-entrypoint.sh` - Container startup script (handles migrations, seeding)
+- `setup.sh` - Automated setup script for Docker environment
+- `prisma-studio.sh` - Helper script to start Prisma Studio
+- `.dockerignore` - Files excluded from Docker build context
+
+## Production Deployment
+
+For production deployment:
+
+1. Set `NODE_ENV=production` in `.env`
+2. Use strong passwords for database credentials
+3. Set a secure `JWT_SECRET`
+4. Remove or comment out source code volume mounts in `docker-compose.yml`
+5. Use environment-specific configuration
+6. Set up proper backup strategy for database volumes
+7. Configure reverse proxy (nginx/traefik) for SSL/TLS
+8. Set up monitoring and logging
 
 ## License
 

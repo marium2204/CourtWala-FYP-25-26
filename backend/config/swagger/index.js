@@ -5,7 +5,7 @@ const options = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'Supports Court Booking API',
+      title: 'Sports Court Booking API',
       version: '1.0.0',
       description: 'A comprehensive court booking system API with multi-actor support (Players, Court Owners, and Admins)',
       contact: {
