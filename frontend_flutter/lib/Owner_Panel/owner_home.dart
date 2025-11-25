@@ -189,8 +189,10 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
           // ADD COURT BUTTON
           ElevatedButton.icon(
             onPressed: () {
-              Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const AddCourtScreen()));
+              Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const AddEditCourtScreen()));
             },
             icon: const Icon(Icons.add, color: Colors.white),
             label:

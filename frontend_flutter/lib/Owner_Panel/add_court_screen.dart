@@ -3,31 +3,64 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../theme/colors.dart';
 
-class AddCourtScreen extends StatefulWidget {
-  const AddCourtScreen({super.key});
+class AddEditCourtScreen extends StatefulWidget {
+  final Map<String, dynamic>? court; // If null → add new, else edit
+
+  const AddEditCourtScreen({super.key, this.court});
 
   @override
-  State<AddCourtScreen> createState() => _AddCourtScreenState();
+  State<AddEditCourtScreen> createState() => _AddEditCourtScreenState();
 }
 
-class _AddCourtScreenState extends State<AddCourtScreen> {
+class _AddEditCourtScreenState extends State<AddEditCourtScreen> {
   final _formKey = GlobalKey<FormState>();
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _locationController = TextEditingController();
-  final TextEditingController _priceController = TextEditingController();
+  late TextEditingController _nameController;
+  late TextEditingController _descriptionController;
+  late TextEditingController _addressController;
+  late TextEditingController _cityController;
+  late TextEditingController _stateController;
+  late TextEditingController _zipController;
+  late TextEditingController _priceController;
 
   String _selectedSport = 'Badminton';
-  String? _selectedAssetImage = 'assets/badmintonCourt.jpeg';
+  String? _selectedAssetImage;
   File? _pickedImage;
 
-  Map<String, bool> _facilities = {
+  Map<String, bool> _amenities = {
     'Parking': false,
     'Indoor Lights': false,
     'Shower': false,
     'Equipment Rental': false,
   };
 
+  bool _isActive = true; // Only for approved courts
   final ImagePicker _picker = ImagePicker();
+
+  @override
+  void initState() {
+    super.initState();
+
+    final court = widget.court;
+    _nameController = TextEditingController(text: court?['name'] ?? '');
+    _descriptionController =
+        TextEditingController(text: court?['description'] ?? '');
+    _addressController = TextEditingController(text: court?['address'] ?? '');
+    _cityController = TextEditingController(text: court?['city'] ?? '');
+    _stateController = TextEditingController(text: court?['state'] ?? '');
+    _zipController = TextEditingController(text: court?['zipCode'] ?? '');
+    _priceController =
+        TextEditingController(text: court?['pricePerHour']?.toString() ?? '');
+    _selectedSport = court?['sport'] ?? 'Badminton';
+    _selectedAssetImage = court?['image'];
+    _amenities = Map<String, bool>.from(court?['amenitiesMap'] ??
+        {
+          'Parking': false,
+          'Indoor Lights': false,
+          'Shower': false,
+          'Equipment Rental': false,
+        });
+    _isActive = court?['status'] == 'ACTIVE';
+  }
 
   Future<void> _pickImage() async {
     final XFile? image =
@@ -35,7 +68,7 @@ class _AddCourtScreenState extends State<AddCourtScreen> {
     if (image != null) {
       setState(() {
         _pickedImage = File(image.path);
-        _selectedAssetImage = null; // deselect asset image
+        _selectedAssetImage = null; // deselect asset
       });
     }
   }
@@ -44,21 +77,26 @@ class _AddCourtScreenState extends State<AddCourtScreen> {
     if (_formKey.currentState!.validate()) {
       final newCourt = {
         'name': _nameController.text,
-        'location': _locationController.text,
+        'description': _descriptionController.text,
+        'address': _addressController.text,
+        'city': _cityController.text,
+        'state': _stateController.text,
+        'zipCode': _zipController.text,
         'sport': _selectedSport,
-        'price': _priceController.text,
+        'pricePerHour': double.tryParse(_priceController.text) ?? 0,
         'image': _pickedImage?.path ?? _selectedAssetImage,
-        'facilities': _facilities.entries
-            .where((e) => e.value)
-            .map((e) => e.key)
-            .toList(),
-        'rating': 0.0,
-        'bookings': 0,
+        'amenities':
+            _amenities.entries.where((e) => e.value).map((e) => e.key).toList(),
+        'status': widget.court == null
+            ? 'PENDING_APPROVAL'
+            : (_isActive ? 'ACTIVE' : 'INACTIVE'),
       };
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Court added successfully!"),
+        SnackBar(
+          content: Text(widget.court == null
+              ? "Court submitted for approval!"
+              : "Court updated successfully!"),
           backgroundColor: Colors.green,
         ),
       );
@@ -69,12 +107,14 @@ class _AddCourtScreenState extends State<AddCourtScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isEditing = widget.court != null;
+
     return Scaffold(
       backgroundColor: AppColors.backgroundBeige,
       appBar: AppBar(
-        title: const Text(
-          "Add New Court",
-          style: TextStyle(color: Colors.white),
+        title: Text(
+          isEditing ? "Edit Court" : "Add New Court",
+          style: const TextStyle(color: Colors.white),
         ),
         backgroundColor: AppColors.primaryColor,
         iconTheme: const IconThemeData(color: Colors.white),
@@ -86,32 +126,43 @@ class _AddCourtScreenState extends State<AddCourtScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Court Name
-              _buildTextField(_nameController, "Court Name"),
+              // Name
+              _buildTextField(_nameController, "Court Name", 3, 100),
               const SizedBox(height: 16),
 
-              // Location
-              _buildTextField(_locationController, "Location"),
+              // Description
+              _buildTextField(_descriptionController, "Description", 0, 500,
+                  maxLines: 3, optional: true),
               const SizedBox(height: 16),
 
-              // Sport Selector
+              // Address
+              _buildTextField(_addressController, "Address", 3, 200),
+              const SizedBox(height: 12),
+              _buildTextField(_cityController, "City", 2, 100),
+              const SizedBox(height: 12),
+              _buildTextField(_stateController, "State", 2, 50),
+              const SizedBox(height: 12),
+              _buildTextField(_zipController, "Zip Code", 5, 10,
+                  regex: r'^\d{5}(-\d{4})?$'),
+              const SizedBox(height: 16),
+
+              // Sport
               Text("Select Sport", style: _headingStyle()),
               const SizedBox(height: 8),
               _buildSportSelector(),
               const SizedBox(height: 16),
 
               // Price
-              _buildTextField(_priceController, "Price per hour (PKR)",
+              _buildTextField(
+                  _priceController, "Price per hour (PKR)", 1, 999999,
                   keyboardType: TextInputType.number),
               const SizedBox(height: 16),
 
-              // Image Picker
+              // Images
               Text("Select Image", style: _headingStyle()),
               const SizedBox(height: 8),
               _buildImagePicker(),
-              const SizedBox(height: 16),
-
-              // Pick from Gallery
+              const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
@@ -126,10 +177,29 @@ class _AddCourtScreenState extends State<AddCourtScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Facilities
-              Text("Facilities", style: _headingStyle()),
+              // Amenities
+              Text("Amenities", style: _headingStyle()),
               const SizedBox(height: 8),
-              _buildFacilitiesChips(),
+              _buildAmenitiesChips(),
+              const SizedBox(height: 16),
+
+              // ACTIVE / INACTIVE toggle (only for editing)
+              if (isEditing)
+                Row(
+                  children: [
+                    const Text("Status:",
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(width: 12),
+                    Switch(
+                        value: _isActive,
+                        activeColor: AppColors.primaryColor,
+                        onChanged: (val) {
+                          setState(() => _isActive = val);
+                        }),
+                    Text(_isActive ? "ACTIVE" : "INACTIVE")
+                  ],
+                ),
+
               const SizedBox(height: 24),
 
               // Submit Button
@@ -142,12 +212,10 @@ class _AddCourtScreenState extends State<AddCourtScreen> {
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16)),
                     backgroundColor: AppColors.primaryColor,
-                    shadowColor: Colors.black54,
-                    elevation: 6,
                   ),
-                  child: const Text(
-                    "Add Court",
-                    style: TextStyle(fontSize: 18, color: Colors.white),
+                  child: Text(
+                    isEditing ? "Update Court" : "Submit Court",
+                    style: const TextStyle(fontSize: 18, color: Colors.white),
                   ),
                 ),
               ),
@@ -164,26 +232,34 @@ class _AddCourtScreenState extends State<AddCourtScreen> {
       const TextStyle(fontSize: 16, fontWeight: FontWeight.bold);
 
   Widget _buildTextField(TextEditingController controller, String label,
-      {TextInputType keyboardType = TextInputType.text}) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: const [
-          BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))
-        ],
+      int minLength, int maxLength,
+      {TextInputType keyboardType = TextInputType.text,
+      int maxLines = 1,
+      String? regex,
+      bool optional = false}) {
+    return TextFormField(
+      controller: controller,
+      maxLines: maxLines,
+      keyboardType: keyboardType,
+      decoration: InputDecoration(
+        labelText: label,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        filled: true,
+        fillColor: Colors.white,
       ),
-      child: TextFormField(
-        controller: controller,
-        keyboardType: keyboardType,
-        decoration: InputDecoration(
-          labelText: label,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        ),
-        validator: (val) => val!.isEmpty ? "Please enter $label" : null,
-      ),
+      validator: (val) {
+        if (optional && (val == null || val.isEmpty)) return null;
+        if (val == null || val.isEmpty) return "Please enter $label";
+        if (val.length < minLength)
+          return "$label should be at least $minLength characters";
+        if (val.length > maxLength)
+          return "$label should be at most $maxLength characters";
+        if (regex != null && !RegExp(regex).hasMatch(val))
+          return "Invalid $label format";
+        return null;
+      },
     );
   }
 
@@ -228,7 +304,6 @@ class _AddCourtScreenState extends State<AddCourtScreen> {
     return Wrap(
       spacing: 12,
       children: [
-        // Asset images
         ...assetImages.map((img) {
           bool selected = _selectedAssetImage == img;
           return GestureDetector(
@@ -259,8 +334,6 @@ class _AddCourtScreenState extends State<AddCourtScreen> {
             ),
           );
         }).toList(),
-
-        // Picked gallery image preview
         if (_pickedImage != null)
           Container(
             width: 100,
@@ -275,11 +348,11 @@ class _AddCourtScreenState extends State<AddCourtScreen> {
     );
   }
 
-  Widget _buildFacilitiesChips() {
+  Widget _buildAmenitiesChips() {
     return Wrap(
       spacing: 12,
-      children: _facilities.keys.map((facility) {
-        bool selected = _facilities[facility]!;
+      children: _amenities.keys.map((facility) {
+        bool selected = _amenities[facility]!;
         return FilterChip(
           label: Text(facility),
           selected: selected,
@@ -287,7 +360,7 @@ class _AddCourtScreenState extends State<AddCourtScreen> {
           backgroundColor: Colors.grey[200],
           labelStyle:
               TextStyle(color: selected ? Colors.white : Colors.black87),
-          onSelected: (val) => setState(() => _facilities[facility] = val),
+          onSelected: (val) => setState(() => _amenities[facility] = val),
         );
       }).toList(),
     );

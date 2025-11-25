@@ -11,52 +11,85 @@ class ReportsScreen extends StatefulWidget {
 class _ReportsScreenState extends State<ReportsScreen> {
   List<Map<String, dynamic>> reports = [
     {
-      'user': 'Ali Ahmed',
-      'type': 'Court Issue',
-      'details': 'Court lights not working properly.',
-      'date': '2025-11-15',
-      'status': 'Pending',
+      'id': 'R001',
+      'type': 'USER',
+      'message': 'Player was aggressive on court.',
+      'reportedUserId': 'U123',
+      'reportedCourtId': null,
+      'status': 'PENDING',
+      'reporterId': 'U456',
+      'createdAt': '2025-11-15',
     },
     {
-      'user': 'Sara Khan',
-      'type': 'Booking Issue',
-      'details': 'Double booking occurred for my slot.',
-      'date': '2025-11-14',
-      'status': 'Resolved',
+      'id': 'R002',
+      'type': 'COURT',
+      'message': 'Court lighting not working.',
+      'reportedUserId': null,
+      'reportedCourtId': 'C789',
+      'status': 'RESOLVED',
+      'reporterId': 'U321',
+      'createdAt': '2025-11-14',
     },
     {
-      'user': 'Omar Riaz',
-      'type': 'Player Misconduct',
-      'details': 'Other player was aggressive and unsafe.',
-      'date': '2025-11-13',
-      'status': 'Pending',
+      'id': 'R003',
+      'type': 'BOOKING',
+      'message': 'Double booking occurred.',
+      'reportedUserId': 'U987',
+      'reportedCourtId': 'C654',
+      'status': 'PENDING',
+      'reporterId': 'U321',
+      'createdAt': '2025-11-13',
     },
   ];
 
-  void _markResolved(int index) {
-    setState(() {
-      reports[index]['status'] = 'Resolved';
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-          content:
-              Text('Report by ${reports[index]['user']} marked as resolved')),
-    );
-  }
+  void _resolveReport(int index) {
+    final report = reports[index];
+    TextEditingController actionController = TextEditingController();
+    TextEditingController notesController = TextEditingController();
 
-  void _viewDetails(int index) {
     showDialog(
       context: context,
       builder: (_) {
-        final report = reports[index];
         return AlertDialog(
-          title: Text('${report['type']} by ${report['user']}'),
-          content: Text(report['details']),
+          title: Text('Resolve Report: ${report['id']}'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: actionController,
+                decoration: const InputDecoration(
+                  labelText: 'Action (e.g., Warning issued, Block user)',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: notesController,
+                decoration: const InputDecoration(
+                  labelText: 'Notes (optional)',
+                ),
+              ),
+            ],
+          ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Close'),
-            )
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel')),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryColor),
+              onPressed: () {
+                setState(() {
+                  reports[index]['status'] = 'RESOLVED';
+                  reports[index]['action'] = actionController.text;
+                  reports[index]['notes'] = notesController.text;
+                });
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content:
+                        Text('Report ${report['id']} marked as resolved')));
+              },
+              child: const Text('Resolve'),
+            ),
           ],
         );
       },
@@ -67,10 +100,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Reports & Complaints',
-          style: TextStyle(color: Colors.white),
-        ),
+        title: const Text('Reports & Complaints',
+            style: TextStyle(color: Colors.white)),
         backgroundColor: AppColors.primaryColor,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
@@ -82,9 +113,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
               separatorBuilder: (_, __) => const SizedBox(height: 12),
               itemBuilder: (context, index) {
                 final report = reports[index];
-                Color statusColor = report['status'] == 'Resolved'
+                Color statusColor = report['status'] == 'RESOLVED'
                     ? Colors.green
-                    : Colors.orange;
+                    : report['status'] == 'DISMISSED'
+                        ? Colors.grey
+                        : Colors.orange;
 
                 return Card(
                   shape: RoundedRectangleBorder(
@@ -95,15 +128,24 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('${report['type']}',
+                        Text('${report['type']} Report (${report['id']})',
                             style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
                                 color: AppColors.headingBlue)),
                         const SizedBox(height: 4),
-                        Text('Reported by: ${report['user']}',
+                        Text('Message: ${report['message']}',
                             style: const TextStyle(color: Colors.grey)),
-                        Text('Date: ${report['date']}',
+                        if (report['reportedUserId'] != null)
+                          Text('Reported User ID: ${report['reportedUserId']}',
+                              style: const TextStyle(color: Colors.grey)),
+                        if (report['reportedCourtId'] != null)
+                          Text(
+                              'Reported Court ID: ${report['reportedCourtId']}',
+                              style: const TextStyle(color: Colors.grey)),
+                        Text('Reporter ID: ${report['reporterId']}',
+                            style: const TextStyle(color: Colors.grey)),
+                        Text('Created At: ${report['createdAt']}',
                             style: const TextStyle(color: Colors.grey)),
                         const SizedBox(height: 8),
                         Row(
@@ -123,14 +165,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
                             Wrap(
                               spacing: 8,
                               children: [
-                                TextButton.icon(
-                                  onPressed: () => _viewDetails(index),
-                                  icon: const Icon(Icons.visibility, size: 18),
-                                  label: const Text('View'),
-                                ),
-                                if (report['status'] != 'Resolved')
+                                if (report['status'] == 'PENDING')
                                   TextButton.icon(
-                                    onPressed: () => _markResolved(index),
+                                    onPressed: () => _resolveReport(index),
                                     icon: const Icon(Icons.check_circle,
                                         size: 18),
                                     label: const Text('Resolve'),

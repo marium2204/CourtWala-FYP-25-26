@@ -7,27 +7,6 @@ import 'owner_profile_edit.dart';
 class CourtOwnerProfileScreen extends StatelessWidget {
   const CourtOwnerProfileScreen({super.key});
 
-  static const List<Map<String, String>> recentBookings = [
-    {
-      "player": "Ali Ahmed",
-      "court": "Elite Badminton Arena",
-      "status": "Confirmed",
-      "date": "Nov 12"
-    },
-    {
-      "player": "Saad Khan",
-      "court": "Champions Cricket Ground",
-      "status": "Pending",
-      "date": "Nov 14"
-    },
-    {
-      "player": "Hassan Tariq",
-      "court": "Padel Court Central",
-      "status": "Completed",
-      "date": "Nov 16"
-    },
-  ];
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -61,98 +40,21 @@ class CourtOwnerProfileScreen extends StatelessWidget {
           ),
           const SizedBox(height: 16),
 
-          // ===== STAT CARDS =====
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          // ===== STAT CARDS GRID =====
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
             children: [
               _statCard("Total Courts", "3", AppColors.primaryColor,
-                  width: 80, fontSize: 16),
-              _statCard("Active Bookings", "5", Colors.orange,
-                  width: 80, fontSize: 16),
-              _statCardWithArrow("Completed", "12", Colors.green,
-                  width: 80, fontSize: 16),
-              _statCard("Cancelled %", "10%", AppColors.accentColor,
-                  width: 80, fontSize: 16),
+                  width: 100),
+              _statCard("Total Bookings", "20", Colors.orange, width: 100),
+              _statCard("Pending Bookings", "5", Colors.redAccent, width: 100),
+              _statCard("Approved Bookings", "15", Colors.green, width: 100),
+              _statCard("Total Revenue", "\$12,500", AppColors.primaryColor,
+                  width: 100),
+              _statCard("Monthly Revenue", "\$2,300", Colors.orange,
+                  width: 100),
             ],
-          ),
-          const SizedBox(height: 16),
-
-          // ===== PIE CHART: Booking Status =====
-          Card(
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            elevation: 4,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "Booking Status",
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.headingBlue,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Center(
-                    child: SizedBox(
-                      height: 180,
-                      child: PieChart(
-                        PieChartData(
-                          sections: [
-                            PieChartSectionData(
-                              value: 5,
-                              color: AppColors.primaryColor,
-                              radius: 60,
-                              title: "5",
-                              titleStyle: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14),
-                            ),
-                            PieChartSectionData(
-                              value: 2,
-                              color: Colors.orange,
-                              radius: 60,
-                              title: "2",
-                              titleStyle: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14),
-                            ),
-                            PieChartSectionData(
-                              value: 1,
-                              color: Colors.red,
-                              radius: 60,
-                              title: "1",
-                              titleStyle: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14),
-                            ),
-                          ],
-                          sectionsSpace: 4,
-                          centerSpaceRadius: 30,
-                          borderData: FlBorderData(show: false),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  // ===== LEGEND =====
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _buildLegend(AppColors.primaryColor, "Confirmed"),
-                      _buildLegend(Colors.orange, "Pending"),
-                      _buildLegend(Colors.red, "Cancelled"),
-                    ],
-                  ),
-                ],
-              ),
-            ),
           ),
           const SizedBox(height: 16),
 
@@ -232,51 +134,85 @@ class CourtOwnerProfileScreen extends StatelessWidget {
           ),
           const SizedBox(height: 16),
 
-          // ===== RECENT BOOKINGS =====
-          const Text("Recent Bookings",
-              style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.headingBlue)),
-          const SizedBox(height: 8),
-          Column(
-            children: recentBookings.map((booking) {
-              final bool isConfirmed = booking["status"] == "Confirmed";
-              return Card(
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
-                elevation: 2,
-                margin: const EdgeInsets.only(bottom: 8),
-                child: ListTile(
-                  contentPadding:
-                      const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
-                  leading: CircleAvatar(
-                    backgroundColor:
-                        isConfirmed ? AppColors.primaryColor : Colors.orange,
-                    child: Text(booking["player"]![0],
-                        style: const TextStyle(
-                            color: Colors.white, fontWeight: FontWeight.bold)),
+          // ===== PIE CHART: Booking Status =====
+          Card(
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            elevation: 4,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Booking Status",
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.headingBlue,
+                    ),
                   ),
-                  title: Text(booking["player"]!,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                          color: AppColors.headingBlue)),
-                  subtitle: Text("${booking["court"]} • ${booking["date"]}",
-                      style: const TextStyle(color: Colors.grey, fontSize: 12)),
-                  trailing: Text(booking["status"]!,
-                      style: TextStyle(
-                          color: isConfirmed
-                              ? AppColors.primaryColor
-                              : Colors.orange,
-                          fontWeight: FontWeight.bold)),
-                ),
-              );
-            }).toList(),
+                  const SizedBox(height: 16),
+                  Center(
+                    child: SizedBox(
+                      height: 180,
+                      child: PieChart(
+                        PieChartData(
+                          sections: [
+                            PieChartSectionData(
+                              value: 5,
+                              color: AppColors.primaryColor,
+                              radius: 60,
+                              title: "5",
+                              titleStyle: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14),
+                            ),
+                            PieChartSectionData(
+                              value: 2,
+                              color: Colors.orange,
+                              radius: 60,
+                              title: "2",
+                              titleStyle: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14),
+                            ),
+                            PieChartSectionData(
+                              value: 1,
+                              color: Colors.red,
+                              radius: 60,
+                              title: "1",
+                              titleStyle: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14),
+                            ),
+                          ],
+                          sectionsSpace: 4,
+                          centerSpaceRadius: 30,
+                          borderData: FlBorderData(show: false),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildLegend(AppColors.primaryColor, "Confirmed"),
+                      _buildLegend(Colors.orange, "Pending"),
+                      _buildLegend(Colors.red, "Cancelled"),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           ),
           const SizedBox(height: 16),
 
-          // ===== BUTTONS =====
+          // ===== PROFILE ACTIONS =====
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
@@ -329,7 +265,7 @@ class CourtOwnerProfileScreen extends StatelessWidget {
 
   // ===== STAT CARD =====
   Widget _statCard(String title, String value, Color color,
-      {double width = 80, double fontSize = 16}) {
+      {double width = 100, double fontSize = 16}) {
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       elevation: 3,
@@ -349,41 +285,6 @@ class CourtOwnerProfileScreen extends StatelessWidget {
                     fontSize: fontSize,
                     fontWeight: FontWeight.bold,
                     color: color)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ===== STAT CARD WITH ARROW =====
-  Widget _statCardWithArrow(String title, String value, Color color,
-      {double width = 80, double fontSize = 16}) {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      elevation: 3,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        width: width,
-        child: Column(
-          children: [
-            Text(title,
-                style: const TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey,
-                    fontWeight: FontWeight.w500)),
-            const SizedBox(height: 4),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(value,
-                    style: TextStyle(
-                        fontSize: fontSize,
-                        fontWeight: FontWeight.bold,
-                        color: color)),
-                const SizedBox(width: 2),
-                const Icon(Icons.arrow_forward, size: 12, color: Colors.grey),
-              ],
-            ),
           ],
         ),
       ),

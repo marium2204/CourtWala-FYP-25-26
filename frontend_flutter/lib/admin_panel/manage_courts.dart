@@ -12,60 +12,122 @@ class _ManageCourtsScreenState extends State<ManageCourtsScreen> {
   List<Map<String, dynamic>> courts = [
     {
       'name': 'Elite Badminton Arena',
-      'location': 'Downtown',
-      'status': 'Enabled',
-      'bookings': 15,
+      'description': 'Indoor badminton court with modern facilities.',
+      'address': '123 Downtown St.',
+      'city': 'Downtown',
+      'state': 'CA',
+      'zipCode': '90001',
+      'sport': 'Badminton',
+      'pricePerHour': 30,
+      'amenities': ['Shower', 'Parking', 'Locker'],
+      'images': ['https://via.placeholder.com/100'],
+      'status': 'PENDING_APPROVAL',
+      'ownerId': 'Owner A',
     },
     {
       'name': 'City Tennis Court',
-      'location': 'Uptown',
-      'status': 'Disabled',
-      'bookings': 5,
-    },
-    {
-      'name': 'Green Valley Sports Center',
-      'location': 'Suburbs',
-      'status': 'Enabled',
-      'bookings': 8,
-    },
-    {
-      'name': 'Sunrise Indoor Court',
-      'location': 'City Center',
-      'status': 'Enabled',
-      'bookings': 3,
+      'description': 'Outdoor tennis court open to all members.',
+      'address': '456 Uptown Ave.',
+      'city': 'Uptown',
+      'state': 'CA',
+      'zipCode': '90002',
+      'sport': 'Tennis',
+      'pricePerHour': 25,
+      'amenities': ['Parking'],
+      'images': ['https://via.placeholder.com/100'],
+      'status': 'ACTIVE',
+      'ownerId': 'Owner B',
     },
   ];
 
-  void _enableCourt(int index) {
-    setState(() {
-      courts[index]['status'] = 'Enabled';
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${courts[index]['name']} enabled')),
-    );
-  }
+  void _updateCourtStatus(int index) {
+    final court = courts[index];
+    String selectedStatus = court['status'];
+    TextEditingController reasonController =
+        TextEditingController(text: court['reason'] ?? '');
 
-  void _disableCourt(int index) {
-    setState(() {
-      courts[index]['status'] = 'Disabled';
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${courts[index]['name']} disabled')),
-    );
-  }
-
-  void _viewBookings(int index) {
     showDialog(
       context: context,
       builder: (_) {
         return AlertDialog(
-          title: Text('${courts[index]['name']} - Bookings'),
-          content:
-              Text('This court has ${courts[index]['bookings']} booking(s).'),
+          title: Text('Update Court Status'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<String>(
+                value: selectedStatus,
+                decoration: const InputDecoration(labelText: 'Status'),
+                items: const [
+                  DropdownMenuItem(value: 'ACTIVE', child: Text('ACTIVE')),
+                  DropdownMenuItem(value: 'INACTIVE', child: Text('INACTIVE')),
+                  DropdownMenuItem(value: 'REJECTED', child: Text('REJECTED')),
+                  DropdownMenuItem(
+                      value: 'PENDING_APPROVAL',
+                      child: Text('PENDING_APPROVAL')),
+                ],
+                onChanged: (value) {
+                  if (value != null) selectedStatus = value;
+                },
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: reasonController,
+                decoration: const InputDecoration(
+                  labelText: 'Reason (optional)',
+                ),
+              ),
+            ],
+          ),
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Close')),
+                child: const Text('Cancel')),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryColor),
+              onPressed: () {
+                setState(() {
+                  courts[index]['status'] = selectedStatus;
+                  courts[index]['reason'] = reasonController.text;
+                });
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text(
+                        '${courts[index]['name']} status updated to $selectedStatus')));
+              },
+              child: const Text('Update'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _deleteCourt(int index) {
+    showDialog(
+      context: context,
+      builder: (_) {
+        return AlertDialog(
+          title: const Text('Delete Court'),
+          content:
+              Text('Are you sure you want to delete ${courts[index]['name']}?'),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel')),
+            ElevatedButton(
+              style:
+                  ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+              onPressed: () {
+                setState(() {
+                  courts.removeAt(index);
+                });
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: const Text('Court deleted successfully')));
+              },
+              child: const Text('Delete'),
+            ),
           ],
         );
       },
@@ -118,7 +180,13 @@ class _ManageCourtsScreenState extends State<ManageCourtsScreen> {
                                           fontSize: 16,
                                           color: AppColors.headingBlue)),
                                   const SizedBox(height: 4),
-                                  Text(court['location'],
+                                  Text(
+                                      '${court['sport']} | \$${court['pricePerHour']}/hr',
+                                      style:
+                                          const TextStyle(color: Colors.grey)),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                      '${court['address']}, ${court['city']}, ${court['state']} - ${court['zipCode']}',
                                       style:
                                           const TextStyle(color: Colors.grey)),
                                 ],
@@ -128,15 +196,23 @@ class _ManageCourtsScreenState extends State<ManageCourtsScreen> {
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
-                                  color: court['status'] == 'Enabled'
+                                  color: court['status'] == 'ACTIVE'
                                       ? Colors.green[100]
-                                      : Colors.red[100],
+                                      : court['status'] == 'INACTIVE'
+                                          ? Colors.orange[100]
+                                          : court['status'] == 'REJECTED'
+                                              ? Colors.red[100]
+                                              : Colors.grey[200],
                                   borderRadius: BorderRadius.circular(8)),
                               child: Text(court['status'],
                                   style: TextStyle(
-                                      color: court['status'] == 'Enabled'
+                                      color: court['status'] == 'ACTIVE'
                                           ? Colors.green[800]
-                                          : Colors.red[800],
+                                          : court['status'] == 'INACTIVE'
+                                              ? Colors.orange[800]
+                                              : court['status'] == 'REJECTED'
+                                                  ? Colors.red[800]
+                                                  : Colors.grey[800],
                                       fontWeight: FontWeight.bold,
                                       fontSize: 12)),
                             ),
@@ -147,22 +223,17 @@ class _ManageCourtsScreenState extends State<ManageCourtsScreen> {
                           spacing: 8,
                           children: [
                             TextButton.icon(
-                              onPressed: () => _viewBookings(index),
-                              icon: const Icon(Icons.calendar_today, size: 18),
-                              label: const Text('View Bookings'),
+                              onPressed: () => _updateCourtStatus(index),
+                              icon: const Icon(Icons.edit, size: 18),
+                              label: const Text('Update Status'),
                             ),
-                            if (court['status'] != 'Enabled')
-                              TextButton.icon(
-                                onPressed: () => _enableCourt(index),
-                                icon: const Icon(Icons.check_circle, size: 18),
-                                label: const Text('Enable'),
-                              ),
-                            if (court['status'] != 'Disabled')
-                              TextButton.icon(
-                                onPressed: () => _disableCourt(index),
-                                icon: const Icon(Icons.block, size: 18),
-                                label: const Text('Disable'),
-                              ),
+                            TextButton.icon(
+                              onPressed: () => _deleteCourt(index),
+                              icon: const Icon(Icons.delete, size: 18),
+                              label: const Text('Delete'),
+                              style: TextButton.styleFrom(
+                                  foregroundColor: Colors.redAccent),
+                            ),
                           ],
                         ),
                       ],

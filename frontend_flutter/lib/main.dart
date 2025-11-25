@@ -1,7 +1,9 @@
-import 'package:courtwala/Admin_Panel/admin_home.dart';
+//import 'package:courtwala/Admin_Panel/admin_home.dart';
 import 'package:courtwala/Authentication_screens/splash_screen.dart';
 import 'package:courtwala/Owner_Panel/owner_home.dart';
-import 'package:courtwala/Player_Panel/player_home.dart';
+import 'package:courtwala/admin_panel/admin_home.dart';
+//import 'package:courtwala/Owner_Panel/owner_home.dart';
+//import 'package:courtwala/Player_Panel/player_home.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 //import 'package:courtwala/Player_Panel/player_home.dart';
@@ -23,7 +25,7 @@ class CourtWalaApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return const MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: AdminHomeScreen(),
+      home: CourtOwnerHomeScreen(),
     );
   }
 }
