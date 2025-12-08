@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate, authorize } = require('../middleware/AuthMiddleware');
+const { uploadMultiple } = require('../utils/FileUpload');
+const { asyncHandler } = require('../utils/ErrorHandler');
 
 // Controllers
 const DashboardController = require('../controllers/Owner/DashboardController');
@@ -14,12 +16,25 @@ router.use(authorize('COURT_OWNER'));
 // Dashboard routes
 router.get('/dashboard', DashboardController.getStats);
 
+// Multer error handler wrapper
+const handleFileUpload = (uploadMiddleware) => {
+  return (req, res, next) => {
+    uploadMiddleware(req, res, (err) => {
+      if (err) {
+        // Multer errors are passed to error handler
+        return next(err);
+      }
+      next();
+    });
+  };
+};
+
 // Court routes
 const { validateCreateCourt, validateUpdateCourt } = require('../validators/CourtValidator');
 router.get('/courts', CourtController.getMyCourts);
-router.post('/courts', validateCreateCourt, CourtController.create);
+router.post('/courts', handleFileUpload(uploadMultiple('images', 10)), validateCreateCourt, CourtController.create);
 router.get('/courts/:id', CourtController.getById);
-router.put('/courts/:id', validateUpdateCourt, CourtController.update);
+router.put('/courts/:id', handleFileUpload(uploadMultiple('images', 10)), validateUpdateCourt, CourtController.update);
 router.delete('/courts/:id', CourtController.delete);
 
 // Booking routes

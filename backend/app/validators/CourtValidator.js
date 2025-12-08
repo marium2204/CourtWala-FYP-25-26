@@ -53,16 +53,49 @@ const validateCreateCourt = [
   body('pricePerHour')
     .notEmpty()
     .withMessage('Price per hour is required')
+    .customSanitizer((value) => {
+      // Trim if it's a string (from multipart/form-data)
+      if (typeof value === 'string') {
+        return value.trim();
+      }
+      return value;
+    })
     .isFloat({ min: 0 })
     .withMessage('Price per hour must be a positive number'),
   body('amenities')
     .optional()
+    .customSanitizer((value) => {
+      // Handle string arrays from multipart/form-data
+      if (typeof value === 'string') {
+        try {
+          return JSON.parse(value);
+        } catch {
+          // If not JSON, treat as comma-separated
+          return value.split(',').map(item => item.trim()).filter(item => item);
+        }
+      }
+      return value;
+    })
     .isArray()
     .withMessage('Amenities must be an array'),
   body('images')
     .optional()
-    .isArray()
-    .withMessage('Images must be an array'),
+    .customSanitizer((value) => {
+      // Images are handled by multer, so this is just for validation
+      // If it's an array of file objects from multer, return as is
+      if (Array.isArray(value)) {
+        return value;
+      }
+      // If it's a string (from form data), try to parse
+      if (typeof value === 'string') {
+        try {
+          return JSON.parse(value);
+        } catch {
+          return [];
+        }
+      }
+      return value;
+    }),
   body('description')
     .optional()
     .trim()
@@ -116,16 +149,47 @@ const validateUpdateCourt = [
     .withMessage('Sport must be between 2 and 50 characters'),
   body('pricePerHour')
     .optional()
+    .customSanitizer((value) => {
+      // Trim if it's a string (from multipart/form-data)
+      if (typeof value === 'string') {
+        return value.trim();
+      }
+      return value;
+    })
     .isFloat({ min: 0 })
     .withMessage('Price per hour must be a positive number'),
   body('amenities')
     .optional()
+    .customSanitizer((value) => {
+      // Handle string arrays from multipart/form-data
+      if (typeof value === 'string') {
+        try {
+          return JSON.parse(value);
+        } catch {
+          // If not JSON, treat as comma-separated
+          return value.split(',').map(item => item.trim()).filter(item => item);
+        }
+      }
+      return value;
+    })
     .isArray()
     .withMessage('Amenities must be an array'),
   body('images')
     .optional()
-    .isArray()
-    .withMessage('Images must be an array'),
+    .customSanitizer((value) => {
+      // Images are handled by multer, so this is just for validation
+      if (Array.isArray(value)) {
+        return value;
+      }
+      if (typeof value === 'string') {
+        try {
+          return JSON.parse(value);
+        } catch {
+          return [];
+        }
+      }
+      return value;
+    }),
   body('description')
     .optional()
     .trim()
