@@ -1,41 +1,30 @@
-# Use Node.js LTS version
+# Use Node.js LTS
 FROM node:18-alpine
 
 # Set working directory
 WORKDIR /app
 
 # Install dependencies needed for Prisma and native modules
-RUN apk add --no-cache openssl libc6-compat
+RUN apk add --no-cache openssl libc6-compat bash
 
-# Copy package files
+# Copy package files first (for caching npm install)
 COPY package*.json ./
 
-# Install all dependencies (including dev dependencies for Prisma CLI)
+# Install all dependencies (including dev)
 RUN npm ci
 
-# Copy Prisma schema
+# Copy Prisma schema and generate client
 COPY prisma ./prisma
-
-# Generate Prisma Client
 RUN npx prisma generate
 
-# Copy application code
+# Copy application source code
 COPY . .
 
-# Create uploads directory
+# Create uploads folder
 RUN mkdir -p uploads
 
-# Copy entrypoint script
-COPY docker-entrypoint.sh ./
-RUN chmod +x docker-entrypoint.sh
-
-# Expose port
+# Expose app port
 EXPOSE 3000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
-
-# Use entrypoint script
-ENTRYPOINT ["./docker-entrypoint.sh"]
-
+# Default command for development
+CMD ["npm", "run", "dev"]

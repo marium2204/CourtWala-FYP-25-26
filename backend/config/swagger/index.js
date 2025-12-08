@@ -218,6 +218,7 @@ const options = {
       { name: 'Owner', description: 'Court owner endpoints' },
       { name: 'Player', description: 'Player endpoints' },
       { name: 'Notifications', description: 'Notification endpoints' },
+      { name: 'AI Chatbot', description: 'Chatbot endpoint for sports and court questions' },
     ],
   },
   apis: [
@@ -227,6 +228,8 @@ const options = {
     './config/swagger/owner/*.js',
     './config/swagger/player/*.js',
     './config/swagger/notifications.js',
+    './app/routes/chat.js',
+
   ],
 };
 

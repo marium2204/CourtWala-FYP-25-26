@@ -145,6 +145,10 @@ app.use('/api/player', require('./app/routes/player'));
 app.use('/api/owner', require('./app/routes/owner'));
 app.use('/api/admin', require('./app/routes/admin'));
 app.use('/api/notifications', require('./app/routes/notifications'));
+const chatRoutes = require('./app/routes/chat');
+app.use('/api/chat', chatRoutes);
+
+
 
 // Serve uploaded files
 app.use('/uploads', express.static('uploads'));
