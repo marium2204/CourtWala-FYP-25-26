@@ -1,142 +1,120 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../theme/colors.dart';
+import '../services/api_service.dart';
+
+class Court {
+  final String id;
+  final String name;
+  final String sport;
+  String status;
+
+  Court({
+    required this.id,
+    required this.name,
+    required this.sport,
+    required this.status,
+  });
+
+  factory Court.fromJson(Map<String, dynamic> json) {
+    return Court(
+      id: json['id'],
+      name: json['name'],
+      sport: json['sport'],
+      status: json['status'],
+    );
+  }
+}
 
 class ManageCourtsScreen extends StatefulWidget {
-  const ManageCourtsScreen({super.key});
+  final String adminToken;
+
+  const ManageCourtsScreen({super.key, required this.adminToken});
 
   @override
   State<ManageCourtsScreen> createState() => _ManageCourtsScreenState();
 }
 
 class _ManageCourtsScreenState extends State<ManageCourtsScreen> {
-  List<Map<String, dynamic>> courts = [
-    {
-      'name': 'Elite Badminton Arena',
-      'description': 'Indoor badminton court with modern facilities.',
-      'address': '123 Downtown St.',
-      'city': 'Downtown',
-      'state': 'CA',
-      'zipCode': '90001',
-      'sport': 'Badminton',
-      'pricePerHour': 30,
-      'amenities': ['Shower', 'Parking', 'Locker'],
-      'images': ['https://via.placeholder.com/100'],
-      'status': 'PENDING_APPROVAL',
-      'ownerId': 'Owner A',
-    },
-    {
-      'name': 'City Tennis Court',
-      'description': 'Outdoor tennis court open to all members.',
-      'address': '456 Uptown Ave.',
-      'city': 'Uptown',
-      'state': 'CA',
-      'zipCode': '90002',
-      'sport': 'Tennis',
-      'pricePerHour': 25,
-      'amenities': ['Parking'],
-      'images': ['https://via.placeholder.com/100'],
-      'status': 'ACTIVE',
-      'ownerId': 'Owner B',
-    },
-  ];
+  List<Court> courts = [];
+  bool isLoading = true;
 
-  void _updateCourtStatus(int index) {
-    final court = courts[index];
-    String selectedStatus = court['status'];
-    TextEditingController reasonController =
-        TextEditingController(text: court['reason'] ?? '');
-
-    showDialog(
-      context: context,
-      builder: (_) {
-        return AlertDialog(
-          title: Text('Update Court Status'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              DropdownButtonFormField<String>(
-                value: selectedStatus,
-                decoration: const InputDecoration(labelText: 'Status'),
-                items: const [
-                  DropdownMenuItem(value: 'ACTIVE', child: Text('ACTIVE')),
-                  DropdownMenuItem(value: 'INACTIVE', child: Text('INACTIVE')),
-                  DropdownMenuItem(value: 'REJECTED', child: Text('REJECTED')),
-                  DropdownMenuItem(
-                      value: 'PENDING_APPROVAL',
-                      child: Text('PENDING_APPROVAL')),
-                ],
-                onChanged: (value) {
-                  if (value != null) selectedStatus = value;
-                },
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: reasonController,
-                decoration: const InputDecoration(
-                  labelText: 'Reason (optional)',
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel')),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryColor),
-              onPressed: () {
-                setState(() {
-                  courts[index]['status'] = selectedStatus;
-                  courts[index]['reason'] = reasonController.text;
-                });
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text(
-                        '${courts[index]['name']} status updated to $selectedStatus')));
-              },
-              child: const Text('Update'),
-            ),
-          ],
-        );
-      },
-    );
+  @override
+  void initState() {
+    super.initState();
+    _fetchCourts();
   }
 
-  void _deleteCourt(int index) {
-    showDialog(
-      context: context,
-      builder: (_) {
-        return AlertDialog(
-          title: const Text('Delete Court'),
-          content:
-              Text('Are you sure you want to delete ${courts[index]['name']}?'),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel')),
-            ElevatedButton(
-              style:
-                  ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
-              onPressed: () {
-                setState(() {
-                  courts.removeAt(index);
-                });
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: const Text('Court deleted successfully')));
-              },
-              child: const Text('Delete'),
-            ),
-          ],
+  Future<void> _fetchCourts() async {
+    try {
+      final res = await ApiService.get(
+        '/admin/courts',
+        widget.adminToken,
+      );
+
+      if (res.statusCode == 200) {
+        final decoded = jsonDecode(res.body);
+        final List list = decoded['data']['courts'] ?? [];
+
+        setState(() {
+          courts = list.map((e) => Court.fromJson(e)).toList();
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Fetch courts error: $e');
+      setState(() => isLoading = false);
+    }
+  }
+
+  Future<void> _updateCourtStatus(
+    Court court,
+    String status, {
+    String? reason,
+  }) async {
+    try {
+      final res = await ApiService.put(
+        '/admin/courts/${court.id}/status',
+        widget.adminToken,
+        {
+          'status': status,
+          if (reason != null) 'reason': reason,
+        },
+      );
+
+      if (res.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Court ${status.toLowerCase()} successfully')),
         );
-      },
-    );
+        _fetchCourts(); // refresh list from DB
+      }
+    } catch (e) {
+      debugPrint('Update court status error: $e');
+    }
+  }
+
+  Color _statusColor(String status) {
+    switch (status) {
+      case 'ACTIVE':
+        return Colors.green;
+      case 'PENDING':
+      case 'PENDING_APPROVAL':
+        return Colors.orange;
+      case 'REJECTED':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  bool _isPending(String status) {
+    return status == 'PENDING' || status == 'PENDING_APPROVAL';
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.backgroundBeige,
       appBar: AppBar(
         title: const Text(
           'Manage Courts',
@@ -145,103 +123,90 @@ class _ManageCourtsScreenState extends State<ManageCourtsScreen> {
         backgroundColor: AppColors.primaryColor,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: courts.isEmpty
-          ? const Center(child: Text('No courts available'))
-          : ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: courts.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                final court = courts[index];
-                return Card(
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  elevation: 3,
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : courts.isEmpty
+              ? const Center(child: Text('No courts found'))
+              : ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: courts.length,
+                  itemBuilder: (_, i) {
+                    final c = courts[i];
+                    return Card(
+                      elevation: 3,
+                      margin: const EdgeInsets.only(bottom: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(14),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            CircleAvatar(
-                              backgroundColor: AppColors.accentColor,
-                              child: Text(court['name'][0],
-                                  style: const TextStyle(color: Colors.white)),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(court['name'],
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
-                                          color: AppColors.headingBlue)),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                      '${court['sport']} | \$${court['pricePerHour']}/hr',
-                                      style:
-                                          const TextStyle(color: Colors.grey)),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                      '${court['address']}, ${court['city']}, ${court['state']} - ${court['zipCode']}',
-                                      style:
-                                          const TextStyle(color: Colors.grey)),
-                                ],
+                            // Court name
+                            Text(
+                              c.name,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.headingBlue,
                               ),
                             ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                  color: court['status'] == 'ACTIVE'
-                                      ? Colors.green[100]
-                                      : court['status'] == 'INACTIVE'
-                                          ? Colors.orange[100]
-                                          : court['status'] == 'REJECTED'
-                                              ? Colors.red[100]
-                                              : Colors.grey[200],
-                                  borderRadius: BorderRadius.circular(8)),
-                              child: Text(court['status'],
-                                  style: TextStyle(
-                                      color: court['status'] == 'ACTIVE'
-                                          ? Colors.green[800]
-                                          : court['status'] == 'INACTIVE'
-                                              ? Colors.orange[800]
-                                              : court['status'] == 'REJECTED'
-                                                  ? Colors.red[800]
-                                                  : Colors.grey[800],
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 12)),
+                            const SizedBox(height: 4),
+
+                            // Sport
+                            Text(
+                              'Sport: ${c.sport}',
+                              style: const TextStyle(color: Colors.grey),
+                            ),
+                            const SizedBox(height: 10),
+
+                            // Status + Actions
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Chip(
+                                  label: Text(c.status),
+                                  backgroundColor:
+                                      _statusColor(c.status).withOpacity(0.15),
+                                  labelStyle: TextStyle(
+                                    color: _statusColor(c.status),
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                if (_isPending(c.status))
+                                  Row(
+                                    children: [
+                                      TextButton(
+                                        onPressed: () => _updateCourtStatus(
+                                          c,
+                                          'ACTIVE',
+                                          reason:
+                                              'Court meets approval criteria',
+                                        ),
+                                        child: const Text('Approve'),
+                                      ),
+                                      TextButton(
+                                        onPressed: () => _updateCourtStatus(
+                                          c,
+                                          'REJECTED',
+                                          reason: 'Rejected by admin',
+                                        ),
+                                        style: TextButton.styleFrom(
+                                          foregroundColor: Colors.red,
+                                        ),
+                                        child: const Text('Reject'),
+                                      ),
+                                    ],
+                                  ),
+                              ],
                             ),
                           ],
                         ),
-                        const SizedBox(height: 12),
-                        Wrap(
-                          spacing: 8,
-                          children: [
-                            TextButton.icon(
-                              onPressed: () => _updateCourtStatus(index),
-                              icon: const Icon(Icons.edit, size: 18),
-                              label: const Text('Update Status'),
-                            ),
-                            TextButton.icon(
-                              onPressed: () => _deleteCourt(index),
-                              icon: const Icon(Icons.delete, size: 18),
-                              label: const Text('Delete'),
-                              style: TextButton.styleFrom(
-                                  foregroundColor: Colors.redAccent),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
+                      ),
+                    );
+                  },
+                ),
     );
   }
 }

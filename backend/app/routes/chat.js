@@ -14,6 +14,7 @@ const TOPIC_CHECK_PROMPT = `
 Reply only YES or NO.
 
 Is this message about any of the following:
+- greetings
 - sports
 - courts
 - games
@@ -24,7 +25,7 @@ Is this message about any of the following:
 Be generous. If unsure, reply YES.
 `.trim();
 
-// Main system prompt
+// PROMPT ENGINEERING
 const SYSTEM_PROMPT = `
 You are CourtWala AI, an assistant for sports and court booking platform users.
 
@@ -34,6 +35,7 @@ Rules:
    respond with:
    "I don’t have real-time data, but I can help you find courts or explain how to search."
 3. Keep answers short, clear, and helpful.
+4. If user greets you reply accordingly.
 `.trim();
 
 /**

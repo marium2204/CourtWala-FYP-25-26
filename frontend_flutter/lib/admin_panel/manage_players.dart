@@ -1,173 +1,107 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../theme/colors.dart';
+import '../services/api_service.dart';
+
+class Player {
+  final String id;
+  final String name;
+  final String email;
+  String status;
+
+  Player({
+    required this.id,
+    required this.name,
+    required this.email,
+    required this.status,
+  });
+
+  factory Player.fromJson(Map<String, dynamic> json) {
+    return Player(
+      id: json['id'],
+      name: '${json['firstName']} ${json['lastName']}',
+      email: json['email'],
+      status: json['status'],
+    );
+  }
+}
 
 class ManagePlayersScreen extends StatefulWidget {
-  const ManagePlayersScreen({super.key});
+  final String adminToken;
+
+  const ManagePlayersScreen({super.key, required this.adminToken});
 
   @override
   State<ManagePlayersScreen> createState() => _ManagePlayersScreenState();
 }
 
 class _ManagePlayersScreenState extends State<ManagePlayersScreen> {
-  List<Map<String, dynamic>> players = [
-    {
-      'name': 'Ahmed Ali',
-      'email': 'ahmed@example.com',
-      'status': 'Active',
-      'bookings': 12,
-    },
-    {
-      'name': 'Sara Malik',
-      'email': 'sara@example.com',
-      'status': 'Blocked',
-      'bookings': 5,
-    },
-    {
-      'name': 'Omar Khan',
-      'email': 'omar@example.com',
-      'status': 'Active',
-      'bookings': 8,
-    },
-    {
-      'name': 'Fatima Noor',
-      'email': 'fatima@example.com',
-      'status': 'Active',
-      'bookings': 3,
-    },
-  ];
+  List<Player> players = [];
+  bool isLoading = true;
 
-  void _blockPlayer(int index) {
-    setState(() {
-      players[index]['status'] = 'Blocked';
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${players[index]['name']} blocked')),
-    );
+  @override
+  void initState() {
+    super.initState();
+    _fetchPlayers();
   }
 
-  void _unblockPlayer(int index) {
-    setState(() {
-      players[index]['status'] = 'Active';
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${players[index]['name']} unblocked')),
+  Future<void> _fetchPlayers() async {
+    final res = await ApiService.get(
+      '/admin/users?role=PLAYER',
+      widget.adminToken,
     );
+
+    if (res.statusCode == 200) {
+      final list = jsonDecode(res.body)['data']['users'] as List;
+      setState(() {
+        players = list.map((e) => Player.fromJson(e)).toList();
+        isLoading = false;
+      });
+    }
   }
 
-  void _viewBookings(int index) {
-    showDialog(
-        context: context,
-        builder: (_) {
-          return AlertDialog(
-            title: Text('${players[index]['name']} - Bookings'),
-            content: Text(
-                'This player has ${players[index]['bookings']} booking(s).'),
-            actions: [
-              TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Close'))
-            ],
-          );
-        });
+  Future<void> _updateStatus(Player p, String status) async {
+    await ApiService.put(
+      '/admin/users/${p.id}/status',
+      widget.adminToken,
+      {'status': status},
+    );
+    setState(() => p.status = status);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Manage Players',
-          style: TextStyle(color: Colors.white),
-        ),
+        title:
+            const Text('Manage Players', style: TextStyle(color: Colors.white)),
         backgroundColor: AppColors.primaryColor,
-        iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: players.isEmpty
-          ? const Center(child: Text('No players available'))
-          : ListView.separated(
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : ListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: players.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                final player = players[index];
+              itemBuilder: (_, i) {
+                final p = players[i];
                 return Card(
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  elevation: 3,
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              CircleAvatar(
-                                backgroundColor: AppColors.accentColor,
-                                child: Text(player['name'][0],
-                                    style:
-                                        const TextStyle(color: Colors.white)),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(player['name'],
-                                        style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
-                                            color: AppColors.headingBlue)),
-                                    const SizedBox(height: 4),
-                                    Text(player['email'],
-                                        style: const TextStyle(
-                                            color: Colors.grey)),
-                                  ],
-                                ),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                    color: player['status'] == 'Active'
-                                        ? Colors.green[100]
-                                        : Colors.red[100],
-                                    borderRadius: BorderRadius.circular(8)),
-                                child: Text(player['status'],
-                                    style: TextStyle(
-                                        color: player['status'] == 'Active'
-                                            ? Colors.green[800]
-                                            : Colors.red[800],
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 12)),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Wrap(
-                            spacing: 8,
-                            children: [
-                              TextButton.icon(
-                                onPressed: () => _viewBookings(index),
-                                icon:
-                                    const Icon(Icons.calendar_today, size: 18),
-                                label: const Text('View Bookings'),
-                              ),
-                              if (player['status'] != 'Blocked')
-                                TextButton.icon(
-                                  onPressed: () => _blockPlayer(index),
-                                  icon: const Icon(Icons.block, size: 18),
-                                  label: const Text('Block'),
-                                ),
-                              if (player['status'] == 'Blocked')
-                                TextButton.icon(
-                                  onPressed: () => _unblockPlayer(index),
-                                  icon:
-                                      const Icon(Icons.check_circle, size: 18),
-                                  label: const Text('Unblock'),
-                                ),
-                            ],
-                          ),
-                        ]),
+                  child: ListTile(
+                    title: Text(p.name),
+                    subtitle: Text(p.email),
+                    trailing: Wrap(
+                      spacing: 8,
+                      children: [
+                        Chip(label: Text(p.status)),
+                        if (p.status != 'ACTIVE')
+                          TextButton(
+                              onPressed: () => _updateStatus(p, 'ACTIVE'),
+                              child: const Text('Activate')),
+                        if (p.status == 'ACTIVE')
+                          TextButton(
+                              onPressed: () => _updateStatus(p, 'BLOCKED'),
+                              child: const Text('Block')),
+                      ],
+                    ),
                   ),
                 );
               },

@@ -164,9 +164,9 @@ app.use((req, res) => {
 // Global error handler
 app.use(globalErrorHandler);
 
-// Start server
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server is running on port ${PORT}`);
   console.log(`📦 Environment: ${config.app.env}`);
   console.log(`📚 API Documentation: ${config.app.url}/api-docs`);
 });
+

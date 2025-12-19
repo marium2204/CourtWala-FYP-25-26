@@ -2,23 +2,24 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'login_screen.dart';
-import '../constants/api_constants.dart';
 
-class ForgotPasswordScreen extends StatefulWidget {
-  const ForgotPasswordScreen({super.key});
+class ResetPasswordScreen extends StatefulWidget {
+  final String token;
+
+  const ResetPasswordScreen({super.key, required this.token});
 
   @override
-  State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
+  State<ResetPasswordScreen> createState() => _ResetPasswordScreenState();
 }
 
-class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
-  final TextEditingController emailCtrl = TextEditingController();
+class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
+  final TextEditingController passwordCtrl = TextEditingController();
   bool isLoading = false;
 
-  Future<void> sendResetRequest() async {
-    if (emailCtrl.text.isEmpty) {
+  Future<void> resetPassword() async {
+    if (passwordCtrl.text.length < 8) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Email is required')),
+        const SnackBar(content: Text('Password must be at least 8 characters')),
       );
       return;
     }
@@ -26,18 +27,19 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     setState(() => isLoading = true);
 
     final response = await http.post(
-      Uri.parse('${ApiConstants.baseUrl}/auth/forgot-password'),
+      Uri.parse('http://YOUR_BACKEND_URL/auth/reset-password'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'email': emailCtrl.text.trim()}),
+      body: jsonEncode({
+        'token': widget.token,
+        'password': passwordCtrl.text.trim(),
+      }),
     );
 
     setState(() => isLoading = false);
 
     if (response.statusCode == 200) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Password reset email sent. Check your inbox.'),
-        ),
+        const SnackBar(content: Text('Password reset successful')),
       );
 
       Navigator.pushReplacement(
@@ -47,7 +49,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     } else {
       final decoded = jsonDecode(response.body);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(decoded['message'] ?? 'Request failed')),
+        SnackBar(content: Text(decoded['message'] ?? 'Reset failed')),
       );
     }
   }
@@ -61,35 +63,24 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           padding: const EdgeInsets.all(28),
           child: Column(
             children: [
-              Align(
-                alignment: Alignment.topLeft,
-                child: IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Color(0xFF65AAC2)),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ),
               Image.asset('assets/Court.png', height: 120),
               const SizedBox(height: 20),
               const Text(
-                'Forgot Password',
+                'Reset Password',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
                   color: Color(0xFF65AAC2),
                 ),
               ),
-              const SizedBox(height: 15),
-              const Text(
-                'Enter your email to receive a password reset link.',
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 25),
+              const SizedBox(height: 20),
               TextField(
-                controller: emailCtrl,
+                controller: passwordCtrl,
+                obscureText: true,
                 decoration: const InputDecoration(
                   filled: true,
                   fillColor: Colors.white,
-                  hintText: 'Email',
+                  hintText: 'New Password',
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.all(Radius.circular(12)),
                     borderSide: BorderSide.none,
@@ -101,7 +92,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 width: double.infinity,
                 height: 48,
                 child: ElevatedButton(
-                  onPressed: isLoading ? null : sendResetRequest,
+                  onPressed: isLoading ? null : resetPassword,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF65AAC2),
                     shape: RoundedRectangleBorder(
@@ -110,7 +101,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   child: isLoading
                       ? const CircularProgressIndicator(color: Colors.white)
                       : const Text(
-                          'Send Reset Email',
+                          'Reset Password',
                           style: TextStyle(
                               fontSize: 16, fontWeight: FontWeight.bold),
                         ),
