@@ -1,9 +1,12 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
-import 'login_screen.dart';
 import '../constants/api_constants.dart';
+import '../services/token_service.dart';
+import 'login_screen.dart';
+import 'splash_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -40,46 +43,86 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     setState(() => isLoading = true);
 
-    final uri = Uri.parse('${ApiConstants.baseUrl}/auth/register');
-    final request = http.MultipartRequest('POST', uri);
+    try {
+      final uri = Uri.parse('${ApiConstants.baseUrl}/auth/register');
+      final request = http.MultipartRequest('POST', uri);
 
-    request.fields.addAll({
-      'firstName': firstNameCtrl.text.trim(),
-      'lastName': lastNameCtrl.text.trim(),
-      'username': usernameCtrl.text.trim(),
-      'phone': phoneCtrl.text.trim(),
-      'email': emailCtrl.text.trim(),
-      'password': passwordCtrl.text.trim(),
-      'role': selectedRole,
-    });
+      // Required fields
+      request.fields.addAll({
+        'firstName': firstNameCtrl.text.trim(),
+        'lastName': lastNameCtrl.text.trim(),
+        'email': emailCtrl.text.trim(),
+        'password': passwordCtrl.text.trim(),
+        'role': selectedRole,
+      });
 
-    if (profileImage != null) {
-      request.files.add(
-        await http.MultipartFile.fromPath(
-          'profilePicture',
-          profileImage!.path,
-        ),
-      );
-    }
+      // Optional fields - only add if not empty
+      final username = usernameCtrl.text.trim();
+      if (username.isNotEmpty) {
+        request.fields['username'] = username;
+      }
 
-    final response = await request.send();
-    final responseBody = await response.stream.bytesToString();
+      final phone = phoneCtrl.text.trim();
+      if (phone.isNotEmpty) {
+        request.fields['phone'] = phone;
+      }
 
-    setState(() => isLoading = false);
+      // Add profile picture if selected
+      if (profileImage != null) {
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'profilePicture',
+            profileImage!.path,
+          ),
+        );
+      }
 
-    if (response.statusCode == 201) {
+      final streamedResponse = await request.send();
+      final responseBody = await streamedResponse.stream.bytesToString();
+      final decoded = jsonDecode(responseBody);
+
+      if (streamedResponse.statusCode == 201 && decoded['success'] == true) {
+        final token = decoded['data']['token'];
+        final user = decoded['data']['user'];
+
+        // 🔐 Save token (auto-login after registration)
+        await TokenService.saveToken(token);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(decoded['message'] ?? 'Registration successful')),
+        );
+
+        // 🔁 Let SplashScreen decide role & route
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const SplashScreen()),
+          (_) => false,
+        );
+      } else {
+        // Handle different error scenarios
+        String errorMessage = decoded['message'] ?? 'Registration failed';
+        
+        // Handle validation errors (422)
+        if (streamedResponse.statusCode == 422 && decoded['errors'] != null) {
+          final errors = decoded['errors'] as Map<String, dynamic>;
+          errorMessage = errors.values.first.toString();
+        }
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMessage)),
+        );
+      }
+    } catch (e) {
+      String errorMessage = 'Server error. Please try again.';
+      if (e.toString().contains('Failed host lookup') || 
+          e.toString().contains('Connection refused')) {
+        errorMessage = 'Cannot connect to server. Please check your connection.';
+      }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Registration successful')),
+        SnackBar(content: Text(errorMessage)),
       );
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Registration failed\n$responseBody')),
-      );
+    } finally {
+      setState(() => isLoading = false);
     }
   }
 
@@ -108,6 +151,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
             key: _formKey,
             child: Column(
               children: [
+                Align(
+                  alignment: Alignment.topLeft,
+                  child: IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Color(0xFF65AAC2)),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ),
                 Image.asset('assets/Court.png', height: size.height * 0.14),
                 const SizedBox(height: 10),
                 const Text(
@@ -134,24 +184,52 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 const SizedBox(height: 15),
                 TextFormField(
                   controller: firstNameCtrl,
-                  decoration: inputDecoration('First Name'),
-                  validator: (v) => v!.isEmpty ? 'Required' : null,
+                  decoration: inputDecoration('First Name *'),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) {
+                      return 'First name is required';
+                    }
+                    if (v.trim().length < 2 || v.trim().length > 50) {
+                      return 'First name must be between 2 and 50 characters';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 10),
                 TextFormField(
                   controller: lastNameCtrl,
-                  decoration: inputDecoration('Last Name'),
-                  validator: (v) => v!.isEmpty ? 'Required' : null,
+                  decoration: inputDecoration('Last Name *'),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) {
+                      return 'Last name is required';
+                    }
+                    if (v.trim().length < 2 || v.trim().length > 50) {
+                      return 'Last name must be between 2 and 50 characters';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 10),
                 TextFormField(
                   controller: usernameCtrl,
-                  decoration: inputDecoration('Username'),
+                  decoration: inputDecoration('Username (optional)'),
+                  validator: (v) {
+                    if (v != null && v.trim().isNotEmpty) {
+                      if (v.trim().length < 3 || v.trim().length > 30) {
+                        return 'Username must be between 3 and 30 characters';
+                      }
+                      if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(v.trim())) {
+                        return 'Username can only contain letters, numbers, and underscores';
+                      }
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 10),
                 TextFormField(
                   controller: phoneCtrl,
-                  decoration: inputDecoration('Phone'),
+                  decoration: inputDecoration('Phone (optional)'),
+                  keyboardType: TextInputType.phone,
                 ),
                 const SizedBox(height: 10),
                 DropdownButtonFormField<String>(
@@ -167,15 +245,37 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 const SizedBox(height: 10),
                 TextFormField(
                   controller: emailCtrl,
-                  decoration: inputDecoration('Email'),
-                  validator: (v) => v!.contains('@') ? null : 'Invalid email',
+                  decoration: inputDecoration('Email *'),
+                  keyboardType: TextInputType.emailAddress,
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) {
+                      return 'Email is required';
+                    }
+                    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
+                        .hasMatch(v.trim())) {
+                      return 'Please provide a valid email address';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 10),
                 TextFormField(
                   controller: passwordCtrl,
                   obscureText: true,
-                  decoration: inputDecoration('Password'),
-                  validator: (v) => v!.length < 8 ? 'Min 8 characters' : null,
+                  decoration: inputDecoration('Password *'),
+                  validator: (v) {
+                    if (v == null || v.isEmpty) {
+                      return 'Password is required';
+                    }
+                    if (v.length < 6) {
+                      return 'Password must be at least 6 characters long';
+                    }
+                    if (!RegExp(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)')
+                        .hasMatch(v)) {
+                      return 'Password must contain at least one uppercase letter, one lowercase letter, and one number';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 20),
                 SizedBox(
@@ -197,6 +297,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 fontSize: 16, fontWeight: FontWeight.bold),
                           ),
                   ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text('Already have an account? '),
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const LoginScreen()),
+                        );
+                      },
+                      child: const Text(
+                        'Login',
+                        style: TextStyle(
+                          color: Color(0xFF65AAC2),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

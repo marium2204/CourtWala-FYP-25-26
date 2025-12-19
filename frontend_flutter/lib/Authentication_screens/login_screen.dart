@@ -46,7 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       final decoded = jsonDecode(response.body);
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 && decoded['success'] == true) {
         final token = decoded['data']['token'];
         final user = decoded['data']['user'];
 
@@ -70,13 +70,27 @@ class _LoginScreenState extends State<LoginScreen> {
           (_) => false,
         );
       } else {
+        // Handle different error scenarios
+        String errorMessage = decoded['message'] ?? 'Login failed';
+        
+        // Handle validation errors (422)
+        if (response.statusCode == 422 && decoded['errors'] != null) {
+          final errors = decoded['errors'] as Map<String, dynamic>;
+          errorMessage = errors.values.first.toString();
+        }
+        
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(decoded['message'] ?? 'Login failed')),
+          SnackBar(content: Text(errorMessage)),
         );
       }
     } catch (e) {
+      String errorMessage = 'Server error. Please try again.';
+      if (e.toString().contains('Failed host lookup') || 
+          e.toString().contains('Connection refused')) {
+        errorMessage = 'Cannot connect to server. Please check your connection.';
+      }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Server error. Please try again.')),
+        SnackBar(content: Text(errorMessage)),
       );
     } finally {
       setState(() => isLoading = false);
