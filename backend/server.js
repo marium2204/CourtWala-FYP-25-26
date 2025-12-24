@@ -150,6 +150,8 @@ app.use('/api/chat', chatRoutes);
 
 
 
+
+
 // Serve uploaded files
 app.use('/uploads', express.static('uploads'));
 

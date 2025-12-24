@@ -199,6 +199,42 @@ class AdminService {
       },
     };
   }
-}
 
+
+  static async resolveReport(reportId, adminId) {
+    const report = await prisma.report.findUnique({
+      where: { id: reportId },
+    });
+
+    if (!report) {
+      throw new AppError('Report not found', 404);
+    }
+
+    if (report.status !== 'PENDING') {
+      throw new AppError('Report already resolved', 400);
+    }
+
+    // Update report status
+    const updatedReport = await prisma.report.update({
+      where: { id: reportId },
+      data: {
+        status: 'RESOLVED',
+        resolvedBy: adminId,
+        resolvedAt: new Date(),
+      },
+    });
+
+    // 🔔 Optional: notify reporter
+    await NotificationService.create({
+      receiverId: report.reporterId,
+      senderId: adminId,
+      type: 'REPORT_RESOLVED',
+      title: 'Report Resolved',
+      message: 'Your report has been reviewed and resolved by admin.',
+      data: { reportId },
+    });
+
+    return updatedReport;
+  }
+}
 module.exports = AdminService;

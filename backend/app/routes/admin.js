@@ -49,6 +49,13 @@ router.post('/announcements', validateCreateAnnouncement, AnnouncementController
 router.get('/announcements', AnnouncementController.getAll);
 
 // Tournament management routes
+const AdminTournamentController = require('../controllers/Admin/AdminTournamentController');
+
+router.get(
+  '/tournaments',
+  asyncHandler(AdminTournamentController.getAll)
+);
+
 router.post('/tournaments', validateCreateTournament, asyncHandler(async (req, res) => {
   const tournament = await TournamentService.create(req.body);
   return BaseController.success(res, tournament, 'Tournament created successfully', 201);

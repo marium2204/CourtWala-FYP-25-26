@@ -7,7 +7,11 @@ import '../services/token_service.dart';
 
 import 'forgot_password_screen.dart';
 import 'register_screen.dart';
-import 'splash_screen.dart';
+
+// ✅ PANEL IMPORTS (REQUIRED)
+import '../admin_panel/admin_home.dart';
+import '../Owner_Panel/owner_home.dart';
+import '../Player_Panel/player_home.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -50,50 +54,49 @@ class _LoginScreenState extends State<LoginScreen> {
         final token = decoded['data']['token'];
         final user = decoded['data']['user'];
 
-        // 🔐 Save token (single source of truth)
         await TokenService.saveToken(token);
 
-        // 🚫 Block inactive users
+        // 🚫 Handle non-active users
         if (user['status'] != 'ACTIVE') {
+          setState(() => isLoading = false);
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Account status: ${user['status']}'),
-            ),
+            SnackBar(content: Text('Account status: ${user['status']}')),
           );
           return;
         }
 
-        // 🔁 Let SplashScreen decide role & route
+        // 🎯 Role-based navigation (NO Splash)
+        Widget nextScreen;
+
+        switch (user['role']) {
+          case 'ADMIN':
+            nextScreen = const AdminHomeScreen();
+            break;
+          case 'COURT_OWNER':
+            nextScreen = const CourtOwnerHomeScreen();
+            break;
+          default:
+            nextScreen = const PlayerHomeScreen();
+        }
+
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (_) => const SplashScreen()),
+          MaterialPageRoute(builder: (_) => nextScreen),
           (_) => false,
         );
       } else {
-        // Handle different error scenarios
-        String errorMessage = decoded['message'] ?? 'Login failed';
-        
-        // Handle validation errors (422)
-        if (response.statusCode == 422 && decoded['errors'] != null) {
-          final errors = decoded['errors'] as Map<String, dynamic>;
-          errorMessage = errors.values.first.toString();
-        }
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorMessage)),
-        );
+        final errorMessage = decoded['message'] ?? 'Login failed';
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(errorMessage)));
       }
     } catch (e) {
-      String errorMessage = 'Server error. Please try again.';
-      if (e.toString().contains('Failed host lookup') || 
-          e.toString().contains('Connection refused')) {
-        errorMessage = 'Cannot connect to server. Please check your connection.';
-      }
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(errorMessage)),
+        const SnackBar(content: Text('Server error. Please try again.')),
       );
     } finally {
-      setState(() => isLoading = false);
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
     }
   }
 
@@ -128,8 +131,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   onPressed: () => Navigator.pop(context),
                 ),
               ),
+
               Image.asset('assets/Court.png', height: size.height * 0.16),
               const SizedBox(height: 10),
+
               const Text(
                 'Login to CourtWala',
                 style: TextStyle(
@@ -138,12 +143,16 @@ class _LoginScreenState extends State<LoginScreen> {
                   color: Color(0xFF65AAC2),
                 ),
               ),
+
               const SizedBox(height: 20),
+
               TextField(
                 controller: emailOrUsernameCtrl,
                 decoration: _inputDecoration('Email or Username'),
               ),
+
               const SizedBox(height: 12),
+
               TextField(
                 controller: passwordCtrl,
                 obscureText: !showPassword,
@@ -158,7 +167,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               ),
+
               const SizedBox(height: 20),
+
               SizedBox(
                 width: double.infinity,
                 height: 48,
@@ -175,11 +186,15 @@ class _LoginScreenState extends State<LoginScreen> {
                       : const Text(
                           'Login',
                           style: TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.bold),
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                 ),
               ),
-              const SizedBox(height: 12),
+
+              const SizedBox(height: 14),
+
               TextButton(
                 onPressed: () {
                   Navigator.push(
@@ -193,6 +208,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   style: TextStyle(color: Color(0xFF65AAC2)),
                 ),
               ),
+
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -214,6 +230,52 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                 ],
+              ),
+
+              const SizedBox(height: 18),
+
+              // 🔽 Expandable Court Owner Info
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Colors.orange.shade300),
+                ),
+                child: ExpansionTile(
+                  leading: const Icon(Icons.info_outline, color: Colors.orange),
+                  title: const Text(
+                    'Court Owner approval pending?',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                  childrenPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  children: const [
+                    Text(
+                      'If you registered as a Court Owner, please email the following documents along with your registered username and email to:',
+                      style: TextStyle(fontSize: 13),
+                    ),
+                    SizedBox(height: 6),
+                    Text(
+                      '📧 courtwala@gmail.com',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    Text('• CNIC (Front & Back)'),
+                    Text('• Property ownership papers OR rent/lease agreement'),
+                    Text(
+                        '• Authorization letter (if manager is registering on owner’s behalf)'),
+                    Text('• Court proof pictures (3–5 clear photos)'),
+                    Text('• Court address (Google Maps pin is recommended)'),
+                    SizedBox(height: 8),
+                    Text(
+                      'Approval usually takes up to 24 hours.',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),

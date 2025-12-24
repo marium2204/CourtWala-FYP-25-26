@@ -63,10 +63,7 @@ class _ManageTournamentsScreenState extends State<ManageTournamentsScreen> {
 
   Future<void> _fetchTournaments() async {
     try {
-      final res = await ApiService.get(
-        '/admin/tournaments',
-        widget.adminToken,
-      );
+      final res = await ApiService.get('/admin/tournaments', widget.adminToken);
 
       if (res.statusCode == 200) {
         final decoded = jsonDecode(res.body);

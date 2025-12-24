@@ -7,13 +7,13 @@ import '../services/token_service.dart';
 
 import '../authentication_screens/splash_screen.dart';
 
-import 'manage_bookings.dart';
 import 'manage_courts.dart';
-import 'manage_owners_screen.dart';
-import 'manage_players.dart';
+
+import 'manage_users.dart';
 import 'announcements.dart';
 import 'reports.dart';
 import 'tournaments.dart';
+import 'manage_owners.dart';
 
 class AdminHomeScreen extends StatefulWidget {
   const AdminHomeScreen({super.key});
@@ -129,14 +129,9 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
 
             // ===== USER & COURT MANAGEMENT =====
             _nav(
-              'Manage Owners',
-              Icons.person_search,
-              () => _push(ManageOwnersScreen(adminToken: adminToken!)),
-            ),
-            _nav(
-              'Manage Players',
+              'Manage Users',
               Icons.people,
-              () => _push(ManagePlayersScreen(adminToken: adminToken!)),
+              () => _push(ManageUsersScreen(adminToken: adminToken!)),
             ),
             _nav(
               'Manage Courts',
@@ -144,11 +139,10 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               () => _push(ManageCourtsScreen(adminToken: adminToken!)),
             ),
             _nav(
-              'Manage Bookings',
-              Icons.book_online,
-              () => _push(ManageBookingsScreen(adminToken: adminToken!)),
+              'Manage Court Owners',
+              Icons.sports_tennis,
+              () => _push(ManageOwnersScreen(adminToken: adminToken!)),
             ),
-
             const Divider(),
 
             // ===== COMMUNICATION & MODERATION =====

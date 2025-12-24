@@ -1,3 +1,4 @@
+import 'package:courtwala/Authentication_screens/login_screen.dart';
 import 'package:courtwala/Owner_Panel/owner_home.dart';
 import 'package:courtwala/Player_Panel/ai_chatbot_screen.dart';
 import 'package:courtwala/admin_panel/admin_home.dart';
@@ -20,7 +21,7 @@ class CourtWalaApp extends StatelessWidget {
     return const MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'CourtWala',
-      home: AdminHomeScreen(), // ✅ SINGLE ENTRY POINT
+      home: SplashScreen(), // ✅ SINGLE ENTRY POINT
     );
   }
 }
