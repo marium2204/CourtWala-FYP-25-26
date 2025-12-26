@@ -1,226 +1,219 @@
 // lib/Player_Panel/edit_profile_screen.dart
-import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
+
+import '../services/api_service.dart';
+import '../services/token_service.dart';
 import '../theme/colors.dart';
 
 class EditProfileScreen extends StatefulWidget {
-  const EditProfileScreen({super.key});
+  final Map<String, dynamic> profile;
+
+  const EditProfileScreen({super.key, required this.profile});
 
   @override
   State<EditProfileScreen> createState() => _EditProfileScreenState();
 }
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
-  final _formKey = GlobalKey<FormState>();
+  final _profileFormKey = GlobalKey<FormState>();
+  final _passwordFormKey = GlobalKey<FormState>();
 
-  // Controllers for form fields
-  final TextEditingController _nameController =
-      TextEditingController(text: "John Doe");
-  final TextEditingController _emailController =
-      TextEditingController(text: "john@example.com");
-  final TextEditingController _phoneController =
-      TextEditingController(text: "+92 300 1234567");
+  late TextEditingController _firstNameCtrl;
+  late TextEditingController _lastNameCtrl;
+  late TextEditingController _phoneCtrl;
 
-  String _selectedSport = "Badminton";
-  String _selectedLevel = "Intermediate";
+  final _currentPasswordCtrl = TextEditingController();
+  final _newPasswordCtrl = TextEditingController();
+  final _confirmPasswordCtrl = TextEditingController();
 
-  final List<String> sports = ["Badminton", "Cricket", "Football", "Padel"];
-  final List<String> levels = ["Beginner", "Intermediate", "Advanced"];
+  bool _savingProfile = false;
+  bool _changingPassword = false;
 
-  File? _avatarFile;
-
-  final ImagePicker _picker = ImagePicker();
+  @override
+  void initState() {
+    super.initState();
+    _firstNameCtrl =
+        TextEditingController(text: widget.profile['firstName'] ?? '');
+    _lastNameCtrl =
+        TextEditingController(text: widget.profile['lastName'] ?? '');
+    _phoneCtrl = TextEditingController(text: widget.profile['phone'] ?? '');
+  }
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _emailController.dispose();
-    _phoneController.dispose();
+    _firstNameCtrl.dispose();
+    _lastNameCtrl.dispose();
+    _phoneCtrl.dispose();
+    _currentPasswordCtrl.dispose();
+    _newPasswordCtrl.dispose();
+    _confirmPasswordCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _pickImage() async {
-    final XFile? image =
-        await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
-    if (image != null) {
-      setState(() => _avatarFile = File(image.path));
-    }
-  }
+  // ================= UPDATE PROFILE =================
+  Future<void> _updateProfile() async {
+    if (!_profileFormKey.currentState!.validate()) return;
 
-  void _saveProfile() {
-    if (_formKey.currentState!.validate()) {
-      // Handle saving the data (to backend or Firebase)
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Profile updated successfully!")),
+    setState(() => _savingProfile = true);
+
+    try {
+      final token = await TokenService.getToken();
+      if (token == null) throw Exception('Not authenticated');
+
+      final res = await ApiService.put(
+        '/player/profile', // ✅ CORRECT
+        token,
+        {
+          'firstName': _firstNameCtrl.text.trim(),
+          'lastName': _lastNameCtrl.text.trim(),
+          'phone': _phoneCtrl.text.trim(),
+        },
       );
 
-      Navigator.pop(context); // Go back to ProfileScreen
+      final body = jsonDecode(res.body);
+
+      if (res.statusCode == 200 && body['success'] == true) {
+        Navigator.pop(context, true);
+      } else {
+        throw Exception(body['message']);
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+      );
+    } finally {
+      setState(() => _savingProfile = false);
     }
   }
 
+  // ================= CHANGE PASSWORD =================
+  Future<void> _changePassword() async {
+    if (!_passwordFormKey.currentState!.validate()) return;
+
+    setState(() => _changingPassword = true);
+
+    try {
+      final token = await TokenService.getToken();
+      if (token == null) throw Exception('Not authenticated');
+
+      final res = await ApiService.post(
+        '/player/profile/change-password', // ✅ CORRECT
+        token,
+        {
+          'currentPassword': _currentPasswordCtrl.text,
+          'newPassword': _newPasswordCtrl.text,
+        },
+      );
+
+      final body = jsonDecode(res.body);
+
+      if (res.statusCode == 200 && body['success'] == true) {
+        _currentPasswordCtrl.clear();
+        _newPasswordCtrl.clear();
+        _confirmPasswordCtrl.clear();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Password changed successfully')),
+        );
+      } else {
+        throw Exception(body['message']);
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+      );
+    } finally {
+      setState(() => _changingPassword = false);
+    }
+  }
+
+  // ================= UI =================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.backgroundBeige,
       appBar: AppBar(
+        title: const Text('Edit Profile'),
         backgroundColor: AppColors.primaryColor,
-        title: const Text("Edit Profile"),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              // Avatar with edit button
-              Stack(
-                alignment: Alignment.bottomRight,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Profile Information',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            Form(
+              key: _profileFormKey,
+              child: Column(
                 children: [
-                  CircleAvatar(
-                    radius: 50,
-                    backgroundColor: AppColors.accentColor,
-                    backgroundImage:
-                        _avatarFile != null ? FileImage(_avatarFile!) : null,
-                    child: _avatarFile == null
-                        ? const Icon(Icons.person,
-                            size: 50, color: Colors.white)
-                        : null,
+                  _field(_firstNameCtrl, 'First Name'),
+                  _field(_lastNameCtrl, 'Last Name'),
+                  _field(_phoneCtrl, 'Phone'),
+                  const SizedBox(height: 12),
+                  ElevatedButton(
+                    onPressed: _savingProfile ? null : _updateProfile,
+                    child: _savingProfile
+                        ? const CircularProgressIndicator()
+                        : const Text('Save Profile'),
                   ),
-                  GestureDetector(
-                    onTap: _pickImage,
-                    child: CircleAvatar(
-                      radius: 16,
-                      backgroundColor: AppColors.primaryColor,
-                      child:
-                          const Icon(Icons.edit, size: 16, color: Colors.white),
-                    ),
-                  )
                 ],
               ),
-              const SizedBox(height: 16),
-
-              // Name
-              TextFormField(
-                controller: _nameController,
-                decoration: InputDecoration(
-                  labelText: "Full Name",
-                  prefixIcon: const Icon(Icons.person),
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none),
-                ),
-                validator: (value) => value == null || value.isEmpty
-                    ? "Please enter your name"
-                    : null,
-              ),
-              const SizedBox(height: 12),
-
-              // Email
-              TextFormField(
-                controller: _emailController,
-                decoration: InputDecoration(
-                  labelText: "Email",
-                  prefixIcon: const Icon(Icons.email),
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none),
-                ),
-                keyboardType: TextInputType.emailAddress,
-                validator: (value) {
-                  if (value == null || value.isEmpty)
-                    return "Please enter your email";
-                  if (!RegExp(r'\S+@\S+\.\S+').hasMatch(value))
-                    return "Enter a valid email";
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-
-              // Phone
-              TextFormField(
-                controller: _phoneController,
-                decoration: InputDecoration(
-                  labelText: "Phone Number",
-                  prefixIcon: const Icon(Icons.phone),
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none),
-                ),
-                keyboardType: TextInputType.phone,
-                validator: (value) => value == null || value.isEmpty
-                    ? "Please enter your phone number"
-                    : null,
-              ),
-              const SizedBox(height: 12),
-
-              // Sport Dropdown
-              DropdownButtonFormField<String>(
-                value: _selectedSport,
-                items: sports
-                    .map((sport) =>
-                        DropdownMenuItem(value: sport, child: Text(sport)))
-                    .toList(),
-                decoration: InputDecoration(
-                  labelText: "Sport",
-                  prefixIcon: const Icon(Icons.sports),
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none),
-                ),
-                onChanged: (value) => setState(() => _selectedSport = value!),
-              ),
-              const SizedBox(height: 12),
-
-              // Level Dropdown
-              DropdownButtonFormField<String>(
-                value: _selectedLevel,
-                items: levels
-                    .map((level) =>
-                        DropdownMenuItem(value: level, child: Text(level)))
-                    .toList(),
-                decoration: InputDecoration(
-                  labelText: "Level",
-                  prefixIcon: const Icon(Icons.star),
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none),
-                ),
-                onChanged: (value) => setState(() => _selectedLevel = value!),
-              ),
-              const SizedBox(height: 24),
-
-              // Save Button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _saveProfile,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryColor,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+            ),
+            const SizedBox(height: 32),
+            const Text('Change Password',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            Form(
+              key: _passwordFormKey,
+              child: Column(
+                children: [
+                  _field(_currentPasswordCtrl, 'Current Password',
+                      obscure: true),
+                  _field(
+                    _newPasswordCtrl,
+                    'New Password',
+                    obscure: true,
+                    validator: (v) => v!.length < 6 ? 'Min 6 characters' : null,
                   ),
-                  child: const Text(
-                    "Save Changes",
-                    style: TextStyle(fontSize: 16, color: Colors.white),
+                  _field(
+                    _confirmPasswordCtrl,
+                    'Confirm Password',
+                    obscure: true,
+                    validator: (v) =>
+                        v != _newPasswordCtrl.text ? 'Mismatch' : null,
                   ),
-                ),
+                  const SizedBox(height: 12),
+                  ElevatedButton(
+                    onPressed: _changingPassword ? null : _changePassword,
+                    child: _changingPassword
+                        ? const CircularProgressIndicator()
+                        : const Text('Change Password'),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
+      ),
+    );
+  }
+
+  Widget _field(
+    TextEditingController ctrl,
+    String label, {
+    bool obscure = false,
+    String? Function(String?)? validator,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: TextFormField(
+        controller: ctrl,
+        obscureText: obscure,
+        validator: validator ?? (v) => v!.isEmpty ? 'Required' : null,
+        decoration: InputDecoration(labelText: label),
       ),
     );
   }

@@ -1,6 +1,9 @@
-// lib/Player_Panel/notifications_screen.dart
+import 'dart:convert';
 import 'package:flutter/material.dart';
+
 import '../theme/colors.dart';
+import '../services/api_service.dart';
+import '../services/token_service.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -10,54 +13,76 @@ class NotificationsScreen extends StatefulWidget {
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
-  // Sample notifications
-  List<Map<String, dynamic>> notifications = [
-    {
-      'title': 'Booking Confirmed',
-      'message': 'Your booking at Elite Badminton Arena is confirmed',
-      'isNew': true,
-      'date': DateTime.now(),
-      'type': 'Booking',
-    },
-    {
-      'title': 'New Match Invite',
-      'message': 'You have been invited to play on Saturday',
-      'isNew': true,
-      'date': DateTime.now().subtract(const Duration(days: 1)),
-      'type': 'Match',
-    },
-    {
-      'title': 'Challenge Completed',
-      'message': 'You have successfully completed your challenge!',
-      'isNew': false,
-      'date': DateTime.now().subtract(const Duration(days: 2)),
-      'type': 'Challenge',
-    },
-  ];
+  bool isLoading = true;
+  List<Map<String, dynamic>> notifications = [];
 
-  // Delete notification
-  void _deleteNotification(int index) {
-    setState(() {
-      notifications.removeAt(index);
-    });
-    ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text("Notification deleted")));
+  @override
+  void initState() {
+    super.initState();
+    _fetchNotifications();
   }
 
-  // Mark as read/unread
-  void _toggleRead(int index) {
-    setState(() {
-      notifications[index]['isNew'] = !(notifications[index]['isNew'] as bool);
-    });
+  // ================= FETCH =================
+  Future<void> _fetchNotifications() async {
+    try {
+      final token = await TokenService.getToken();
+      if (token == null) return;
+
+      final res = await ApiService.get('/notifications', token);
+
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body)['data']['notifications'] as List;
+
+        setState(() {
+          notifications = data.map<Map<String, dynamic>>((n) {
+            return {
+              'id': n['id'],
+              'title': n['title'] ?? 'Notification',
+              'message': n['message'] ?? '',
+              'isRead': n['isRead'] ?? false,
+              'createdAt': n['createdAt'],
+              'type': n['type'] ?? 'GENERAL',
+            };
+          }).toList();
+
+          isLoading = false;
+        });
+      } else {
+        throw Exception(res.body);
+      }
+    } catch (e) {
+      debugPrint('Notification fetch error: $e');
+      setState(() => isLoading = false);
+    }
   }
 
-  // Group notifications by day
-  Map<String, List<Map<String, dynamic>>> _groupNotifications() {
+  // ================= MARK ONE =================
+  Future<void> _markAsRead(String id) async {
+    final token = await TokenService.getToken();
+    if (token == null) return;
+
+    await ApiService.post('/notifications/$id/read', token, {});
+    await _fetchNotifications();
+  }
+
+  // ================= MARK ALL =================
+  Future<void> _markAllRead() async {
+    final token = await TokenService.getToken();
+    if (token == null) return;
+
+    await ApiService.post('/notifications/read-all', token, {});
+    await _fetchNotifications();
+  }
+
+  // ================= GROUP BY DATE =================
+  Map<String, List<Map<String, dynamic>>> _grouped() {
     final Map<String, List<Map<String, dynamic>>> grouped = {};
-    for (var n in notifications) {
-      DateTime date = n['date'] as DateTime;
+    final now = DateTime.now();
+
+    for (final n in notifications) {
+      final date = DateTime.parse(n['createdAt']);
       String key;
-      final now = DateTime.now();
+
       if (date.year == now.year &&
           date.month == now.month &&
           date.day == now.day) {
@@ -70,15 +95,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         key = "${date.day}-${date.month}-${date.year}";
       }
 
-      if (!grouped.containsKey(key)) grouped[key] = [];
+      grouped.putIfAbsent(key, () => []);
       grouped[key]!.add(n);
     }
+
     return grouped;
   }
 
+  // ================= UI =================
   @override
   Widget build(BuildContext context) {
-    final groupedNotifications = _groupNotifications();
+    final groupedNotifications = _grouped();
 
     return Scaffold(
       backgroundColor: AppColors.backgroundBeige,
@@ -86,157 +113,104 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         backgroundColor: AppColors.primaryColor,
         title: const Text(
           "Notifications",
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         actions: [
           TextButton(
-            onPressed: () {
-              setState(() {
-                for (var n in notifications) n['isNew'] = false;
-              });
-            },
-            child: const Text(
-              "Mark All Read",
-              style: TextStyle(color: Colors.white),
-            ),
+            onPressed: notifications.isEmpty ? null : _markAllRead,
+            child: const Text("Mark All Read",
+                style: TextStyle(color: Colors.white)),
           )
         ],
       ),
-      body: notifications.isEmpty
-          ? const Center(
-              child: Text(
-                "No notifications yet!",
-                style: TextStyle(fontSize: 16, color: Colors.grey),
-              ),
-            )
-          : ListView(
-              padding: const EdgeInsets.all(12),
-              children: groupedNotifications.entries.map((entry) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      entry.key,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.headingBlue,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    ...entry.value.asMap().entries.map((pair) {
-                      int index = notifications.indexOf(pair.value);
-                      final n = pair.value;
-                      final isNew = n['isNew'] as bool? ?? false;
-                      return Dismissible(
-                        key: Key(n['title'] + index.toString()),
-                        background: Container(
-                          color: Colors.green,
-                          alignment: Alignment.centerLeft,
-                          padding: const EdgeInsets.only(left: 16),
-                          child: const Icon(Icons.mark_email_read,
-                              color: Colors.white),
-                        ),
-                        secondaryBackground: Container(
-                          color: Colors.red,
-                          alignment: Alignment.centerRight,
-                          padding: const EdgeInsets.only(right: 16),
-                          child: const Icon(Icons.delete, color: Colors.white),
-                        ),
-                        onDismissed: (direction) {
-                          if (direction == DismissDirection.endToStart) {
-                            _deleteNotification(index);
-                          } else {
-                            _toggleRead(index);
-                          }
-                        },
-                        child: Container(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          decoration: BoxDecoration(
-                            color: isNew
-                                ? Colors.blue.withOpacity(0.05)
-                                : Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
-                                blurRadius: 4,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: ListTile(
-                            contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 12),
-                            leading: Stack(
-                              children: [
-                                Icon(
-                                  Icons.notifications,
-                                  color: isNew
-                                      ? AppColors.primaryColor
-                                      : Colors.grey,
-                                  size: 32,
-                                ),
-                                if (isNew)
-                                  Positioned(
-                                    right: 0,
-                                    top: 0,
-                                    child: Container(
-                                      width: 10,
-                                      height: 10,
-                                      decoration: const BoxDecoration(
-                                        color: Colors.orange,
-                                        shape: BoxShape.circle,
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                            title: Text(
-                              n['title'],
-                              style: TextStyle(
-                                fontWeight:
-                                    isNew ? FontWeight.bold : FontWeight.normal,
-                                fontSize: 14,
-                              ),
-                            ),
-                            subtitle: Text(
-                              n['message'],
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                            trailing: isNew
-                                ? Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: Colors.orange,
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: const Text(
-                                      "NEW",
-                                      style: TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 10),
-                                    ),
-                                  )
-                                : null,
-                            onTap: () => _toggleRead(index),
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ],
-                );
-              }).toList(),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : notifications.isEmpty
+              ? const Center(
+                  child: Text("No notifications yet!",
+                      style: TextStyle(color: Colors.grey)),
+                )
+              : ListView(
+                  padding: const EdgeInsets.all(12),
+                  children: groupedNotifications.entries.map((entry) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(entry.key,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.headingBlue)),
+                        const SizedBox(height: 6),
+                        ...entry.value.map(_notificationTile).toList(),
+                        const SizedBox(height: 12),
+                      ],
+                    );
+                  }).toList(),
+                ),
+    );
+  }
+
+  // ================= TILE =================
+  Widget _notificationTile(Map<String, dynamic> n) {
+    final isUnread = !(n['isRead'] as bool);
+
+    return GestureDetector(
+      onTap: isUnread ? () => _markAsRead(n['id']) : null,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        decoration: BoxDecoration(
+          color: isUnread ? Colors.blue.withOpacity(0.05) : Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
             ),
+          ],
+        ),
+        child: ListTile(
+          leading: Stack(
+            children: [
+              Icon(Icons.notifications,
+                  size: 30,
+                  color: isUnread ? AppColors.primaryColor : Colors.grey),
+              if (isUnread)
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                        color: Colors.orange, shape: BoxShape.circle),
+                  ),
+                )
+            ],
+          ),
+          title: Text(
+            n['title'],
+            style: TextStyle(
+                fontWeight: isUnread ? FontWeight.bold : FontWeight.normal),
+          ),
+          subtitle: Text(n['message']),
+          trailing: isUnread
+              ? Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.orange,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text("NEW",
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold)),
+                )
+              : null,
+        ),
+      ),
     );
   }
 }

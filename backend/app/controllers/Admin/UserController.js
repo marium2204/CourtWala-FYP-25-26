@@ -27,21 +27,41 @@ class AdminUserController extends BaseController {
     return BaseController.success(res, user, 'User status updated successfully');
   });
 
-  /**
-   * Approve court owner
-   */
-  static approveOwner = asyncHandler(async (req, res) => {
-    const owner = await AdminService.approveCourtOwner(req.params.id);
-    return BaseController.success(res, owner, 'Court owner approved successfully');
-  });
+ /**
+ * Approve court owner
+ */
+static approveOwner = asyncHandler(async (req, res) => {
+  const owner = await AdminService.approveCourtOwner(
+    req.params.id,
+    req.user.id // ✅ adminId
+  );
 
-  /**
-   * Reject court owner
-   */
-  static rejectOwner = asyncHandler(async (req, res) => {
-    const owner = await AdminService.rejectCourtOwner(req.params.id);
-    return BaseController.success(res, owner, 'Court owner rejected successfully');
-  });
+  return BaseController.success(
+    res,
+    owner,
+    'Court owner approved successfully'
+  );
+});
+
+/**
+ * Reject court owner
+ */
+static rejectOwner = asyncHandler(async (req, res) => {
+  const { reason } = req.body;
+
+  const owner = await AdminService.rejectCourtOwner(
+    req.params.id,
+    req.user.id,          // ✅ adminId
+    reason || 'Rejected by admin'
+  );
+
+  return BaseController.success(
+    res,
+    owner,
+    'Court owner rejected successfully'
+  );
+});
+
 }
 
 module.exports = AdminUserController;

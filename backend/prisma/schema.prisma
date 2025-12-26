@@ -133,11 +133,14 @@ model Court {
   ownerId      String
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
+  
 
   // Relations
   owner    User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   bookings Booking[]
   reviews  CourtReview[]
+  slots CourtSlot[]
+
 
   @@index([ownerId])
   @@index([sport])
@@ -159,6 +162,10 @@ model Booking {
   opponentId    String?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
+
+  // Slot relation
+  slotId String?
+  slot   CourtSlot? @relation(fields: [slotId], references: [id])
 
   // Relations
   court    Court @relation(fields: [courtId], references: [id], onDelete: Cascade)
@@ -284,6 +291,7 @@ model Report {
   reporterId      String
   reportedUserId  String?
   reportedCourtId String?
+  reportedBookingId String?
   type            ReportType
   message         String
   status          ReportStatus @default(PENDING)
@@ -300,3 +308,24 @@ model Report {
   @@index([status])
   @@index([type])
 }
+
+model CourtSlot {
+  id        String   @id @default(cuid())
+  courtId   String
+  startTime String   // "07:00"
+  endTime   String   // "08:00"
+  isActive  Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  court    Court     @relation(fields: [courtId], references: [id], onDelete: Cascade)
+  bookings Booking[]   // ✅ REQUIRED inverse relation
+
+  @@unique([courtId, startTime, endTime])
+  @@index([courtId])
+}
+
+
+

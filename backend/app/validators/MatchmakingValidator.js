@@ -15,36 +15,48 @@ const handleValidationErrors = (req, res, next) => {
 
 /**
  * Validate send match request
+ * ✔ Supports Prisma CUID
+ * ✔ Supports UUID (future-safe)
  */
 const validateSendMatchRequest = [
   body('receiverId')
     .notEmpty()
     .withMessage('Receiver ID is required')
-    .isUUID()
-    .withMessage('Receiver ID must be a valid UUID'),
+    .isString()
+    .withMessage('Receiver ID must be a string')
+    .isLength({ min: 10, max: 50 })
+    .withMessage('Receiver ID must be a valid ID'),
+
   body('bookingId')
     .optional()
-    .isUUID()
-    .withMessage('Booking ID must be a valid UUID'),
+    .isString()
+    .withMessage('Booking ID must be a string')
+    .isLength({ min: 10, max: 50 })
+    .withMessage('Booking ID must be a valid ID'),
+
   body('sport')
     .trim()
     .notEmpty()
     .withMessage('Sport is required')
     .isLength({ min: 2, max: 50 })
     .withMessage('Sport must be between 2 and 50 characters'),
+
   body('skillLevel')
     .optional()
     .isIn(['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'PROFESSIONAL'])
-    .withMessage('Skill level must be one of: BEGINNER, INTERMEDIATE, ADVANCED, PROFESSIONAL'),
+    .withMessage(
+      'Skill level must be one of: BEGINNER, INTERMEDIATE, ADVANCED, PROFESSIONAL'
+    ),
+
   body('message')
     .optional()
     .trim()
     .isLength({ max: 500 })
     .withMessage('Message must not exceed 500 characters'),
+
   handleValidationErrors,
 ];
 
 module.exports = {
   validateSendMatchRequest,
 };
-

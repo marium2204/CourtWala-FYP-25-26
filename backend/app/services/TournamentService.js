@@ -6,50 +6,71 @@ class TournamentService {
   /**
    * Get all tournaments with filters
    */
-  static async getAll(filters = {}) {
-    const {
-      sport,
-      skillLevel,
-      status,
-      limit = 20,
-      page = 1,
-    } = filters;
+ static async getAll(filters = {}) {
+  const {
+    sport,
+    skillLevel,
+    status,
+    limit = 20,
+    page = 1,
+  } = filters;
 
-    const skip = (page - 1) * limit;
+  const skip = (page - 1) * limit;
 
-    const where = {
-      ...(sport && { sport }),
-      ...(skillLevel && { skillLevel }),
-      ...(status && { status }),
-    };
+  const where = {
+    ...(sport && { sport }),
+    ...(skillLevel && { skillLevel }),
+    ...(status && { status }),
+  };
 
-    const [tournaments, total] = await Promise.all([
-      prisma.tournament.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { startDate: 'asc' },
-        include: {
-          _count: {
-            select: {
-              participants: true,
-            },
+  const [tournaments, total] = await Promise.all([
+    prisma.tournament.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: { startDate: 'asc' },
+
+      // ✅ THIS IS THE IMPORTANT PART
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        sport: true,
+        skillLevel: true,
+        status: true,
+        startDate: true,
+        endDate: true,
+        maxParticipants: true,
+        currentParticipants: true,
+
+        participants: {
+          select: {
+            playerId: true, // needed to check "joined"
           },
         },
-      }),
-      prisma.tournament.count({ where }),
-    ]);
 
-    return {
-      tournaments,
-      pagination: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
+        _count: {
+          select: {
+            participants: true,
+          },
+        },
       },
-    };
-  }
+    }),
+
+    prisma.tournament.count({ where }),
+  ]);
+
+  return {
+    tournaments,
+    pagination: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
+}
+
 
   /**
    * Get tournament by ID

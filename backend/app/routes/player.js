@@ -47,5 +47,6 @@ const { validateCreateReport } = require('../validators/ReportValidator');
 router.post('/reports', validateCreateReport, ReportController.create);
 router.get('/reports', ReportController.getMyReports);
 
+
 module.exports = router;
 

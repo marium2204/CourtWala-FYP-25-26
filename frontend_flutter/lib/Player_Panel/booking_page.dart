@@ -1,17 +1,23 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+
 import '../theme/colors.dart';
-import 'player_home.dart'; // for navigating back to home
+import '../services/api_service.dart';
+import '../services/token_service.dart';
+import 'player_home.dart';
 
 class BookingPage extends StatefulWidget {
+  final String courtid;
   final String courtName;
   final String location;
   final String sport;
   final String price;
   final String image;
-  final Function(int)? onBookingComplete; // optional callback
+  final Function(int)? onBookingComplete;
 
   const BookingPage({
     super.key,
+    required this.courtid,
     required this.courtName,
     required this.location,
     required this.sport,
@@ -26,18 +32,14 @@ class BookingPage extends StatefulWidget {
 
 class _BookingPageState extends State<BookingPage> {
   DateTime? _selectedDate;
-  String? _selectedSlot;
+  Map<String, dynamic>? _selectedSlot;
   bool _findOpponent = false;
+  bool _loadingSlots = false;
+  bool _creatingBooking = false;
 
-  final List<String> _timeSlots = [
-    "7:00 AM - 8:00 AM",
-    "8:00 AM - 9:00 AM",
-    "9:00 AM - 10:00 AM",
-    "3:00 PM - 4:00 PM",
-    "4:00 PM - 5:00 PM",
-    "5:00 PM - 6:00 PM",
-  ];
+  final List<Map<String, dynamic>> _slots = [];
 
+  // ================= PICK DATE =================
   Future<void> _pickDate() async {
     final now = DateTime.now();
     final picked = await showDatePicker(
@@ -45,230 +47,245 @@ class _BookingPageState extends State<BookingPage> {
       initialDate: _selectedDate ?? now,
       firstDate: now,
       lastDate: DateTime(now.year, now.month + 3),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme:
-                const ColorScheme.light(primary: AppColors.primaryColor),
-          ),
-          child: child!,
-        );
-      },
     );
-    if (picked != null) setState(() => _selectedDate = picked);
+
+    if (picked != null) {
+      setState(() {
+        _selectedDate = picked;
+        _selectedSlot = null;
+      });
+      _fetchSlots();
+    }
   }
 
-  void _confirmBooking() {
+  // ================= FETCH SLOTS =================
+  Future<void> _fetchSlots() async {
+    if (_selectedDate == null) return;
+
+    setState(() => _loadingSlots = true);
+
+    try {
+      final date = _selectedDate!.toIso8601String().split('T').first;
+
+      final res = await ApiService.get(
+        '/courts/${widget.courtid}/slots?date=$date',
+        '',
+      );
+
+      if (res.statusCode == 200) {
+        final body = jsonDecode(res.body);
+        setState(() {
+          _slots
+            ..clear()
+            ..addAll(List<Map<String, dynamic>>.from(body['slots']));
+        });
+      }
+    } catch (e) {
+      debugPrint('Fetch slots error: $e');
+    } finally {
+      if (mounted) setState(() => _loadingSlots = false);
+    }
+  }
+
+  // ================= CREATE BOOKING =================
+  Future<void> _confirmBooking() async {
     if (_selectedDate == null || _selectedSlot == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Please select date and time slot!"),
+          content: Text("Please select date and time slot"),
           backgroundColor: Colors.redAccent,
         ),
       );
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          "Booking confirmed for ${widget.courtName} "
-          "on ${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year} "
-          "at $_selectedSlot",
+    setState(() => _creatingBooking = true);
+
+    try {
+      final token = await TokenService.getToken();
+      if (token == null) return;
+
+      final date = _selectedDate!.toIso8601String().split('T').first;
+
+      final res = await ApiService.post(
+        '/Player/bookings',
+        token,
+        {
+          'courtId': widget.courtid,
+          'date': date,
+          'startTime': _selectedSlot!['startTime'], // ✅ FIX
+          'endTime': _selectedSlot!['endTime'], // ✅ FIX
+          'findOpponent': _findOpponent,
+        },
+      );
+
+      if (res.statusCode == 200 || res.statusCode == 201) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Booking confirmed')),
+        );
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const PlayerHomeScreen()),
+        );
+
+        widget.onBookingComplete?.call(_findOpponent ? 3 : 0);
+      } else {
+        final body = jsonDecode(res.body);
+        throw Exception(body['message'] ?? 'Booking failed');
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceAll('Exception:', '')),
+          backgroundColor: Colors.red,
         ),
-        backgroundColor: Colors.green,
-      ),
-    );
-
-    int nextIndex = _findOpponent ? 3 : 0;
-
-    Navigator.pop(context); // close BookingPage
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const PlayerHomeScreen(),
-      ),
-    );
-
-    widget.onBookingComplete?.call(nextIndex);
+      );
+    } finally {
+      if (mounted) setState(() => _creatingBooking = false);
+    }
   }
 
+  String _formatSlot(Map<String, dynamic> slot) {
+    return "${slot['startTime']} - ${slot['endTime']}";
+  }
+
+  // ================= UI =================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.backgroundBeige,
       appBar: AppBar(
-        title: const Text(
-          "Book Your Court",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
         backgroundColor: AppColors.primaryColor,
+        title: const Text("Book Court", style: TextStyle(color: Colors.white)),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Court Info Card
-            Card(
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16)),
-              elevation: 4,
-              shadowColor: Colors.black26,
-              color: AppColors.primaryColor, // green background
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.asset(widget.image,
-                          width: 100, height: 80, fit: BoxFit.cover),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(widget.courtName,
-                              style: const TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white)), // white text
-                          const SizedBox(height: 4),
-                          Text("📍 ${widget.location}",
-                              style: const TextStyle(color: Colors.white70)),
-                          Text("💸 ${widget.price}",
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold)),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            // Booking Details Card
-            Card(
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16)),
-              elevation: 4,
-              color: AppColors.primaryColor,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // COURT INFO
+          Card(
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+            elevation: 5,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Date Picker
-                    const Text("Pick a Day",
-                        style: TextStyle(
+                    Text(widget.courtName,
+                        style: const TextStyle(
+                            fontSize: 22, fontWeight: FontWeight.bold)),
+                    Text("📍 ${widget.location}"),
+                    Text("🏅 ${widget.sport}"),
+                    const SizedBox(height: 8),
+                    Text("PKR ${widget.price} / hr",
+                        style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: Colors.white)),
-                    const SizedBox(height: 8),
-                    GestureDetector(
-                      onTap: _pickDate,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 14),
-                        decoration: BoxDecoration(
+                            color: AppColors.primaryColor)),
+                  ]),
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          // DATE
+          const Text("Select Date",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          GestureDetector(
+            onTap: _pickDate,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(_selectedDate == null
+                      ? "Choose a date"
+                      : "${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}"),
+                  const Icon(Icons.calendar_today),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // SLOTS
+          const Text("Select Time Slot",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+
+          if (_loadingSlots)
+            const Center(child: CircularProgressIndicator())
+          else if (_slots.isEmpty)
+            const Text("No slots available for this date")
+          else
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: _slots.map((slot) {
+                final isAvailable = slot['available'] == true;
+                final isSelected = _selectedSlot?['id'] == slot['id'];
+
+                return ChoiceChip(
+                  label: Text(_formatSlot(slot)),
+                  selected: isSelected,
+                  selectedColor: AppColors.primaryColor,
+                  backgroundColor:
+                      isAvailable ? Colors.white : Colors.red.shade300,
+                  labelStyle: TextStyle(
+                    color: isSelected
+                        ? Colors.white
+                        : isAvailable
+                            ? Colors.black
+                            : Colors.white,
+                  ),
+                  onSelected: isAvailable
+                      ? (_) => setState(() => _selectedSlot = slot)
+                      : null,
+                );
+              }).toList(),
+            ),
+
+          const SizedBox(height: 20),
+
+          SwitchListTile(
+            value: _findOpponent,
+            onChanged: (v) => setState(() => _findOpponent = v),
+            title: const Text("Find an opponent",
+                style: TextStyle(fontWeight: FontWeight.bold)),
+            activeColor: AppColors.primaryColor,
+          ),
+
+          const SizedBox(height: 30),
+
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton(
+              onPressed: _creatingBooking ? null : _confirmBooking,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryColor,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
+              ),
+              child: _creatingBooking
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : const Text("Confirm Booking",
+                      style: TextStyle(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey.shade300),
-                          boxShadow: const [
-                            BoxShadow(
-                                color: Colors.black12,
-                                blurRadius: 4,
-                                offset: Offset(0, 2)),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(_selectedDate == null
-                                ? "Select a date"
-                                : "${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}"),
-                            const Icon(Icons.calendar_today,
-                                color: AppColors.primaryColor),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Time Slot Picker
-                    const Text("Pick a Slot",
-                        style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white)),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: _timeSlots.map((slot) {
-                        final isSelected = _selectedSlot == slot;
-                        return ChoiceChip(
-                          label: Text(slot),
-                          selected: isSelected,
-                          onSelected: (_) =>
-                              setState(() => _selectedSlot = slot),
-                          selectedColor: AppColors.accentColor,
-                          labelStyle: TextStyle(
-                              color: isSelected
-                                  ? Colors.white
-                                  : AppColors.headingBlue),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 8),
-                        );
-                      }).toList(),
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // Find Opponent Toggle
-                    SwitchListTile(
-                      value: _findOpponent,
-                      onChanged: (v) => setState(() => _findOpponent = v),
-                      title: const Text("Post match to find an opponent",
-                          style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white)),
-                      activeColor: AppColors.accentColor,
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                  ],
-                ),
-              ),
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold)),
             ),
-
-            const SizedBox(height: 24),
-
-            // Confirm Booking Button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _confirmBooking,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryColor,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
-                ),
-                child: const Text(
-                  "Confirm Booking",
-                  style: TextStyle(color: Colors.white, fontSize: 16),
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ]),
       ),
     );
   }

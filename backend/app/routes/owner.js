@@ -45,5 +45,11 @@ router.post('/bookings/:id/approve', BookingController.approve);
 router.post('/bookings/:id/reject', BookingController.reject);
 router.post('/bookings/:id/cancel', BookingController.cancel);
 
+// Profile routes
+const OwnerProfileController = require('../controllers/Owner/OwnerProfileController');
+router.get('/profile', OwnerProfileController.getProfile);
+router.put('/profile', OwnerProfileController.updateProfile);
+
+
 module.exports = router;
 

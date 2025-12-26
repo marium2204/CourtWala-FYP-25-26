@@ -1,10 +1,16 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import '../theme/colors.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
+
+import '../theme/colors.dart';
+import '../services/token_service.dart';
+import '../authentication_screens/splash_screen.dart';
 
 class OwnerEditProfileScreen extends StatefulWidget {
-  const OwnerEditProfileScreen({super.key});
+  final Map<String, dynamic> owner;
+
+  const OwnerEditProfileScreen({super.key, required this.owner});
 
   @override
   State<OwnerEditProfileScreen> createState() => _OwnerEditProfileScreenState();
@@ -13,20 +19,98 @@ class OwnerEditProfileScreen extends StatefulWidget {
 class _OwnerEditProfileScreenState extends State<OwnerEditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  String name = "Court Owner Name";
-  String email = "owner@email.com";
-  String phone = "0300-1234567";
-  String courts = "3";
-  String address = "City, Country";
+  late TextEditingController _fullNameController;
+  late TextEditingController _emailController;
+  late TextEditingController _phoneController;
 
   File? _avatarFile;
   final ImagePicker _picker = ImagePicker();
+  bool isSaving = false;
 
+  @override
+  void initState() {
+    super.initState();
+
+    final firstName = widget.owner['firstName'] ?? '';
+    final lastName = widget.owner['lastName'] ?? '';
+
+    _fullNameController =
+        TextEditingController(text: ('$firstName $lastName').trim());
+    _emailController = TextEditingController(text: widget.owner['email'] ?? '');
+    _phoneController = TextEditingController(text: widget.owner['phone'] ?? '');
+  }
+
+  // ================= PICK IMAGE =================
   Future<void> _pickImage() async {
     final XFile? image =
         await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+
     if (image != null) {
       setState(() => _avatarFile = File(image.path));
+    }
+  }
+
+  // ================= SAVE PROFILE =================
+  Future<void> _saveProfile() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final token = await TokenService.getToken();
+    if (token == null) {
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const SplashScreen()),
+      );
+      return;
+    }
+
+    setState(() => isSaving = true);
+
+    try {
+      final parts = _fullNameController.text.trim().split(' ');
+      final firstName = parts.first;
+      final lastName = parts.length > 1 ? parts.sublist(1).join(' ') : '';
+
+      final uri = Uri.parse('http://192.168.1.115:3000/api/owner/profile');
+
+      final request = http.MultipartRequest('PUT', uri);
+      request.headers['Authorization'] = 'Bearer $token';
+
+      request.fields['firstName'] = firstName;
+      request.fields['lastName'] = lastName;
+      request.fields['phone'] = _phoneController.text.trim();
+
+      if (_avatarFile != null) {
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'profilePicture', // MUST match backend field name
+            _avatarFile!.path,
+          ),
+        );
+      }
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profile updated successfully')),
+        );
+        Navigator.pop(context, true);
+      } else {
+        debugPrint(response.body);
+        throw Exception('Update failed');
+      }
+    } catch (e) {
+      debugPrint('Owner profile update error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to update profile')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => isSaving = false);
     }
   }
 
@@ -36,12 +120,11 @@ class _OwnerEditProfileScreenState extends State<OwnerEditProfileScreen> {
       backgroundColor: AppColors.backgroundBeige,
       appBar: AppBar(
         backgroundColor: AppColors.primaryColor,
-        iconTheme: const IconThemeData(color: Colors.white),
-        elevation: 2,
         title: const Text(
-          "Edit Profile",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          'Edit Profile',
+          style: TextStyle(color: Colors.white),
         ),
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -49,103 +132,59 @@ class _OwnerEditProfileScreenState extends State<OwnerEditProfileScreen> {
           key: _formKey,
           child: Column(
             children: [
-              // ===== PROFILE PICTURE =====
+              // ================= AVATAR =================
               Stack(
                 alignment: Alignment.bottomRight,
                 children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black26,
-                          blurRadius: 6,
-                          offset: const Offset(0, 3),
-                        )
-                      ],
-                    ),
-                    child: CircleAvatar(
-                      radius: 55,
-                      backgroundColor: AppColors.accentColor,
-                      backgroundImage:
-                          _avatarFile != null ? FileImage(_avatarFile!) : null,
-                      child: _avatarFile == null
-                          ? const Icon(Icons.person,
-                              size: 55, color: Colors.white)
-                          : null,
-                    ),
+                  CircleAvatar(
+                    radius: 55,
+                    backgroundColor: AppColors.primaryColor,
+                    backgroundImage:
+                        _avatarFile != null ? FileImage(_avatarFile!) : null,
+                    child: _avatarFile == null
+                        ? const Icon(Icons.person,
+                            size: 50, color: Colors.white)
+                        : null,
                   ),
                   GestureDetector(
                     onTap: _pickImage,
                     child: CircleAvatar(
                       radius: 18,
-                      backgroundColor: AppColors.primaryColor,
+                      backgroundColor: Colors.black54,
                       child:
                           const Icon(Icons.edit, size: 18, color: Colors.white),
                     ),
                   ),
                 ],
               ),
+
               const SizedBox(height: 32),
 
-              // ===== INPUT FIELDS =====
-              _buildTextField(
-                  label: "Name",
-                  icon: Icons.person,
-                  initialValue: name,
-                  onSaved: (val) => name = val!),
+              _field(_fullNameController, 'Full Name', Icons.person),
               const SizedBox(height: 16),
-              _buildTextField(
-                  label: "Email",
-                  icon: Icons.email,
-                  initialValue: email,
-                  keyboardType: TextInputType.emailAddress,
-                  onSaved: (val) => email = val!),
+              _field(_emailController, 'Email', Icons.email, enabled: false),
               const SizedBox(height: 16),
-              _buildTextField(
-                  label: "Phone",
-                  icon: Icons.phone,
-                  initialValue: phone,
-                  keyboardType: TextInputType.phone,
-                  onSaved: (val) => phone = val!),
-              const SizedBox(height: 16),
-              _buildTextField(
-                  label: "Number of Courts",
-                  icon: Icons.sports_tennis,
-                  initialValue: courts,
-                  keyboardType: TextInputType.number,
-                  onSaved: (val) => courts = val!),
-              const SizedBox(height: 16),
-              _buildTextField(
-                  label: "Address",
-                  icon: Icons.location_on,
-                  initialValue: address,
-                  onSaved: (val) => address = val!),
+              _field(_phoneController, 'Phone', Icons.phone),
+
               const SizedBox(height: 32),
 
-              // ===== SAVE BUTTON =====
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {
-                    if (_formKey.currentState!.validate()) {
-                      _formKey.currentState!.save();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("Profile Updated")),
-                      );
-                    }
-                  },
+                  onPressed: isSaving ? null : _saveProfile,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryColor,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                    elevation: 5,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
-                  child: const Text(
-                    "Save Changes",
-                    style: TextStyle(fontSize: 18, color: Colors.white),
-                  ),
+                  child: isSaving
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text(
+                          'Save Changes',
+                          style: TextStyle(fontSize: 18, color: Colors.white),
+                        ),
                 ),
               ),
             ],
@@ -155,31 +194,26 @@ class _OwnerEditProfileScreenState extends State<OwnerEditProfileScreen> {
     );
   }
 
-  Widget _buildTextField({
-    required String label,
-    required IconData icon,
-    required String initialValue,
-    TextInputType keyboardType = TextInputType.text,
-    required FormFieldSetter<String> onSaved,
+  // ================= FIELD =================
+  Widget _field(
+    TextEditingController controller,
+    String label,
+    IconData icon, {
+    bool enabled = true,
   }) {
     return TextFormField(
-      initialValue: initialValue,
-      style: const TextStyle(color: Colors.black),
-      keyboardType: keyboardType,
+      controller: controller,
+      enabled: enabled,
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: const TextStyle(color: Colors.black),
-        prefixIcon: Icon(icon, color: Colors.black),
+        prefixIcon: Icon(icon),
         filled: true,
-        fillColor: AppColors.primaryColor.withOpacity(0.2),
+        fillColor: Colors.white,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide.none,
+          borderRadius: BorderRadius.circular(14),
         ),
       ),
-      validator: (value) =>
-          value == null || value.isEmpty ? "Enter $label" : null,
-      onSaved: onSaved,
+      validator: (v) => v == null || v.isEmpty ? 'Enter $label' : null,
     );
   }
 }

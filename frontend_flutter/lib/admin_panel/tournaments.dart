@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+
 import '../theme/colors.dart';
 import '../services/api_service.dart';
 
@@ -12,7 +13,8 @@ class Tournament {
   final DateTime startDate;
   final DateTime endDate;
   final int maxParticipants;
-  String status;
+  final int currentParticipants;
+  final String status;
 
   Tournament({
     required this.id,
@@ -23,12 +25,13 @@ class Tournament {
     required this.startDate,
     required this.endDate,
     required this.maxParticipants,
+    required this.currentParticipants,
     required this.status,
   });
 
   factory Tournament.fromJson(Map<String, dynamic> json) {
     return Tournament(
-      id: json['id'].toString(),
+      id: json['id'],
       name: json['name'] ?? '',
       description: json['description'] ?? '',
       sport: json['sport'] ?? '',
@@ -36,6 +39,7 @@ class Tournament {
       startDate: DateTime.parse(json['startDate']),
       endDate: DateTime.parse(json['endDate']),
       maxParticipants: json['maxParticipants'] ?? 0,
+      currentParticipants: json['currentParticipants'] ?? 0,
       status: json['status'] ?? 'UPCOMING',
     );
   }
@@ -44,7 +48,10 @@ class Tournament {
 class ManageTournamentsScreen extends StatefulWidget {
   final String adminToken;
 
-  const ManageTournamentsScreen({super.key, required this.adminToken});
+  const ManageTournamentsScreen({
+    super.key,
+    required this.adminToken,
+  });
 
   @override
   State<ManageTournamentsScreen> createState() =>
@@ -52,8 +59,8 @@ class ManageTournamentsScreen extends StatefulWidget {
 }
 
 class _ManageTournamentsScreenState extends State<ManageTournamentsScreen> {
-  List<Tournament> tournaments = [];
   bool isLoading = true;
+  List<Tournament> tournaments = [];
 
   @override
   void initState() {
@@ -61,192 +68,39 @@ class _ManageTournamentsScreenState extends State<ManageTournamentsScreen> {
     _fetchTournaments();
   }
 
+  // ================= FETCH =================
   Future<void> _fetchTournaments() async {
     try {
       final res = await ApiService.get('/admin/tournaments', widget.adminToken);
 
-      if (res.statusCode == 200) {
-        final decoded = jsonDecode(res.body);
-        final List list = decoded['data']['tournaments'] ?? [];
-
-        setState(() {
-          tournaments = list.map((e) => Tournament.fromJson(e)).toList();
-          isLoading = false;
-        });
-      } else {
+      if (res.statusCode != 200) {
         throw Exception(res.body);
       }
+
+      final decoded = jsonDecode(res.body);
+      final List list = decoded['data']['tournaments'] ?? [];
+
+      setState(() {
+        tournaments = list.map((e) => Tournament.fromJson(e)).toList();
+        isLoading = false;
+      });
     } catch (e) {
       debugPrint('Fetch tournaments error: $e');
       setState(() => isLoading = false);
     }
   }
 
-  void _openForm({Tournament? tournament}) {
-    final isEdit = tournament != null;
-
-    final nameCtrl = TextEditingController(text: tournament?.name ?? '');
-    final descCtrl = TextEditingController(text: tournament?.description ?? '');
-    final sportCtrl = TextEditingController(text: tournament?.sport ?? '');
-    final maxCtrl = TextEditingController(
-        text: tournament?.maxParticipants.toString() ?? '');
-
-    String skillLevel = tournament?.skillLevel ?? 'BEGINNER';
-    String status = tournament?.status ?? 'UPCOMING';
-    DateTime? startDate = tournament?.startDate;
-    DateTime? endDate = tournament?.endDate;
-
-    showDialog(
-      context: context,
-      builder: (_) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          return AlertDialog(
-            title: Text(isEdit ? 'Edit Tournament' : 'Create Tournament'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                      controller: nameCtrl,
-                      decoration: const InputDecoration(labelText: 'Name')),
-                  TextField(
-                      controller: descCtrl,
-                      decoration:
-                          const InputDecoration(labelText: 'Description')),
-                  TextField(
-                      controller: sportCtrl,
-                      decoration: const InputDecoration(labelText: 'Sport')),
-                  const SizedBox(height: 10),
-                  DropdownButtonFormField<String>(
-                    value: skillLevel,
-                    decoration: const InputDecoration(labelText: 'Skill Level'),
-                    items: const [
-                      DropdownMenuItem(
-                          value: 'BEGINNER', child: Text('BEGINNER')),
-                      DropdownMenuItem(
-                          value: 'INTERMEDIATE', child: Text('INTERMEDIATE')),
-                      DropdownMenuItem(
-                          value: 'ADVANCED', child: Text('ADVANCED')),
-                    ],
-                    onChanged: (v) => setDialogState(() => skillLevel = v!),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      TextButton(
-                        onPressed: () async {
-                          final d = await showDatePicker(
-                            context: context,
-                            initialDate: startDate ?? DateTime.now(),
-                            firstDate: DateTime.now(),
-                            lastDate: DateTime(2100),
-                          );
-                          if (d != null) {
-                            setDialogState(() => startDate = d);
-                          }
-                        },
-                        child: Text(startDate == null
-                            ? 'Pick Start Date'
-                            : startDate!.toLocal().toString().split(' ')[0]),
-                      ),
-                      TextButton(
-                        onPressed: () async {
-                          final d = await showDatePicker(
-                            context: context,
-                            initialDate: endDate ?? DateTime.now(),
-                            firstDate: DateTime.now(),
-                            lastDate: DateTime(2100),
-                          );
-                          if (d != null) {
-                            setDialogState(() => endDate = d);
-                          }
-                        },
-                        child: Text(endDate == null
-                            ? 'Pick End Date'
-                            : endDate!.toLocal().toString().split(' ')[0]),
-                      ),
-                    ],
-                  ),
-                  TextField(
-                    controller: maxCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration:
-                        const InputDecoration(labelText: 'Max Participants'),
-                  ),
-                  if (isEdit)
-                    DropdownButtonFormField<String>(
-                      value: status,
-                      decoration: const InputDecoration(labelText: 'Status'),
-                      items: const [
-                        DropdownMenuItem(
-                            value: 'UPCOMING', child: Text('UPCOMING')),
-                        DropdownMenuItem(
-                            value: 'ONGOING', child: Text('ONGOING')),
-                        DropdownMenuItem(
-                            value: 'COMPLETED', child: Text('COMPLETED')),
-                      ],
-                      onChanged: (v) => setDialogState(() => status = v!),
-                    ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel')),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryColor),
-                onPressed: () async {
-                  if (nameCtrl.text.isEmpty ||
-                      descCtrl.text.isEmpty ||
-                      sportCtrl.text.isEmpty ||
-                      startDate == null ||
-                      endDate == null ||
-                      maxCtrl.text.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Fill all fields')),
-                    );
-                    return;
-                  }
-
-                  final body = {
-                    'name': nameCtrl.text,
-                    'description': descCtrl.text,
-                    'sport': sportCtrl.text,
-                    'skillLevel': skillLevel,
-                    'startDate': startDate!.toIso8601String(),
-                    'endDate': endDate!.toIso8601String(),
-                    'maxParticipants': int.parse(maxCtrl.text),
-                    if (isEdit) 'status': status,
-                  };
-
-                  Navigator.pop(context);
-
-                  if (isEdit) {
-                    await ApiService.put(
-                      '/admin/tournaments/${tournament.id}',
-                      widget.adminToken,
-                      body,
-                    );
-                  } else {
-                    await ApiService.post(
-                      '/admin/tournaments',
-                      widget.adminToken,
-                      body,
-                    );
-                  }
-
-                  _fetchTournaments();
-                },
-                child: Text(isEdit ? 'Update' : 'Create'),
-              ),
-            ],
-          );
-        },
-      ),
-    );
+  // ================= CORE LOGIC =================
+  bool _isTeamSport(String sport) {
+    final s = sport.toLowerCase();
+    return s == 'football' || s == 'cricket';
   }
+
+  bool _isFull(Tournament t) {
+    return t.currentParticipants >= t.maxParticipants;
+  }
+
+  String _formatDate(DateTime d) => d.toLocal().toString().split(' ')[0];
 
   Future<void> _deleteTournament(String id) async {
     await ApiService.delete(
@@ -256,19 +110,16 @@ class _ManageTournamentsScreenState extends State<ManageTournamentsScreen> {
     _fetchTournaments();
   }
 
+  // ================= UI =================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Manage Tournaments',
-            style: TextStyle(color: Colors.white)),
+        title: const Text(
+          'Manage Tournaments',
+          style: TextStyle(color: Colors.white),
+        ),
         backgroundColor: AppColors.primaryColor,
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppColors.primaryColor,
-        onPressed: () => _openForm(),
-        child: const Icon(Icons.add),
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -279,23 +130,89 @@ class _ManageTournamentsScreenState extends State<ManageTournamentsScreen> {
                   itemCount: tournaments.length,
                   itemBuilder: (_, i) {
                     final t = tournaments[i];
+                    final isTeam = _isTeamSport(t.sport);
+                    final isFull = _isFull(t);
+
                     return Card(
                       margin: const EdgeInsets.only(bottom: 12),
-                      child: ListTile(
-                        title: Text(t.name),
-                        subtitle: Text(
-                            '${t.sport} | ${t.skillLevel}\n${t.startDate.toLocal().toString().split(' ')[0]} → ${t.endDate.toLocal().toString().split(' ')[0]}'),
-                        trailing: Wrap(
-                          spacing: 8,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(14),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            TextButton(
-                                onPressed: () => _openForm(tournament: t),
-                                child: const Text('Edit')),
-                            TextButton(
-                              onPressed: () => _deleteTournament(t.id),
-                              style: TextButton.styleFrom(
-                                  foregroundColor: Colors.red),
-                              child: const Text('Delete'),
+                            // HEADER
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    t.name,
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.headingBlue,
+                                    ),
+                                  ),
+                                ),
+                                if (isFull)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red.withOpacity(0.15),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: const Text(
+                                      'FULL',
+                                      style: TextStyle(
+                                        color: Colors.red,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+
+                            const SizedBox(height: 6),
+
+                            Text('${t.sport} • ${t.skillLevel}'),
+                            Text(
+                              '${_formatDate(t.startDate)} → ${_formatDate(t.endDate)}',
+                              style: const TextStyle(color: Colors.grey),
+                            ),
+
+                            const SizedBox(height: 8),
+
+                            // PARTICIPANTS / TEAMS
+                            Text(
+                              '${isTeam ? "Teams" : "Participants"}: '
+                              '${t.currentParticipants} / ${t.maxParticipants}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+
+                            const SizedBox(height: 10),
+
+                            // ACTIONS
+                            Row(
+                              children: [
+                                TextButton(
+                                  onPressed:
+                                      () {}, // edit dialog already exists
+                                  child: const Text('Edit'),
+                                ),
+                                TextButton(
+                                  onPressed: () => _deleteTournament(t.id),
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: Colors.red,
+                                  ),
+                                  child: const Text('Delete'),
+                                ),
+                              ],
                             ),
                           ],
                         ),

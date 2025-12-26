@@ -1,12 +1,14 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+
 import '../theme/colors.dart';
+import '../services/api_service.dart';
+import '../services/token_service.dart';
 
 class AddEditCourtScreen extends StatefulWidget {
-  final Map<String, dynamic>? court; // If null → add new, else edit
-
-  const AddEditCourtScreen({super.key, this.court});
+  const AddEditCourtScreen({super.key});
 
   @override
   State<AddEditCourtScreen> createState() => _AddEditCourtScreenState();
@@ -14,353 +16,283 @@ class AddEditCourtScreen extends StatefulWidget {
 
 class _AddEditCourtScreenState extends State<AddEditCourtScreen> {
   final _formKey = GlobalKey<FormState>();
-  late TextEditingController _nameController;
-  late TextEditingController _descriptionController;
-  late TextEditingController _addressController;
-  late TextEditingController _cityController;
-  late TextEditingController _stateController;
-  late TextEditingController _zipController;
-  late TextEditingController _priceController;
+  bool _submitting = false;
+
+  final _nameController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _addressController = TextEditingController();
+  final _cityController = TextEditingController();
+  final _stateController = TextEditingController();
+  final _zipController = TextEditingController();
+  final _priceController = TextEditingController();
 
   String _selectedSport = 'Badminton';
-  String? _selectedAssetImage;
-  File? _pickedImage;
+  final ImagePicker _picker = ImagePicker();
+  final List<File> _pickedImages = [];
 
-  Map<String, bool> _amenities = {
+  final Map<String, bool> _amenities = {
     'Parking': false,
     'Indoor Lights': false,
     'Shower': false,
     'Equipment Rental': false,
   };
 
-  bool _isActive = true; // Only for approved courts
-  final ImagePicker _picker = ImagePicker();
+  // ================= SLOT STATE =================
 
-  @override
-  void initState() {
-    super.initState();
+  final List<Map<String, String>> _slots = [];
 
-    final court = widget.court;
-    _nameController = TextEditingController(text: court?['name'] ?? '');
-    _descriptionController =
-        TextEditingController(text: court?['description'] ?? '');
-    _addressController = TextEditingController(text: court?['address'] ?? '');
-    _cityController = TextEditingController(text: court?['city'] ?? '');
-    _stateController = TextEditingController(text: court?['state'] ?? '');
-    _zipController = TextEditingController(text: court?['zipCode'] ?? '');
-    _priceController =
-        TextEditingController(text: court?['pricePerHour']?.toString() ?? '');
-    _selectedSport = court?['sport'] ?? 'Badminton';
-    _selectedAssetImage = court?['image'];
-    _amenities = Map<String, bool>.from(court?['amenitiesMap'] ??
-        {
-          'Parking': false,
-          'Indoor Lights': false,
-          'Shower': false,
-          'Equipment Rental': false,
-        });
-    _isActive = court?['status'] == 'ACTIVE';
-  }
+  // ================= IMAGE PICKER =================
 
   Future<void> _pickImage() async {
-    final XFile? image =
+    final image =
         await _picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
     if (image != null) {
-      setState(() {
-        _pickedImage = File(image.path);
-        _selectedAssetImage = null; // deselect asset
-      });
+      setState(() => _pickedImages.add(File(image.path)));
     }
   }
 
-  void _submitCourt() {
-    if (_formKey.currentState!.validate()) {
-      final newCourt = {
-        'name': _nameController.text,
-        'description': _descriptionController.text,
-        'address': _addressController.text,
-        'city': _cityController.text,
-        'state': _stateController.text,
-        'zipCode': _zipController.text,
-        'sport': _selectedSport,
-        'pricePerHour': double.tryParse(_priceController.text) ?? 0,
-        'image': _pickedImage?.path ?? _selectedAssetImage,
-        'amenities':
+  // ================= SLOT PICKER =================
+
+  Future<void> _addSlot() async {
+    final start = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+    );
+    if (start == null) return;
+
+    final end = await showTimePicker(
+      context: context,
+      initialTime: start.replacing(hour: start.hour + 1),
+    );
+    if (end == null) return;
+
+    setState(() {
+      _slots.add({
+        'startTime': _to24Hour(start),
+        'endTime': _to24Hour(end),
+      });
+    });
+  }
+
+  String _to24Hour(TimeOfDay t) {
+    final h = t.hour.toString().padLeft(2, '0');
+    final m = t.minute.toString().padLeft(2, '0');
+    return '$h:$m';
+  }
+
+  // ================= SUBMIT =================
+
+  Future<void> _submitCourt() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    if (_slots.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please add at least one slot')),
+      );
+      return;
+    }
+
+    final token = await TokenService.getToken();
+    if (token == null) return;
+
+    setState(() => _submitting = true);
+
+    try {
+      // 1️⃣ CREATE COURT
+      final res = await ApiService.multipartPost(
+        '/owner/courts',
+        token,
+        {
+          'name': _nameController.text.trim(),
+          'description': _descriptionController.text.trim(),
+          'address': _addressController.text.trim(),
+          'city': _cityController.text.trim(),
+          'state': _stateController.text.trim(),
+          'zipCode': _zipController.text.trim(),
+          'sport': _selectedSport,
+          'pricePerHour': _priceController.text.trim(),
+          'amenities': jsonEncode(
             _amenities.entries.where((e) => e.value).map((e) => e.key).toList(),
-        'status': widget.court == null
-            ? 'PENDING_APPROVAL'
-            : (_isActive ? 'ACTIVE' : 'INACTIVE'),
-      };
+          ),
+        },
+        files: _pickedImages,
+        fileField: 'images',
+      );
+
+      if (res.statusCode != 201 && res.statusCode != 200) {
+        throw Exception(res.body);
+      }
+
+      final body = jsonDecode(res.body);
+      final courtId = body['data']['id'];
+
+      // 2️⃣ CREATE SLOTS
+      await ApiService.post(
+        '/owner/courts/$courtId/slots',
+        token,
+        {'slots': _slots},
+      );
+
+      if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(widget.court == null
-              ? "Court submitted for approval!"
-              : "Court updated successfully!"),
+        const SnackBar(
+          content: Text('Court & slots submitted successfully'),
           backgroundColor: Colors.green,
         ),
       );
 
-      Navigator.pop(context, newCourt);
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _submitting = false);
     }
   }
 
+  // ================= UI =================
+
   @override
   Widget build(BuildContext context) {
-    final isEditing = widget.court != null;
-
     return Scaffold(
       backgroundColor: AppColors.backgroundBeige,
       appBar: AppBar(
-        title: Text(
-          isEditing ? "Edit Court" : "Add New Court",
-          style: const TextStyle(color: Colors.white),
-        ),
+        title: const Text('Add Court', style: TextStyle(color: Colors.white)),
         backgroundColor: AppColors.primaryColor,
-        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Name
-              _buildTextField(_nameController, "Court Name", 3, 100),
-              const SizedBox(height: 16),
-
-              // Description
-              _buildTextField(_descriptionController, "Description", 0, 500,
-                  maxLines: 3, optional: true),
-              const SizedBox(height: 16),
-
-              // Address
-              _buildTextField(_addressController, "Address", 3, 200),
-              const SizedBox(height: 12),
-              _buildTextField(_cityController, "City", 2, 100),
-              const SizedBox(height: 12),
-              _buildTextField(_stateController, "State", 2, 50),
-              const SizedBox(height: 12),
-              _buildTextField(_zipController, "Zip Code", 5, 10,
-                  regex: r'^\d{5}(-\d{4})?$'),
-              const SizedBox(height: 16),
-
-              // Sport
-              Text("Select Sport", style: _headingStyle()),
-              const SizedBox(height: 8),
-              _buildSportSelector(),
-              const SizedBox(height: 16),
-
-              // Price
-              _buildTextField(
-                  _priceController, "Price per hour (PKR)", 1, 999999,
-                  keyboardType: TextInputType.number),
-              const SizedBox(height: 16),
-
-              // Images
-              Text("Select Image", style: _headingStyle()),
-              const SizedBox(height: 8),
-              _buildImagePicker(),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: _pickImage,
-                  icon: const Icon(Icons.photo_library),
-                  label: const Text("Pick from Gallery"),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    side: BorderSide(color: AppColors.primaryColor),
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            _field(_nameController, 'Court Name'),
+            _field(_descriptionController, 'Description', maxLines: 3),
+            _field(_addressController, 'Address'),
+            _field(_cityController, 'City'),
+            _field(_stateController, 'State'),
+            _field(_zipController, 'Zip Code'),
+            _field(_priceController, 'Price per hour (PKR)',
+                keyboardType: TextInputType.number),
+            const SizedBox(height: 16),
+            _sportSelector(),
+            const SizedBox(height: 16),
+            _imagePicker(),
+            const SizedBox(height: 16),
+            _amenitiesChips(),
+            const SizedBox(height: 24),
+            const Text(
+              'Available Time Slots',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            ..._slots.map((s) => ListTile(
+                  leading: const Icon(Icons.schedule),
+                  title: Text('${s['startTime']} - ${s['endTime']}'),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.delete, color: Colors.red),
+                    onPressed: () => setState(() => _slots.remove(s)),
                   ),
+                )),
+            TextButton.icon(
+              onPressed: _addSlot,
+              icon: const Icon(Icons.add),
+              label: const Text('Add Slot'),
+            ),
+            const SizedBox(height: 30),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _submitting ? null : _submitCourt,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryColor,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
+                child: _submitting
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text(
+                        'Submit Court',
+                        style: TextStyle(color: Colors.white, fontSize: 18),
+                      ),
               ),
-              const SizedBox(height: 16),
-
-              // Amenities
-              Text("Amenities", style: _headingStyle()),
-              const SizedBox(height: 8),
-              _buildAmenitiesChips(),
-              const SizedBox(height: 16),
-
-              // ACTIVE / INACTIVE toggle (only for editing)
-              if (isEditing)
-                Row(
-                  children: [
-                    const Text("Status:",
-                        style: TextStyle(fontWeight: FontWeight.bold)),
-                    const SizedBox(width: 12),
-                    Switch(
-                        value: _isActive,
-                        activeColor: AppColors.primaryColor,
-                        onChanged: (val) {
-                          setState(() => _isActive = val);
-                        }),
-                    Text(_isActive ? "ACTIVE" : "INACTIVE")
-                  ],
-                ),
-
-              const SizedBox(height: 24),
-
-              // Submit Button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _submitCourt,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 18),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16)),
-                    backgroundColor: AppColors.primaryColor,
-                  ),
-                  child: Text(
-                    isEditing ? "Update Court" : "Submit Court",
-                    style: const TextStyle(fontSize: 18, color: Colors.white),
-                  ),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ]),
         ),
       ),
     );
   }
 
-  // ===== Helper Widgets =====
+  // ================= HELPERS =================
 
-  TextStyle _headingStyle() =>
-      const TextStyle(fontSize: 16, fontWeight: FontWeight.bold);
-
-  Widget _buildTextField(TextEditingController controller, String label,
-      int minLength, int maxLength,
-      {TextInputType keyboardType = TextInputType.text,
-      int maxLines = 1,
-      String? regex,
-      bool optional = false}) {
-    return TextFormField(
-      controller: controller,
-      maxLines: maxLines,
-      keyboardType: keyboardType,
-      decoration: InputDecoration(
-        labelText: label,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        filled: true,
-        fillColor: Colors.white,
+  Widget _field(TextEditingController c, String label,
+      {int maxLines = 1, TextInputType keyboardType = TextInputType.text}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: TextFormField(
+        controller: c,
+        maxLines: maxLines,
+        keyboardType: keyboardType,
+        validator: (v) => v == null || v.isEmpty ? 'Enter $label' : null,
+        decoration: InputDecoration(
+          labelText: label,
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        ),
       ),
-      validator: (val) {
-        if (optional && (val == null || val.isEmpty)) return null;
-        if (val == null || val.isEmpty) return "Please enter $label";
-        if (val.length < minLength)
-          return "$label should be at least $minLength characters";
-        if (val.length > maxLength)
-          return "$label should be at most $maxLength characters";
-        if (regex != null && !RegExp(regex).hasMatch(val))
-          return "Invalid $label format";
-        return null;
-      },
     );
   }
 
-  Widget _buildSportSelector() {
-    final sports = {
-      'Badminton': Icons.sports_tennis,
-      'Cricket': Icons.sports_cricket,
-      'Football': Icons.sports_soccer,
-      'Padel': Icons.sports_tennis,
-    };
-
+  Widget _sportSelector() {
+    final sports = ['Badminton', 'Cricket', 'Football', 'Padel'];
     return Wrap(
-      spacing: 12,
-      children: sports.entries.map((entry) {
-        bool selected = _selectedSport == entry.key;
+      spacing: 10,
+      children: sports.map((s) {
         return ChoiceChip(
-          label: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(entry.value, color: selected ? Colors.white : Colors.black),
-              const SizedBox(width: 6),
-              Text(entry.key),
-            ],
-          ),
-          selected: selected,
+          label: Text(s),
+          selected: _selectedSport == s,
           selectedColor: AppColors.primaryColor,
-          backgroundColor: Colors.grey[200],
-          labelStyle: TextStyle(color: selected ? Colors.white : Colors.black),
-          onSelected: (_) => setState(() => _selectedSport = entry.key),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          labelStyle: TextStyle(
+              color: _selectedSport == s ? Colors.white : Colors.black),
+          onSelected: (_) => setState(() => _selectedSport = s),
         );
       }).toList(),
     );
   }
 
-  Widget _buildImagePicker() {
-    final assetImages = [
-      'assets/badmintonCourt.jpeg',
-      'assets/logo.png',
-      'assets/Court.png'
-    ];
-    return Wrap(
-      spacing: 12,
+  Widget _imagePicker() {
+    return Column(
       children: [
-        ...assetImages.map((img) {
-          bool selected = _selectedAssetImage == img;
-          return GestureDetector(
-            onTap: () {
-              setState(() {
-                _selectedAssetImage = img;
-                _pickedImage = null;
-              });
-            },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              decoration: BoxDecoration(
-                border: Border.all(
-                    color: selected ? AppColors.primaryColor : Colors.grey,
-                    width: selected ? 3 : 1),
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: selected
-                    ? [
-                        BoxShadow(
-                            color: AppColors.primaryColor.withOpacity(0.4),
-                            blurRadius: 6,
-                            offset: const Offset(0, 3))
-                      ]
-                    : [],
-              ),
-              child:
-                  Image.asset(img, width: 100, height: 80, fit: BoxFit.cover),
-            ),
-          );
-        }).toList(),
-        if (_pickedImage != null)
-          Container(
-            width: 100,
-            height: 80,
-            decoration: BoxDecoration(
-              border: Border.all(color: AppColors.primaryColor, width: 3),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Image.file(_pickedImage!, fit: BoxFit.cover),
-          ),
+        Wrap(
+          spacing: 10,
+          children: _pickedImages
+              .map((f) =>
+                  Image.file(f, width: 80, height: 80, fit: BoxFit.cover))
+              .toList(),
+        ),
+        TextButton.icon(
+          onPressed: _pickImage,
+          icon: const Icon(Icons.photo_library),
+          label: const Text('Add Image'),
+        ),
       ],
     );
   }
 
-  Widget _buildAmenitiesChips() {
+  Widget _amenitiesChips() {
     return Wrap(
-      spacing: 12,
-      children: _amenities.keys.map((facility) {
-        bool selected = _amenities[facility]!;
+      spacing: 10,
+      children: _amenities.keys.map((k) {
         return FilterChip(
-          label: Text(facility),
-          selected: selected,
+          label: Text(k),
+          selected: _amenities[k]!,
           selectedColor: AppColors.primaryColor,
-          backgroundColor: Colors.grey[200],
           labelStyle:
-              TextStyle(color: selected ? Colors.white : Colors.black87),
-          onSelected: (val) => setState(() => _amenities[facility] = val),
+              TextStyle(color: _amenities[k]! ? Colors.white : Colors.black),
+          onSelected: (v) => setState(() => _amenities[k] = v),
         );
       }).toList(),
     );

@@ -236,5 +236,69 @@ class AdminService {
 
     return updatedReport;
   }
+
+
+/* =========================
+   COURT OWNER APPROVAL
+========================= */
+static async approveCourtOwner(ownerId, adminId) {
+  const owner = await prisma.user.findUnique({
+    where: { id: ownerId },
+  });
+
+  if (!owner || owner.role !== 'COURT_OWNER') {
+    throw new AppError('Court owner not found', 404);
+  }
+
+  const updatedOwner = await prisma.user.update({
+    where: { id: ownerId },
+    data: {
+      status: 'ACTIVE',
+    },
+  });
+
+  // 🔔 Notify owner
+  await NotificationService.create({
+    receiverId: ownerId,
+    senderId: adminId,
+    type: 'OWNER_APPROVED',
+    title: 'Court Owner Approved',
+    message: 'Your court owner account has been approved by admin.',
+  });
+
+  return updatedOwner;
 }
+
+/* =========================
+   COURT OWNER REJECTION
+========================= */
+static async rejectCourtOwner(ownerId, adminId, reason = 'Rejected by admin') {
+  const owner = await prisma.user.findUnique({
+    where: { id: ownerId },
+  });
+
+  if (!owner || owner.role !== 'COURT_OWNER') {
+    throw new AppError('Court owner not found', 404);
+  }
+
+  const updatedOwner = await prisma.user.update({
+    where: { id: ownerId },
+    data: {
+      status: 'BLOCKED',
+    },
+  });
+
+  // 🔔 Notify owner
+  await NotificationService.create({
+    receiverId: ownerId,
+    senderId: adminId,
+    type: 'OWNER_REJECTED',
+    title: 'Court Owner Rejected',
+    message: reason,
+  });
+
+  return updatedOwner;
+}
+}
+
 module.exports = AdminService;

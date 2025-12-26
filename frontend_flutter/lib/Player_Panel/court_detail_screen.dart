@@ -1,217 +1,201 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+
 import '../theme/colors.dart';
+import '../services/api_service.dart';
+import '../services/token_service.dart';
+import '../authentication_screens/splash_screen.dart';
 import 'booking_page.dart';
-import 'player_home.dart';
+import '../Owner_Panel/reports.dart';
 
-class CourtDetailScreen extends StatelessWidget {
-  final String courtName;
-  final String location;
-  final String sport;
-  final String price;
-  final String image;
+class CourtDetailScreen extends StatefulWidget {
+  final String courtId;
 
-  const CourtDetailScreen({
-    super.key,
-    required this.courtName,
-    required this.location,
-    required this.sport,
-    required this.price,
-    required this.image,
-  });
+  const CourtDetailScreen({super.key, required this.courtId});
+
+  @override
+  State<CourtDetailScreen> createState() => _CourtDetailScreenState();
+}
+
+class _CourtDetailScreenState extends State<CourtDetailScreen> {
+  bool isLoading = true;
+  Map<String, dynamic>? court;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchCourt();
+  }
+
+  Future<void> _fetchCourt() async {
+    final token = await TokenService.getToken();
+    if (token == null) {
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const SplashScreen()),
+      );
+      return;
+    }
+
+    try {
+      final res = await ApiService.get('/courts/${widget.courtId}', token);
+      if (res.statusCode == 200) {
+        setState(() {
+          court = jsonDecode(res.body)['data'];
+          isLoading = false;
+        });
+      } else {
+        throw Exception(res.body);
+      }
+    } catch (e) {
+      debugPrint('Court fetch error: $e');
+      setState(() => isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (court == null) {
+      return const Scaffold(
+        body: Center(child: Text('Court not found')),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.backgroundBeige,
-      body: Stack(
+      appBar: AppBar(
+        backgroundColor: AppColors.primaryColor,
+        title: const Text(
+          "Court Details",
+          style: TextStyle(color: Colors.white),
+        ),
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      body: Column(
         children: [
-          SingleChildScrollView(
-            padding:
-                const EdgeInsets.only(bottom: 80), // leave space for button
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Hero image + back button
-                Stack(
-                  children: [
-                    Image.asset(
-                      image,
-                      width: double.infinity,
-                      height: 270,
-                      fit: BoxFit.cover,
-                    ),
-                    Container(
-                      height: 270,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Colors.black.withOpacity(0.55),
-                            Colors.transparent
-                          ],
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      left: 20,
-                      bottom: 20,
-                      child: Text(
-                        courtName,
-                        style: const TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          shadows: [Shadow(color: Colors.black, blurRadius: 8)],
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      left: 10,
-                      top: 40,
-                      child: IconButton(
-                        icon: const Icon(Icons.arrow_back_ios,
-                            color: Colors.white),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 20),
-
-                // Info Card
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Card(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    elevation: 4,
-                    child: Padding(
-                      padding: const EdgeInsets.all(18),
-                      child: Column(
-                        children: [
-                          _infoRow("📍 Location", location),
-                          const SizedBox(height: 12),
-                          _infoRow("🏅 Sport", sport),
-                          const SizedBox(height: 12),
-                          _infoRow("💸 Price", price, highlight: true),
-                        ],
-                      ),
+          // Hero Card
+          Card(
+            margin: const EdgeInsets.all(16),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            elevation: 6,
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    court!['name'],
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.headingBlue,
                     ),
                   ),
-                ),
-
-                const SizedBox(height: 20),
-
-                // About + Facilities
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Card(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18),
+                  const SizedBox(height: 12),
+                  _detailRow(Icons.location_on, court!['location']),
+                  _detailRow(Icons.sports, court!['sport']),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(14),
                     ),
-                    elevation: 4,
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            "About This Court",
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.headingBlue,
-                            ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          "Price / Hour",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
                           ),
-                          const SizedBox(height: 12),
-                          const Text(
-                            "This court is well-maintained with high-quality flooring, professional lighting, and a clean environment. "
-                            "Ideal for training, friendly matches, and weekend recreation.",
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.black87,
-                              height: 1.5,
-                            ),
+                        ),
+                        Text(
+                          "PKR ${court!['price']}",
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primaryColor,
                           ),
-                          const SizedBox(height: 16),
-                          const Text(
-                            "Facilities",
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.headingBlue,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Wrap(
-                            spacing: 12,
-                            runSpacing: 8,
-                            children: const [
-                              FacilityChip(
-                                  icon: Icons.local_parking, label: "Parking"),
-                              FacilityChip(
-                                  icon: Icons.lightbulb_outline,
-                                  label: "Indoor Lights"),
-                              FacilityChip(icon: Icons.shower, label: "Shower"),
-                              FacilityChip(
-                                  icon: Icons.sports_tennis,
-                                  label: "Equipment Rental"),
-                            ],
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
 
-          // Book Now button fixed at bottom
-          Positioned(
-            bottom: 16,
-            left: 16,
-            right: 16,
+          const Spacer(),
+
+          // Book Button
+          Padding(
+            padding: const EdgeInsets.all(16),
             child: SizedBox(
               width: double.infinity,
+              height: 54,
               child: ElevatedButton(
                 onPressed: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (_) => BookingPage(
-                        courtName: courtName,
-                        location: location,
-                        sport: sport,
-                        price: price,
-                        image: image,
-                        onBookingComplete: (index) {
-                          Navigator.pop(context); // close CourtDetail
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => const PlayerHomeScreen()),
-                          );
-                        },
+                        courtid: court!['id'].toString(),
+                        courtName: court!['name'],
+                        location: court!['location'],
+                        sport: court!['sport'],
+                        price: court!['price'].toString(),
+                        image: 'assets/images/court_placeholder.jpg',
                       ),
                     ),
                   );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primaryColor,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                 ),
                 child: const Text(
-                  "Book Now",
-                  style: TextStyle(fontSize: 17, color: Colors.white),
+                  "Book This Court",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
+            ),
+          ),
+          // ADD BELOW BOOK BUTTON
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: TextButton.icon(
+              icon: const Icon(Icons.report, color: Colors.red),
+              label: const Text(
+                'Report this court',
+                style: TextStyle(color: Colors.red),
+              ),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ReportToAdminScreen(
+                      reportType: 'COURT',
+                      reportedCourtId: court!['id'],
+                    ),
+                  ),
+                );
+              },
             ),
           ),
         ],
@@ -219,50 +203,17 @@ class CourtDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _infoRow(String title, String value, {bool highlight = false}) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(title,
-            style: const TextStyle(fontSize: 15, color: Colors.black54)),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: highlight ? AppColors.primaryColor : Colors.black87,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// Move this class **outside** CourtDetailScreen
-class FacilityChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  const FacilityChip({required this.icon, required this.label, super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: AppColors.backgroundBeige.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(12),
-      ),
+  Widget _detailRow(IconData icon, String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 18, color: AppColors.primaryColor),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 13,
-              color: AppColors.headingBlue,
-              fontWeight: FontWeight.w500,
+          Icon(icon, color: AppColors.primaryColor),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(fontSize: 16),
             ),
           ),
         ],

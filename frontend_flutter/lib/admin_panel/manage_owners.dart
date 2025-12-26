@@ -23,7 +23,7 @@ class CourtOwner {
       id: json['id'],
       name: '${json['firstName']} ${json['lastName']}',
       email: json['email'],
-      status: json['status'],
+      status: json['status'].toString().toUpperCase(),
       courts: json['courtsCount'] ?? 0,
     );
   }
@@ -48,6 +48,7 @@ class _ManageOwnersScreenState extends State<ManageOwnersScreen> {
     _fetchOwners();
   }
 
+  /// GET /admin/users?role=COURT_OWNER
   Future<void> _fetchOwners() async {
     try {
       final res = await ApiService.get(
@@ -63,6 +64,8 @@ class _ManageOwnersScreenState extends State<ManageOwnersScreen> {
           owners = list.map((e) => CourtOwner.fromJson(e)).toList();
           isLoading = false;
         });
+      } else {
+        throw Exception(res.body);
       }
     } catch (e) {
       debugPrint('Fetch owners error: $e');
@@ -70,7 +73,7 @@ class _ManageOwnersScreenState extends State<ManageOwnersScreen> {
     }
   }
 
-  /// 🔐 Generic status update
+  /// PUT /admin/users/:id/status
   Future<void> _updateStatus(CourtOwner owner, String status) async {
     await ApiService.put(
       '/admin/users/${owner.id}/status',
@@ -81,31 +84,18 @@ class _ManageOwnersScreenState extends State<ManageOwnersScreen> {
     setState(() => owner.status = status);
   }
 
-  /// ✅ APPROVE OWNER (makes login possible)
+  /// POST /admin/owners/:id/approve
   Future<void> _approveOwner(CourtOwner owner) async {
-    try {
-      final res = await ApiService.post(
-        '/admin/owners/${owner.id}/approve',
-        widget.adminToken,
-        {},
-      );
+    await ApiService.post(
+      '/admin/owners/${owner.id}/approve',
+      widget.adminToken,
+      {},
+    );
 
-      if (res.statusCode == 200) {
-        setState(() => owner.status = 'ACTIVE');
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Owner approved and activated')),
-        );
-      }
-    } catch (e) {
-      debugPrint('Approve owner error: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to approve owner')),
-      );
-    }
+    setState(() => owner.status = 'ACTIVE');
   }
 
-  /// ❌ REJECT OWNER
+  /// POST /admin/owners/:id/reject
   Future<void> _rejectOwner(CourtOwner owner) async {
     await ApiService.post(
       '/admin/owners/${owner.id}/reject',
@@ -120,11 +110,6 @@ class _ManageOwnersScreenState extends State<ManageOwnersScreen> {
     switch (status) {
       case 'ACTIVE':
         return Colors.green;
-      case 'PENDING':
-      case 'INACTIVE': // 🔥 important
-        return Colors.orange;
-      case 'SUSPENDED':
-        return Colors.amber;
       case 'BLOCKED':
         return Colors.red;
       case 'REJECTED':
@@ -132,11 +117,6 @@ class _ManageOwnersScreenState extends State<ManageOwnersScreen> {
       default:
         return Colors.grey;
     }
-  }
-
-  bool _needsApproval(String status) {
-    // 🔥 THIS is the critical fix
-    return status == 'PENDING' || status == 'INACTIVE';
   }
 
   @override
@@ -154,12 +134,13 @@ class _ManageOwnersScreenState extends State<ManageOwnersScreen> {
           : owners.isEmpty
               ? const Center(child: Text('No court owners found'))
               : ListView.builder(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(12),
                   itemCount: owners.length,
                   itemBuilder: (_, i) {
                     final o = owners[i];
 
                     return Card(
+                      elevation: 3,
                       margin: const EdgeInsets.only(bottom: 12),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -181,62 +162,47 @@ class _ManageOwnersScreenState extends State<ManageOwnersScreen> {
                                     ),
                                   ),
                                 ),
-                                Chip(
-                                  label: Text(o.status),
-                                  backgroundColor:
-                                      _statusColor(o.status).withOpacity(0.15),
-                                  labelStyle: TextStyle(
-                                    color: _statusColor(o.status),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: _statusColor(o.status)
+                                        .withOpacity(0.15),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text(
+                                    o.status,
+                                    style: TextStyle(
+                                      color: _statusColor(o.status),
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                                 ),
                               ],
                             ),
 
-                            const SizedBox(height: 4),
+                            const SizedBox(height: 6),
                             Text(o.email),
                             const SizedBox(height: 4),
                             Text('Courts: ${o.courts}'),
 
-                            const Divider(height: 20),
+                            const SizedBox(height: 12),
 
-                            // 🎯 ACTIONS
-                            Wrap(
-                              spacing: 8,
+                            // ✅ ACTIONS (same philosophy as ManageUsersScreen)
+                            Row(
                               children: [
-                                // APPROVAL / ACTIVATION (PENDING or INACTIVE)
-                                if (_needsApproval(o.status))
+                                if (o.status != 'ACTIVE')
                                   TextButton(
                                     onPressed: () => _approveOwner(o),
                                     child: const Text('Approve'),
                                   ),
-
-                                if (_needsApproval(o.status))
-                                  TextButton(
-                                    onPressed: () => _updateStatus(o, 'ACTIVE'),
-                                    child: const Text('Activate'),
-                                  ),
-
-                                if (_needsApproval(o.status))
+                                if (o.status != 'REJECTED')
                                   TextButton(
                                     onPressed: () => _rejectOwner(o),
                                     child: const Text(
                                       'Reject',
-                                      style: TextStyle(color: Colors.red),
+                                      style: TextStyle(color: Colors.redAccent),
                                     ),
-                                  ),
-
-                                // MODERATION (POST-APPROVAL)
-                                if (o.status == 'ACTIVE')
-                                  TextButton(
-                                    onPressed: () =>
-                                        _updateStatus(o, 'SUSPENDED'),
-                                    child: const Text('Suspend'),
-                                  ),
-
-                                if (o.status == 'SUSPENDED')
-                                  TextButton(
-                                    onPressed: () => _updateStatus(o, 'ACTIVE'),
-                                    child: const Text('Activate'),
                                   ),
                               ],
                             ),

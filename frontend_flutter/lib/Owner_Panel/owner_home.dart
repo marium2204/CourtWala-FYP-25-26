@@ -1,15 +1,20 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import '../theme/colors.dart';
+import '../services/api_service.dart';
+import '../services/token_service.dart';
+
 import 'courtdetail_screen.dart';
 import 'add_court_screen.dart';
+import 'edit_court_screen.dart';
+import 'owner_bookings_screen.dart';
+import 'owner_profile_screen.dart';
 import '../Player_Panel/ai_chatbot_screen.dart';
 import '../Player_Panel/notifications_screen.dart';
 import '../Player_Panel/about_us_screen.dart';
 import '../Player_Panel/contact_us_screen.dart';
-import 'owner_bookings_screen.dart';
-import 'owner_profile_screen.dart';
 import '../Player_Panel/community_screen.dart';
-import 'edit_court_screen.dart';
 
 class CourtOwnerHomeScreen extends StatefulWidget {
   const CourtOwnerHomeScreen({super.key});
@@ -20,30 +25,39 @@ class CourtOwnerHomeScreen extends StatefulWidget {
 
 class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
   int _selectedIndex = 0;
+  bool isLoading = true;
 
-  final List<Map<String, dynamic>> courts = [
-    {
-      'name': 'Elite Badminton Arena',
-      'sport': 'Badminton',
-      'rating': 4.8,
-      'image': 'assets/badmintonCourt.jpeg',
-      'bookings': 25,
-    },
-    {
-      'name': 'Champions Cricket Ground',
-      'sport': 'Cricket',
-      'rating': 4.5,
-      'image': 'assets/logo.png',
-      'bookings': 12,
-    },
-    {
-      'name': 'Padel Court Central',
-      'sport': 'Padel',
-      'rating': 4.7,
-      'image': 'assets/Court.png',
-      'bookings': 18,
-    },
-  ];
+  List<Map<String, dynamic>> courts = [];
+  String? token;
+
+  @override
+  void initState() {
+    super.initState();
+    _init();
+  }
+
+  Future<void> _init() async {
+    token = await TokenService.getToken();
+    if (token != null) {
+      await _fetchCourts();
+    }
+  }
+
+  Future<void> _fetchCourts() async {
+    try {
+      final res = await ApiService.get('/owner/courts', token!);
+      if (res.statusCode == 200) {
+        final list = jsonDecode(res.body)['data']['courts'] as List;
+        setState(() {
+          courts = list.cast<Map<String, dynamic>>();
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Fetch courts error: $e');
+      setState(() => isLoading = false);
+    }
+  }
 
   void _onItemTapped(int index) {
     setState(() => _selectedIndex = index);
@@ -51,148 +65,38 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Title logic like Player Home
-    String appBarTitle;
-    switch (_selectedIndex) {
-      case 1:
-        appBarTitle = "Bookings";
-        break;
-      case 2:
-        appBarTitle = "Community";
-        break;
-      case 3:
-        appBarTitle = "Profile";
-        break;
-      default:
-        appBarTitle = "Let the games begin!";
-    }
+    final title = switch (_selectedIndex) {
+      1 => "Bookings",
+      2 => "Community",
+      3 => "Profile",
+      _ => "Let the games begin!",
+    };
 
     return Scaffold(
       backgroundColor: AppColors.backgroundBeige,
-
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            const UserAccountsDrawerHeader(
-              accountName: Text('Court Owner'),
-              accountEmail: Text('owner@email.com'),
-              currentAccountPicture: CircleAvatar(
-                backgroundImage: AssetImage('assets/player_avatar.png'),
-              ),
-              decoration: BoxDecoration(color: AppColors.primaryColor),
-            ),
-
-            // ---------------- HOME ----------------
-            ListTile(
-              leading: const Icon(Icons.home),
-              title: const Text("Home"),
-              onTap: () {
-                Navigator.pop(context);
-              },
-            ),
-
-            // ---------------- ABOUT US ----------------
-            ListTile(
-              leading: const Icon(Icons.info_outline),
-              title: const Text("About Us"),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const AboutUsScreen()),
-                );
-              },
-            ),
-
-            // ---------------- CONTACT US ----------------
-            ListTile(
-              leading: const Icon(Icons.contact_mail_outlined),
-              title: const Text("Contact Us"),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const ContactUsScreen()),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-
-      // -------------------- SAME APPBAR AS PLAYER HOME --------------------
-      appBar: AppBar(
-        backgroundColor: AppColors.primaryColor,
-        titleSpacing: -1,
-        title: Text(
-          appBarTitle,
-          style: const TextStyle(
-              fontWeight: FontWeight.bold, fontSize: 20, color: Colors.white),
-        ),
-        leading: Builder(
-          builder: (context) => IconButton(
-            icon: const Icon(Icons.menu, color: Colors.white),
-            onPressed: () => Scaffold.of(context).openDrawer(),
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.smart_toy_outlined, color: Colors.white),
-            onPressed: () {
-              Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const ChatbotScreen()));
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.notifications_none, color: Colors.white),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const NotificationsScreen()),
-              );
-            },
-          ),
-        ],
-      ),
-
-      // -------------------- BODY --------------------
+      drawer: _drawer(),
+      appBar: _appBar(title),
       body: _selectedIndex == 0 ? _homeContent() : _otherScreens(),
-
-      // -------------------- SAME BOTTOM NAV STYLE --------------------
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
-        backgroundColor: Colors.white,
-        selectedItemColor: AppColors.primaryColor,
-        unselectedItemColor: Colors.grey,
-        showUnselectedLabels: true,
-        type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(
-              icon: Icon(Icons.sports_tennis), label: "Courts"),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.calendar_today), label: "Bookings"),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.chat_bubble_outline), label: "Community"),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline), label: "Profile"),
-        ],
-      ),
+      bottomNavigationBar: _bottomNav(), // ✅ FIXED
     );
   }
 
-  // -------------------- COURT OWNER HOME CONTENT --------------------
   Widget _homeContent() {
+    if (isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          // ADD COURT BUTTON
           ElevatedButton.icon(
-            onPressed: () {
-              Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => const AddEditCourtScreen()));
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AddEditCourtScreen()),
+              );
+              _fetchCourts();
             },
             icon: const Icon(Icons.add, color: Colors.white),
             label:
@@ -201,18 +105,18 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
               backgroundColor: AppColors.primaryColor,
               minimumSize: const Size(double.infinity, 50),
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           ),
           const SizedBox(height: 16),
-
           Expanded(
-            child: ListView.builder(
-              itemCount: courts.length,
-              itemBuilder: (context, index) {
-                return _courtCard(courts[index]);
-              },
-            ),
+            child: courts.isEmpty
+                ? const Center(child: Text('No courts added yet'))
+                : ListView.builder(
+                    itemCount: courts.length,
+                    itemBuilder: (_, i) => _courtCard(courts[i]),
+                  ),
           ),
         ],
       ),
@@ -220,122 +124,52 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
   }
 
   Widget _courtCard(Map<String, dynamic> court) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 15),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withOpacity(0.15),
-              blurRadius: 6,
-              offset: const Offset(0, 3))
-        ],
-      ),
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       child: Column(
         children: [
-          Row(
-            children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(15),
-                    bottomLeft: Radius.circular(15)),
-                child: Image.asset(court['image'],
-                    width: 120, height: 100, fit: BoxFit.cover),
-              ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(10),
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(court['name'],
-                            style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.headingBlue)),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            const Icon(Icons.star,
-                                color: Colors.amber, size: 16),
-                            const SizedBox(width: 4),
-                            Text(court['rating'].toString(),
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w600)),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text("🏸 ${court['sport']}",
-                            style:
-                                const TextStyle(color: AppColors.accentColor)),
-                        Text("📅 Bookings: ${court['bookings']}",
-                            style: const TextStyle(
-                                color: AppColors.primaryColor,
-                                fontWeight: FontWeight.bold)),
-                      ]),
-                ),
-              ),
-            ],
+          ListTile(
+            leading: const Icon(Icons.sports_tennis,
+                size: 40, color: AppColors.primaryColor),
+            title: Text(
+              court['name'] ?? 'Unnamed Court',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: Text(
+              court['sportType'] ?? '',
+              style: const TextStyle(color: AppColors.accentColor),
+            ),
+            trailing: Chip(
+              label: Text(court['status'] ?? ''),
+            ),
           ),
           const Divider(),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            padding: const EdgeInsets.all(10),
             child: Column(
               children: [
-                // Edit Court Button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => EditCourtScreen(court: court),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.edit, size: 18, color: Colors.white),
-                    label: const Text(
-                      "Edit Court Details",
-                      style: TextStyle(color: Colors.white),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryColor,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
+                _actionButton(
+                  'Edit Court',
+                  Icons.edit,
+                  () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => EditCourtScreen(court: court),
+                      ),
+                    );
+                    _fetchCourts();
+                  },
                 ),
                 const SizedBox(height: 8),
-                // View Court Button
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => CourtDetails(
-                            courtName: court['name'],
-                            location: 'Owner Location',
-                            sport: court['sport'],
-                            price: 'PKR 2000/hr',
-                            image: court['image'],
-                          ),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.remove_red_eye, size: 18),
-                    label: const Text("View Court Details"),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.primaryColor,
-                      side:
-                          BorderSide(color: AppColors.primaryColor, width: 1.5),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                _outlinedButton(
+                  'View Court',
+                  Icons.remove_red_eye,
+                  () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => CourtDetails(court: court),
                     ),
                   ),
                 ),
@@ -347,17 +181,121 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
     );
   }
 
-  // -------------------- PLACEHOLDER OTHER SCREENS --------------------
   Widget _otherScreens() {
-    switch (_selectedIndex) {
-      case 1:
-        return const CourtOwnerBookingsScreen();
-      case 2:
-        return const CommunityScreen();
-      case 3:
-        return const CourtOwnerProfileScreen();
-      default:
-        return const SizedBox();
-    }
+    return switch (_selectedIndex) {
+      1 => const CourtOwnerBookingsScreen(),
+      2 => const CommunityScreen(),
+      3 => const CourtOwnerProfileScreen(),
+      _ => const SizedBox(),
+    };
   }
+
+  // ================= FIXED BOTTOM NAV =================
+  BottomNavigationBar _bottomNav() => BottomNavigationBar(
+        currentIndex: _selectedIndex,
+        onTap: _onItemTapped,
+        type: BottomNavigationBarType.fixed, // ✅ REQUIRED
+        backgroundColor: Colors.white, // ✅ REQUIRED
+        selectedItemColor: AppColors.primaryColor,
+        unselectedItemColor: Colors.grey.shade600, // ✅ FIX
+        showUnselectedLabels: true,
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.sports_tennis),
+            label: "Courts",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.calendar_today),
+            label: "Bookings",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.chat_bubble_outline),
+            label: "Community",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline),
+            label: "Profile",
+          ),
+        ],
+      );
+
+  AppBar _appBar(String title) => AppBar(
+        backgroundColor: AppColors.primaryColor,
+        title: Text(title,
+            style: const TextStyle(
+                fontWeight: FontWeight.bold, color: Colors.white)),
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu, color: Colors.white),
+            onPressed: () => Scaffold.of(context).openDrawer(),
+          ),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.smart_toy_outlined, color: Colors.white),
+            onPressed: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const ChatbotScreen())),
+          ),
+          IconButton(
+            icon: const Icon(Icons.notifications_none, color: Colors.white),
+            onPressed: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const NotificationsScreen())),
+          ),
+        ],
+      );
+
+  Drawer _drawer() => Drawer(
+        child: ListView(
+          children: [
+            const UserAccountsDrawerHeader(
+              accountName: Text('Court Owner'),
+              accountEmail: Text('owner@email.com'),
+              decoration: BoxDecoration(color: AppColors.primaryColor),
+            ),
+            ListTile(
+              leading: const Icon(Icons.info_outline),
+              title: const Text("About Us"),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AboutUsScreen()),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.contact_mail_outlined),
+              title: const Text("Contact Us"),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ContactUsScreen()),
+              ),
+            ),
+          ],
+        ),
+      );
+
+  Widget _actionButton(String text, IconData icon, VoidCallback onTap) =>
+      ElevatedButton.icon(
+        onPressed: onTap,
+        icon: Icon(icon, size: 18, color: Colors.white),
+        label: Text(text, style: const TextStyle(color: Colors.white)),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primaryColor,
+          minimumSize: const Size(double.infinity, 45),
+        ),
+      );
+
+  Widget _outlinedButton(
+    String text,
+    IconData icon,
+    VoidCallback onTap,
+  ) =>
+      OutlinedButton.icon(
+        onPressed: onTap,
+        icon: Icon(icon, size: 18),
+        label: Text(text),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.primaryColor,
+          side: const BorderSide(color: AppColors.primaryColor),
+          minimumSize: const Size(double.infinity, 45),
+        ),
+      );
 }

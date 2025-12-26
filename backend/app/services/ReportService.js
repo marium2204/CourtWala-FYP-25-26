@@ -6,65 +6,45 @@ class ReportService {
    * Create report
    */
   static async create(data, reporterId) {
-    const { reportedUserId, reportedCourtId, type, message } = data;
+  const {
+    reportedUserId,
+    reportedCourtId,
+    reportedBookingId,
+    type,
+    message,
+  } = data;
 
-    if (!reportedUserId && !reportedCourtId) {
-      throw new AppError('Either reportedUserId or reportedCourtId is required', 400);
-    }
-
-    if (reportedUserId === reporterId) {
-      throw new AppError('Cannot report yourself', 400);
-    }
-
-    // Verify reported user exists if provided
-    if (reportedUserId) {
-      const reportedUser = await prisma.user.findUnique({
-        where: { id: reportedUserId },
-      });
-      if (!reportedUser) {
-        throw new AppError('Reported user not found', 404);
-      }
-    }
-
-    // Verify reported court exists if provided
-    if (reportedCourtId) {
-      const reportedCourt = await prisma.court.findUnique({
-        where: { id: reportedCourtId },
-      });
-      if (!reportedCourt) {
-        throw new AppError('Reported court not found', 404);
-      }
-    }
-
-    return prisma.report.create({
-      data: {
-        reporterId,
-        reportedUserId,
-        reportedCourtId,
-        type,
-        message,
-        status: 'PENDING',
-      },
-      include: {
-        reporter: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-          },
-        },
-        reportedUser: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-          },
-        },
-      },
-    });
+  if (!reportedUserId && !reportedCourtId && !reportedBookingId) {
+    throw new AppError(
+      'One of reportedUserId, reportedCourtId, or reportedBookingId is required',
+      400
+    );
   }
+
+  if (reportedUserId === reporterId) {
+    throw new AppError('Cannot report yourself', 400);
+  }
+
+  if (reportedBookingId) {
+    const booking = await prisma.booking.findUnique({
+      where: { id: reportedBookingId },
+    });
+    if (!booking) throw new AppError('Booking not found', 404);
+  }
+
+  return prisma.report.create({
+    data: {
+      reporterId,
+      reportedUserId,
+      reportedCourtId,
+      reportedBookingId,
+      type,
+      message,
+      status: 'PENDING',
+    },
+  });
+}
+
 
   /**
    * Get user's reports

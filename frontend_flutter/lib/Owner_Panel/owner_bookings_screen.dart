@@ -1,6 +1,9 @@
-// lib/CourtOwner_Panel/owner_bookings_screen.dart
+import 'dart:convert';
 import 'package:flutter/material.dart';
+
 import '../theme/colors.dart';
+import '../services/api_service.dart';
+import '../services/token_service.dart';
 
 class CourtOwnerBookingsScreen extends StatefulWidget {
   const CourtOwnerBookingsScreen({super.key});
@@ -14,235 +17,116 @@ class _CourtOwnerBookingsScreenState extends State<CourtOwnerBookingsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
-  String selectedStatusFilter = 'All';
-  DateTime? selectedDateFilter;
+  bool _loading = true;
+  final List<Map<String, dynamic>> _bookings = [];
 
-  // ---------------- SAMPLE BOOKING DATA ----------------
-  List<Map<String, dynamic>> bookings = [
-    {
-      'id': 'BKG001',
-      'player': 'Ali Ahmed',
-      'court': 'Elite Badminton Arena',
-      'date': DateTime(2025, 11, 12),
-      'startTime': '7:00 PM',
-      'endTime': '8:00 PM',
-      'status': 'Pending',
-      'needsOpponent': 'Yes',
-      'totalPrice': 100
-    },
-    {
-      'id': 'BKG002',
-      'player': 'Saad Khan',
-      'court': 'Champions Cricket Ground',
-      'date': DateTime(2025, 11, 14),
-      'startTime': '5:00 PM',
-      'endTime': '7:00 PM',
-      'status': 'Confirmed',
-      'needsOpponent': 'No',
-      'totalPrice': 250
-    },
-    {
-      'id': 'BKG003',
-      'player': 'Hassan Tariq',
-      'court': 'Padel Court Central',
-      'date': DateTime(2025, 11, 16),
-      'startTime': '4:00 PM',
-      'endTime': '5:00 PM',
-      'status': 'Completed',
-      'needsOpponent': 'No',
-      'totalPrice': 150
-    },
-    {
-      'id': 'BKG004',
-      'player': 'Bilal Ahmed',
-      'court': 'Elite Badminton Arena',
-      'date': DateTime(2025, 11, 10),
-      'startTime': '6:00 PM',
-      'endTime': '7:00 PM',
-      'status': 'Cancelled',
-      'needsOpponent': 'Yes',
-      'totalPrice': 80
-    },
+  final List<String> tabs = [
+    'ALL',
+    'PENDING',
+    'CONFIRMED',
+    'COMPLETED',
+    'CANCELLED',
   ];
-
-  // ---------------- FILTER BOOKING LIST ----------------
-  List<Map<String, dynamic>> filterBookings(String status) {
-    return bookings.where((b) {
-      bool matchesStatus =
-          status == 'All' ? true : b['status'].toString() == status;
-      bool matchesDate =
-          selectedDateFilter == null ? true : b['date'] == selectedDateFilter;
-      return matchesStatus && matchesDate;
-    }).toList();
-  }
-
-  void updateStatus(Map<String, dynamic> booking, String newStatus) {
-    setState(() {
-      booking['status'] = newStatus;
-    });
-  }
 
   @override
   void initState() {
-    _tabController = TabController(length: 5, vsync: this);
     super.initState();
+    _tabController = TabController(length: tabs.length, vsync: this);
+    _fetchBookings();
   }
 
+  // ================= FETCH OWNER BOOKINGS =================
+  Future<void> _fetchBookings() async {
+    try {
+      final token = await TokenService.getToken();
+      if (token == null) return;
+
+      final res = await ApiService.get('/owner/bookings', token);
+
+      if (res.statusCode == 200) {
+        final body = jsonDecode(res.body);
+        final List list = body['data']?['bookings'] ?? [];
+
+        setState(() {
+          _bookings
+            ..clear()
+            ..addAll(List<Map<String, dynamic>>.from(list));
+          _loading = false;
+        });
+      } else {
+        throw Exception(res.body);
+      }
+    } catch (e) {
+      debugPrint('Fetch owner bookings error: $e');
+      setState(() => _loading = false);
+    }
+  }
+
+  // ================= ACTION =================
+  Future<void> _action(String bookingId, String endpoint) async {
+    final token = await TokenService.getToken();
+    if (token == null) return;
+
+    await ApiService.post(endpoint, token, {});
+    _fetchBookings();
+  }
+
+  // ================= FILTER =================
+  List<Map<String, dynamic>> _filtered(String status) {
+    if (status == 'ALL') return _bookings;
+    return _bookings.where((b) => b['status'] == status).toList();
+  }
+
+  String _formatDate(String date) {
+    final d = DateTime.parse(date);
+    return "${d.day}/${d.month}/${d.year}";
+  }
+
+  // ================= UI =================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.backgroundBeige,
-      body: Column(
-        children: [
-          // ---------------- FILTERS ----------------
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
               children: [
-                // Status Dropdown
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    value: selectedStatusFilter,
-                    items: [
-                      'All',
-                      'Pending',
-                      'Confirmed',
-                      'Completed',
-                      'Cancelled',
-                      'Rejected'
-                    ]
-                        .map((s) => DropdownMenuItem(
-                              value: s,
-                              child: Text(s),
-                            ))
-                        .toList(),
-                    onChanged: (val) {
-                      setState(() {
-                        selectedStatusFilter = val!;
-                      });
-                    },
-                    decoration: const InputDecoration(
-                        labelText: 'Filter by Status',
-                        border: OutlineInputBorder()),
+                Container(
+                  color: Colors.white,
+                  child: TabBar(
+                    controller: _tabController,
+                    isScrollable: true,
+                    labelColor: AppColors.primaryColor,
+                    unselectedLabelColor: Colors.grey,
+                    indicatorColor: AppColors.primaryColor,
+                    tabs: tabs.map((t) => Tab(text: t)).toList(),
                   ),
                 ),
-                const SizedBox(width: 12),
-                // Date Picker
                 Expanded(
-                  child: InkWell(
-                    onTap: () async {
-                      final picked = await showDatePicker(
-                        context: context,
-                        initialDate: selectedDateFilter ?? DateTime.now(),
-                        firstDate: DateTime(2020),
-                        lastDate: DateTime(2030),
-                      );
-                      if (picked != null) {
-                        setState(() {
-                          selectedDateFilter = picked;
-                        });
-                      }
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 16),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(selectedDateFilter == null
-                          ? "Filter by Date"
-                          : "${selectedDateFilter!.day}-${selectedDateFilter!.month}-${selectedDateFilter!.year}"),
-                    ),
+                  child: TabBarView(
+                    controller: _tabController,
+                    children:
+                        tabs.map((t) => _bookingList(_filtered(t))).toList(),
                   ),
                 ),
-                IconButton(
-                  onPressed: () {
-                    setState(() {
-                      selectedDateFilter = null;
-                      selectedStatusFilter = 'All';
-                    });
-                  },
-                  icon: const Icon(Icons.clear, color: Colors.red),
-                ),
               ],
             ),
-          ),
-
-          // ---------------- TAB BAR ----------------
-          Container(
-            color: Colors.white,
-            child: TabBar(
-              isScrollable: true,
-              controller: _tabController,
-              labelColor: AppColors.primaryColor,
-              unselectedLabelColor: Colors.grey,
-              indicatorColor: AppColors.primaryColor,
-              tabs: const [
-                Tab(text: "All"),
-                Tab(text: "Pending"),
-                Tab(text: "Confirmed"),
-                Tab(text: "Completed"),
-                Tab(text: "Cancelled"),
-              ],
-            ),
-          ),
-
-          // ---------------- TAB CONTENT ----------------
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildBookingList('All'),
-                _buildBookingList('Pending'),
-                _buildBookingList('Confirmed'),
-                _buildBookingList('Completed'),
-                _buildBookingList('Cancelled'),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 
-  Widget _buildBookingList(String status) {
-    final list = filterBookings(status);
-
+  Widget _bookingList(List<Map<String, dynamic>> list) {
     if (list.isEmpty) {
       return const Center(
-        child: Text("No bookings available",
-            style: TextStyle(fontSize: 16, color: Colors.grey)),
+        child: Text('No bookings found', style: TextStyle(color: Colors.grey)),
       );
     }
 
     return ListView.builder(
       padding: const EdgeInsets.all(12),
       itemCount: list.length,
-      itemBuilder: (context, index) {
-        final b = list[index];
-
-        // Status text color
-        Color statusColor = b['status'] == 'Pending'
-            ? Colors.orange
-            : b['status'] == 'Confirmed'
-                ? Colors.green
-                : b['status'] == 'Completed'
-                    ? Colors.blue
-                    : b['status'] == 'Cancelled'
-                        ? Colors.red
-                        : Colors.grey;
-
-        // Status text with description
-        String statusText = b['status'] == 'Pending'
-            ? 'Needs Approval'
-            : b['status'] == 'Confirmed'
-                ? 'Confirmed'
-                : b['status'] == 'Completed'
-                    ? 'Completed'
-                    : b['status'] == 'Cancelled'
-                        ? 'Cancelled'
-                        : 'Rejected';
+      itemBuilder: (_, i) {
+        final b = list[i];
+        final status = b['status'];
 
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
@@ -253,54 +137,23 @@ class _CourtOwnerBookingsScreenState extends State<CourtOwnerBookingsScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Status badge with icon
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      b['status'] == 'Pending'
-                          ? Icons.hourglass_top
-                          : b['status'] == 'Confirmed'
-                              ? Icons.check_circle
-                              : b['status'] == 'Completed'
-                                  ? Icons.done_all
-                                  : b['status'] == 'Cancelled'
-                                      ? Icons.cancel
-                                      : Icons.block,
-                      size: 16,
-                      color: statusColor,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      statusText,
-                      style: TextStyle(
-                          color: statusColor, fontWeight: FontWeight.bold),
-                    ),
-                  ],
-                ),
+                _statusChip(status),
                 const SizedBox(height: 8),
-
-                Text("Booking ID: ${b['id']}",
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.headingBlue)),
-                const SizedBox(height: 4),
-                Text("Player: ${b['player']}"),
-                Text("Court: ${b['court']}"),
                 Text(
-                    "Date: ${b['date'].day}-${b['date'].month}-${b['date'].year}"),
+                  b['court']['name'],
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.headingBlue,
+                  ),
+                ),
+                Text(
+                  "Player: ${b['player']['firstName']} ${b['player']['lastName']}",
+                ),
+                Text("Date: ${_formatDate(b['date'])}"),
                 Text("Time: ${b['startTime']} - ${b['endTime']}"),
-                Text("Needs Opponent: ${b['needsOpponent']}"),
-                Text("Total Price: \$${b['totalPrice']}"),
-                const SizedBox(height: 8),
-
-                // Action buttons
-                if (b['status'] == 'Pending') _pendingButtons(b),
-                if (b['status'] == 'Confirmed') _cancelButton(b),
-                if (['Completed', 'Cancelled', 'Rejected']
-                    .contains(b['status']))
-                  const Text("No actions available",
-                      style: TextStyle(color: Colors.grey)),
+                Text("Price: PKR ${b['court']['pricePerHour']}"),
+                const SizedBox(height: 10),
+                _actions(b),
               ],
             ),
           ),
@@ -309,44 +162,79 @@ class _CourtOwnerBookingsScreenState extends State<CourtOwnerBookingsScreen>
     );
   }
 
-  // ---------------- BUTTONS ----------------
-  Widget _pendingButtons(Map<String, dynamic> booking) {
+  // ================= STATUS CHIP =================
+  Widget _statusChip(String status) {
+    Color c;
+    switch (status) {
+      case 'PENDING':
+        c = Colors.orange;
+        break;
+      case 'CONFIRMED':
+        c = Colors.green;
+        break;
+      case 'COMPLETED':
+        c = Colors.blue;
+        break;
+      case 'CANCELLED':
+      case 'REJECTED':
+        c = Colors.red;
+        break;
+      default:
+        c = Colors.grey;
+    }
+
     return Row(
       children: [
-        Expanded(
-          child: ElevatedButton(
-            onPressed: () => updateStatus(booking, "Confirmed"),
-            style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10))),
-            child: const Text("Approve", style: TextStyle(color: Colors.white)),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: ElevatedButton(
-            onPressed: () => updateStatus(booking, "Cancelled"),
-            style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10))),
-            child: const Text("Reject", style: TextStyle(color: Colors.white)),
-          ),
-        ),
+        Icon(Icons.circle, size: 10, color: c),
+        const SizedBox(width: 6),
+        Text(status, style: TextStyle(color: c, fontWeight: FontWeight.bold)),
       ],
     );
   }
 
-  Widget _cancelButton(Map<String, dynamic> booking) {
-    return ElevatedButton(
-      onPressed: () => updateStatus(booking, "Cancelled"),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.red,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-      child:
-          const Text("Cancel Booking", style: TextStyle(color: Colors.white)),
-    );
+  // ================= ACTION BUTTONS =================
+  Widget _actions(Map<String, dynamic> b) {
+    switch (b['status']) {
+      case 'PENDING':
+        return Row(
+          children: [
+            Expanded(
+              child: ElevatedButton(
+                onPressed: () =>
+                    _action(b['id'], '/owner/bookings/${b['id']}/approve'),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                child: const Text('Approve',
+                    style: TextStyle(color: Colors.white)),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: ElevatedButton(
+                onPressed: () =>
+                    _action(b['id'], '/owner/bookings/${b['id']}/reject'),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                child:
+                    const Text('Reject', style: TextStyle(color: Colors.white)),
+              ),
+            ),
+          ],
+        );
+
+      case 'CONFIRMED':
+        return ElevatedButton(
+          onPressed: () => _action(b['id'], '/bookings/${b['id']}/cancel'),
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+          child: const Text(
+            'Cancel Booking',
+            style: TextStyle(color: Colors.white),
+          ),
+        );
+
+      default:
+        return const Text(
+          'No actions available',
+          style: TextStyle(color: Colors.grey),
+        );
+    }
   }
 }

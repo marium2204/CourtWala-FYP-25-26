@@ -1,8 +1,3 @@
-import 'package:courtwala/Authentication_screens/login_screen.dart';
-import 'package:courtwala/Owner_Panel/owner_home.dart';
-import 'package:courtwala/Player_Panel/ai_chatbot_screen.dart';
-import 'package:courtwala/admin_panel/admin_home.dart';
-import 'package:courtwala/player_Panel/player_home.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'authentication_screens/splash_screen.dart';
@@ -21,7 +16,7 @@ class CourtWalaApp extends StatelessWidget {
     return const MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'CourtWala',
-      home: SplashScreen(), // ✅ SINGLE ENTRY POINT
+      home: SplashScreen(), 
     );
   }
 }

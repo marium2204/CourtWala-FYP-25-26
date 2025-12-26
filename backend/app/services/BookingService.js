@@ -10,7 +10,6 @@ class BookingService {
   static async create(data, playerId) {
     const { courtId, date, startTime, endTime, needsOpponent = false } = data;
 
-    // Check if court exists and is active
     const court = await prisma.court.findUnique({
       where: { id: courtId },
       include: { owner: true },
@@ -24,15 +23,13 @@ class BookingService {
       throw new AppError('Court is not available for booking', 400);
     }
 
-    // Check for conflicting bookings
     const bookingDate = moment(date).format('YYYY-MM-DD');
+
     const conflictingBooking = await prisma.booking.findFirst({
       where: {
         courtId,
         date: new Date(bookingDate),
-        status: {
-          in: ['PENDING', 'CONFIRMED'],
-        },
+        status: { in: ['PENDING', 'CONFIRMED'] },
         OR: [
           {
             AND: [
@@ -60,7 +57,6 @@ class BookingService {
       throw new AppError('Time slot is already booked', 409);
     }
 
-    // Create booking
     const booking = await prisma.booking.create({
       data: {
         courtId,
@@ -73,7 +69,10 @@ class BookingService {
       },
       include: {
         court: {
-          include: {
+          select: {
+            id: true,
+            name: true,
+            pricePerHour: true, // ✅ IMPORTANT
             owner: {
               select: {
                 id: true,
@@ -95,11 +94,10 @@ class BookingService {
       },
     });
 
-    // Notify court owner
     await NotificationService.create({
       receiverId: court.ownerId,
       senderId: playerId,
-      type: 'BOOKING_APPROVED',
+      type: 'BOOKING_REQUEST',
       title: 'New Booking Request',
       message: `You have a new booking request for ${court.name}`,
       data: { bookingId: booking.id },
@@ -109,7 +107,7 @@ class BookingService {
   }
 
   /**
-   * Get all bookings with filters
+   * Get all bookings (used by player & owner)
    */
   static async getAll(filters = {}) {
     const {
@@ -130,9 +128,7 @@ class BookingService {
       ...(status && { status }),
       ...(date && { date: new Date(date) }),
       ...(ownerId && {
-        court: {
-          ownerId,
-        },
+        court: { ownerId },
       }),
     };
 
@@ -149,6 +145,7 @@ class BookingService {
               name: true,
               location: true,
               sport: true,
+              pricePerHour: true, // ✅ FIX THAT SOLVES "PKR null"
             },
           },
           player: {
@@ -192,7 +189,10 @@ class BookingService {
       where: { id },
       include: {
         court: {
-          include: {
+          select: {
+            id: true,
+            name: true,
+            pricePerHour: true,
             owner: {
               select: {
                 id: true,
@@ -238,7 +238,7 @@ class BookingService {
   static async approve(id, ownerId) {
     const booking = await this.getById(id);
 
-    if (booking.court.ownerId !== ownerId) {
+    if (booking.court.owner.id !== ownerId) {
       throw new AppError('You do not have permission to approve this booking', 403);
     }
 
@@ -250,14 +250,13 @@ class BookingService {
       where: { id },
       data: { status: 'CONFIRMED' },
       include: {
-        player: true,
         court: true,
+        player: true,
       },
     });
 
-    // Notify player
     await NotificationService.create({
-      receiverId: booking.playerId,
+      receiverId: booking.player.id,
       senderId: ownerId,
       type: 'BOOKING_APPROVED',
       title: 'Booking Approved',
@@ -274,7 +273,7 @@ class BookingService {
   static async reject(id, ownerId) {
     const booking = await this.getById(id);
 
-    if (booking.court.ownerId !== ownerId) {
+    if (booking.court.owner.id !== ownerId) {
       throw new AppError('You do not have permission to reject this booking', 403);
     }
 
@@ -282,26 +281,10 @@ class BookingService {
       throw new AppError('Booking cannot be rejected', 400);
     }
 
-    const updatedBooking = await prisma.booking.update({
+    return prisma.booking.update({
       where: { id },
       data: { status: 'REJECTED' },
-      include: {
-        player: true,
-        court: true,
-      },
     });
-
-    // Notify player
-    await NotificationService.create({
-      receiverId: booking.playerId,
-      senderId: ownerId,
-      type: 'BOOKING_REJECTED',
-      title: 'Booking Rejected',
-      message: `Your booking for ${booking.court.name} has been rejected`,
-      data: { bookingId: id },
-    });
-
-    return updatedBooking;
   }
 
   /**
@@ -310,10 +293,9 @@ class BookingService {
   static async cancel(id, userId, userRole) {
     const booking = await this.getById(id);
 
-    // Check permissions
     const canCancel =
-      booking.playerId === userId ||
-      booking.court.ownerId === userId ||
+      booking.player.id === userId ||
+      booking.court.owner.id === userId ||
       userRole === 'ADMIN';
 
     if (!canCancel) {
@@ -324,85 +306,19 @@ class BookingService {
       throw new AppError('Booking cannot be cancelled', 400);
     }
 
-    const updatedBooking = await prisma.booking.update({
+    return prisma.booking.update({
       where: { id },
       data: { status: 'CANCELLED' },
-      include: {
-        player: true,
-        court: {
-          include: {
-            owner: true,
-          },
-        },
-      },
     });
-
-    // Notify both parties
-    const notifyUserId = booking.playerId === userId ? booking.court.ownerId : booking.playerId;
-    await NotificationService.create({
-      receiverId: notifyUserId,
-      senderId: userId,
-      type: 'BOOKING_CANCELLED',
-      title: 'Booking Cancelled',
-      message: `Booking for ${booking.court.name} has been cancelled`,
-      data: { bookingId: id },
-    });
-
-    return updatedBooking;
   }
 
-  /**
-   * Get player bookings
-   */
   static async getPlayerBookings(playerId, filters = {}) {
     return this.getAll({ ...filters, playerId });
   }
 
-  /**
-   * Get owner bookings
-   */
   static async getOwnerBookings(ownerId, filters = {}) {
     return this.getAll({ ...filters, ownerId });
-  }
-
-  /**
-   * Get booking statistics for owner
-   */
-  static async getOwnerBookingStats(ownerId) {
-    const courts = await prisma.court.findMany({
-      where: { ownerId },
-      select: { id: true },
-    });
-
-    const courtIds = courts.map((c) => c.id);
-
-    const [total, pending, confirmed, cancelled, completed] = await Promise.all([
-      prisma.booking.count({
-        where: { courtId: { in: courtIds } },
-      }),
-      prisma.booking.count({
-        where: { courtId: { in: courtIds }, status: 'PENDING' },
-      }),
-      prisma.booking.count({
-        where: { courtId: { in: courtIds }, status: 'CONFIRMED' },
-      }),
-      prisma.booking.count({
-        where: { courtId: { in: courtIds }, status: 'CANCELLED' },
-      }),
-      prisma.booking.count({
-        where: { courtId: { in: courtIds }, status: 'COMPLETED' },
-      }),
-    ]);
-
-    return {
-      total,
-      pending,
-      confirmed,
-      cancelled,
-      completed,
-    };
   }
 }
 
 module.exports = BookingService;
-
