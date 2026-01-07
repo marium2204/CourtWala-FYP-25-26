@@ -6,6 +6,7 @@ plugins {
     id("com.google.gms.google-services") // ✅ fixed from Groovy to Kotlin DSL
 }
 
+
 android {
     namespace = "com.example.temp_flutter_project"
     compileSdk = 36 // or flutter.compileSdkVersion if using FlutterPlugin convention

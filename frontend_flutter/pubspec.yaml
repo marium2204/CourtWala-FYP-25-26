@@ -10,9 +10,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+
   cupertino_icons: ^1.0.8
-  firebase_core: ^2.23.0       # latest null-safe version
-  firebase_auth: ^4.7.0        # latest null-safe version
+  firebase_core: ^2.23.0
+  firebase_auth: ^4.7.0
   js: ^0.7.2
   google_sign_in: ^6.1.5
   carousel_slider: ^5.1.0
@@ -29,6 +30,19 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
 
+  # 🔑 App launcher icon generator
+  flutter_launcher_icons: ^0.13.1
+
+# 🔑 Flutter launcher icon configuration
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/CW.png"
+  adaptive_icon_background: "#E7E5D7"
+  adaptive_icon_foreground: "assets/CW.png"
+  min_sdk_android: 21
+  remove_alpha_ios: true
+
 flutter:
   uses-material-design: true
 
@@ -40,3 +54,4 @@ flutter:
     - assets/carousel2.jpg
     - assets/carousel3.webp
     - assets/badmintonCourt.jpeg
+    - assets/CW.png

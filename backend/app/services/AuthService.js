@@ -4,58 +4,45 @@ const crypto = require('crypto');
 const config = require('../../config/app');
 const prisma = require('../../config/database');
 const { AppError } = require('../utils/ErrorHandler');
+const admin = require('../../config/firebase');
 
 class AuthService {
-  /**
-   * Generate JWT token
-   */
   static generateToken(userId) {
     return jwt.sign({ userId }, config.jwt.secret, {
       expiresIn: config.jwt.expiresIn,
     });
   }
 
-  /**
-   * Hash password
-   */
-  static async hashPassword(password) {
-    return bcrypt.hash(password, config.bcrypt.saltRounds);
-  }
-
-  /**
-   * Compare password
-   */
-  static async comparePassword(password, hashedPassword) {
-    return bcrypt.compare(password, hashedPassword);
-  }
-
-  /**
-   * Register new user
-   */
+  /* =========================
+     REGISTER (EMAIL)
+  ========================= */
   static async register(data) {
-    const { email, password, firstName, lastName, role = 'PLAYER', username, phone, profilePicture } = data;
+    const {
+      email,
+      password,
+      firstName,
+      lastName,
+      role = 'PLAYER',
+      username,
+      phone,
+      profilePicture,
+    } = data;
 
-    // Check if user exists
     const existingUser = await prisma.user.findFirst({
       where: {
-        OR: [
-          { email },
-          ...(username ? [{ username }] : []),
-        ],
+        OR: [{ email }, ...(username ? [{ username }] : [])],
       },
     });
 
     if (existingUser) {
-      throw new AppError('User with this email or username already exists', 409);
+      throw new AppError('User already exists', 409);
     }
 
-    // Hash password
-    const hashedPassword = await this.hashPassword(password);
+    const hashedPassword = await bcrypt.hash(
+      password,
+      config.bcrypt.saltRounds
+    );
 
-    // Set status based on role
-    const status = role === 'COURT_OWNER' ? 'PENDING_APPROVAL' : 'ACTIVE';
-
-    // Create user
     const user = await prisma.user.create({
       data: {
         email,
@@ -66,129 +53,104 @@ class AuthService {
         phone,
         profilePicture,
         role,
-        status,
-      },
-      select: {
-        id: true,
-        email: true,
-        username: true,
-        firstName: true,
-        lastName: true,
-        role: true,
-        status: true,
-        profilePicture: true,
+        status: role === 'COURT_OWNER' ? 'PENDING_APPROVAL' : 'ACTIVE',
+        provider: 'EMAIL',
       },
     });
 
-    const token = this.generateToken(user.id);
-
-    return { user, token };
+    return { user, token: this.generateToken(user.id) };
   }
 
-  /**
-   * Login user
-   */
+  /* =========================
+     LOGIN (EMAIL)
+  ========================= */
   static async login(emailOrUsername, password) {
     const user = await prisma.user.findFirst({
       where: {
-        OR: [
-          { email: emailOrUsername },
-          { username: emailOrUsername },
-        ],
+        OR: [{ email: emailOrUsername }, { username: emailOrUsername }],
       },
     });
 
-    if (!user) {
-      throw new AppError('Invalid credentials', 401);
+    if (!user) throw new AppError('Invalid credentials', 401);
+
+    if (user.provider === 'GOOGLE') {
+      throw new AppError(
+        'This account uses Google Sign-In',
+        400
+      );
     }
 
-    const isPasswordValid = await this.comparePassword(password, user.password);
+    const valid = await bcrypt.compare(password, user.password);
+    if (!valid) throw new AppError('Invalid credentials', 401);
 
-    if (!isPasswordValid) {
-      throw new AppError('Invalid credentials', 401);
-    }
-
-    if (user.status === 'BLOCKED' || user.status === 'SUSPENDED') {
-      throw new AppError('Your account has been blocked or suspended', 403);
-    }
-
-    const token = this.generateToken(user.id);
-
-    return {
-      user: {
-        id: user.id,
-        email: user.email,
-        username: user.username,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        role: user.role,
-        status: user.status,
-        profilePicture: user.profilePicture,
-      },
-      token,
-    };
+    return { user, token: this.generateToken(user.id) };
   }
 
-  /**
-   * Generate password reset token
-   */
-  static async generatePasswordResetToken(email) {
+  /* =========================
+     GOOGLE LOGIN (EXISTING ONLY)
+  ========================= */
+  static async googleLogin(firebaseIdToken) {
+    const decoded = await admin.auth().verifyIdToken(firebaseIdToken);
     const user = await prisma.user.findUnique({
-      where: { email },
+      where: { email: decoded.email },
     });
 
-    if (!user) {
-      throw new AppError('User not found', 404);
-    }
+    if (!user)
+      throw new AppError(
+        'No account found. Please sign up first.',
+        404
+      );
 
-    const resetToken = crypto.randomBytes(32).toString('hex');
-    const resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
-    const resetPasswordExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    if (!user.role)
+      throw new AppError(
+        'Account setup incomplete',
+        400
+      );
 
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        resetPasswordToken,
-        resetPasswordExpires,
-      },
-    });
-
-    return resetToken;
+    return { user, token: this.generateToken(user.id) };
   }
 
-  /**
-   * Reset password
-   */
-  static async resetPassword(token, newPassword) {
-    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+  /* =========================
+     GOOGLE SIGNUP (ROLE ONCE)
+  ========================= */
+  static async googleComplete(firebaseIdToken, role) {
+    const decoded = await admin.auth().verifyIdToken(firebaseIdToken);
+    const { email, name, uid, picture } = decoded;
 
-    const user = await prisma.user.findFirst({
-      where: {
-        resetPasswordToken: hashedToken,
-        resetPasswordExpires: {
-          gt: new Date(),
-        },
-      },
-    });
+    let user = await prisma.user.findUnique({ where: { email } });
 
-    if (!user) {
-      throw new AppError('Invalid or expired reset token', 400);
+    // ❌ EXISTING USER CANNOT CHANGE ROLE
+    if (user && user.role) {
+      throw new AppError(
+        'Role already set for this account',
+        409
+      );
     }
 
-    const hashedPassword = await this.hashPassword(newPassword);
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          email,
+          firstName: name?.split(' ')[0] || 'Google',
+          lastName: name?.split(' ').slice(1).join(' ') || 'User',
+          googleId: uid,
+          profilePicture: picture,
+          role,
+          provider: 'GOOGLE',
+          status: role === 'COURT_OWNER'
+            ? 'PENDING_APPROVAL'
+            : 'ACTIVE',
+        },
+      });
+    } else {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: { role },
+      });
+    }
 
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        password: hashedPassword,
-        resetPasswordToken: null,
-        resetPasswordExpires: null,
-      },
-    });
-
-    return { message: 'Password reset successfully' };
+    return { user, token: this.generateToken(user.id) };
   }
 }
 
 module.exports = AuthService;
-

@@ -85,6 +85,45 @@ class AdminService {
       },
     };
   }
+/* =========================
+   UPDATE USER STATUS
+========================= */
+static async updateUserStatus(userId, status) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+  });
+
+  if (!user) {
+    throw new AppError('User not found', 404);
+  }
+
+  // 🔒 Safety rule: admin accounts cannot be blocked/suspended
+  if (user.role === 'ADMIN' && status !== 'ACTIVE') {
+    throw new AppError(
+      'Admin accounts cannot be suspended or blocked',
+      403
+    );
+  }
+
+  const updatedUser = await prisma.user.update({
+    where: { id: userId },
+    data: { status },
+  });
+
+  // 🔔 Optional: notify user
+  if (status !== 'ACTIVE') {
+    await NotificationService.create({
+      receiverId: userId,
+      senderId: null,
+      type: 'ADMIN_ANNOUNCEMENT',
+      title: 'Account Status Updated',
+      message: `Your account status has been changed to ${status}.`,
+      data: { status },
+    });
+  }
+
+  return updatedUser;
+}
 
   /* =========================
      ANNOUNCEMENTS (FIXED)

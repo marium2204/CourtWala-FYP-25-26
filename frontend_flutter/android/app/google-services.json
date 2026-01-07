@@ -1,26 +1,44 @@
 {
   "project_info": {
-    "project_number": "852043784918",
-    "project_id": "courtwala-593cb",
-    "storage_bucket": "courtwala-593cb.firebasestorage.app"
+    "project_number": "1094669396538",
+    "project_id": "courtwala-b3b3e",
+    "storage_bucket": "courtwala-b3b3e.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:852043784918:android:05960f77d9c61e153b5f77",
+        "mobilesdk_app_id": "1:1094669396538:android:4ac6cf2e311d94d40d6303",
         "android_client_info": {
           "package_name": "com.example.temp_flutter_project"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "1094669396538-69vqs67nefmska5ldhfl6o176l7nk0tg.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.temp_flutter_project",
+            "certificate_hash": "2d2e942898fe836d407270f01999218375856a9d"
+          }
+        },
+        {
+          "client_id": "1094669396538-abo4g85itkkn5lto1voibp8aku7u77mt.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
-          "current_key": "AIzaSyCjsQZKOrZLEU9iG2pAJAMEoskHa_VSI-E"
+          "current_key": "AIzaSyD9Sgxb0odeKqz27sEz--wucc0i64MgmTI"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1094669396538-abo4g85itkkn5lto1voibp8aku7u77mt.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

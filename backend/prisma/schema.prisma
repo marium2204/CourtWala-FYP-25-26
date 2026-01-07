@@ -75,24 +75,25 @@ enum ReportStatus {
 }
 
 model User {
-  id                   String     @id @default(cuid())
-  email                String     @unique
-  username             String?    @unique
-  password             String
+  id                   String       @id @default(cuid())
+  email                String       @unique
+  username             String?      @unique
+  password             String?
   firstName            String
   lastName             String
   phone                String?
   profilePicture       String?
-  role                 UserRole   @default(PLAYER)
-  status               UserStatus @default(ACTIVE)
+  role UserRole?
+  status               UserStatus   @default(ACTIVE)
   skillLevel           String?
   preferredSports      Json?
-  googleId             String?    @unique
-  emailVerified        Boolean    @default(false)
+  googleId             String?      @unique
+  provider             AuthProvider @default(EMAIL)
+  emailVerified        Boolean      @default(false)
   resetPasswordToken   String?
   resetPasswordExpires DateTime?
-  createdAt            DateTime   @default(now())
-  updatedAt            DateTime   @updatedAt
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
 
   // Relations
   courts                 Court[]
@@ -111,6 +112,12 @@ model User {
   @@index([role])
   @@index([status])
 }
+
+enum AuthProvider {
+  EMAIL
+  GOOGLE
+}
+
 
 model Court {
   id           String      @id @default(cuid())

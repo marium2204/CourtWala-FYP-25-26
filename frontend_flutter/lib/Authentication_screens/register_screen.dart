@@ -1,11 +1,14 @@
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
-
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'google_role_screen.dart';
 import '../constants/api_constants.dart';
 import '../services/token_service.dart';
+import '../services/google_auth_service.dart';
 import 'login_screen.dart';
 import 'splash_screen.dart';
 
@@ -19,12 +22,12 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  final TextEditingController firstNameCtrl = TextEditingController();
-  final TextEditingController lastNameCtrl = TextEditingController();
-  final TextEditingController usernameCtrl = TextEditingController();
-  final TextEditingController phoneCtrl = TextEditingController();
-  final TextEditingController emailCtrl = TextEditingController();
-  final TextEditingController passwordCtrl = TextEditingController();
+  final firstNameCtrl = TextEditingController();
+  final lastNameCtrl = TextEditingController();
+  final usernameCtrl = TextEditingController();
+  final phoneCtrl = TextEditingController();
+  final emailCtrl = TextEditingController();
+  final passwordCtrl = TextEditingController();
 
   String selectedRole = 'PLAYER';
   File? profileImage;
@@ -39,6 +42,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
+  // ================= NORMAL REGISTER =================
   Future<void> registerUser() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -56,11 +60,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
         'role': selectedRole,
       });
 
-      final username = usernameCtrl.text.trim();
-      if (username.isNotEmpty) request.fields['username'] = username;
-
-      final phone = phoneCtrl.text.trim();
-      if (phone.isNotEmpty) request.fields['phone'] = phone;
+      if (usernameCtrl.text.trim().isNotEmpty) {
+        request.fields['username'] = usernameCtrl.text.trim();
+      }
+      if (phoneCtrl.text.trim().isNotEmpty) {
+        request.fields['phone'] = phoneCtrl.text.trim();
+      }
 
       if (profileImage != null) {
         request.files.add(
@@ -71,19 +76,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
         );
       }
 
-      final streamedResponse = await request.send();
-      final responseBody = await streamedResponse.stream.bytesToString();
-      final decoded = jsonDecode(responseBody);
+      final res = await request.send();
+      final body = jsonDecode(await res.stream.bytesToString());
 
-      if (streamedResponse.statusCode == 201 && decoded['success'] == true) {
-        final token = decoded['data']['token'];
-
-        await TokenService.saveToken(token);
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text(decoded['message'] ?? 'Registration successful')),
-        );
+      if (res.statusCode == 201 && body['success'] == true) {
+        await TokenService.saveToken(body['data']['token']);
 
         Navigator.pushAndRemoveUntil(
           context,
@@ -91,18 +88,36 @@ class _RegisterScreenState extends State<RegisterScreen> {
           (_) => false,
         );
       } else {
-        String errorMessage = decoded['message'] ?? 'Registration failed';
-        if (streamedResponse.statusCode == 422 && decoded['errors'] != null) {
-          final errors = decoded['errors'] as Map<String, dynamic>;
-          errorMessage = errors.values.first.toString();
-        }
-
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(errorMessage)));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(body['message'] ?? 'Registration failed')),
+        );
       }
-    } catch (e) {
+    } catch (_) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Server error. Please try again.')),
+      );
+    } finally {
+      setState(() => isLoading = false);
+    }
+  }
+
+  // ================= GOOGLE SIGN UP =================
+  Future<void> _continueWithGoogle() async {
+    setState(() => isLoading = true);
+
+    try {
+      final idToken = await GoogleAuthService.signInWithGoogle();
+      if (idToken == null) return;
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => GoogleRoleScreen(idToken: idToken),
+        ),
+      );
+    } catch (_) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Google sign-in failed')),
       );
     } finally {
       setState(() => isLoading = false);
@@ -144,7 +159,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
 
                 Image.asset('assets/Court.png', height: size.height * 0.14),
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
 
                 const Text(
                   'Create Account',
@@ -155,7 +170,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 15),
+                const SizedBox(height: 16),
 
                 GestureDetector(
                   onTap: pickImage,
@@ -165,44 +180,37 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     backgroundImage:
                         profileImage != null ? FileImage(profileImage!) : null,
                     child: profileImage == null
-                        ? const Icon(Icons.camera_alt, size: 30)
+                        ? const Icon(Icons.camera_alt)
                         : null,
                   ),
                 ),
 
-                const SizedBox(height: 15),
+                const SizedBox(height: 16),
 
                 TextFormField(
                   controller: firstNameCtrl,
                   decoration: inputDecoration('First Name *'),
-                  validator: (v) =>
-                      v == null || v.trim().isEmpty ? 'Required' : null,
+                  validator: (v) => v!.isEmpty ? 'Required' : null,
                 ),
-
                 const SizedBox(height: 10),
 
                 TextFormField(
                   controller: lastNameCtrl,
                   decoration: inputDecoration('Last Name *'),
-                  validator: (v) =>
-                      v == null || v.trim().isEmpty ? 'Required' : null,
+                  validator: (v) => v!.isEmpty ? 'Required' : null,
                 ),
-
                 const SizedBox(height: 10),
 
                 TextFormField(
                   controller: usernameCtrl,
                   decoration: inputDecoration('Username (optional)'),
                 ),
-
                 const SizedBox(height: 10),
 
                 TextFormField(
                   controller: phoneCtrl,
                   decoration: inputDecoration('Phone (optional)'),
-                  keyboardType: TextInputType.phone,
                 ),
-
                 const SizedBox(height: 10),
 
                 DropdownButtonFormField<String>(
@@ -215,19 +223,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ],
                   onChanged: (v) => setState(() => selectedRole = v!),
                 ),
-
-                const SizedBox(height: 8),
-
                 const SizedBox(height: 10),
 
                 TextFormField(
                   controller: emailCtrl,
                   decoration: inputDecoration('Email *'),
-                  keyboardType: TextInputType.emailAddress,
-                  validator: (v) =>
-                      v == null || v.trim().isEmpty ? 'Required' : null,
+                  validator: (v) => v!.isEmpty ? 'Required' : null,
                 ),
-
                 const SizedBox(height: 10),
 
                 TextFormField(
@@ -251,28 +253,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     child: isLoading
                         ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text(
-                            'Register',
-                            style: TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.bold),
-                          ),
+                        : const Text('Register',
+                            style: TextStyle(fontSize: 16)),
                   ),
                 ),
 
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
 
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Text('Already have an account? '),
                     GestureDetector(
-                      onTap: () {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) => const LoginScreen()),
-                        );
-                      },
+                      onTap: () => Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(builder: (_) => const LoginScreen()),
+                      ),
                       child: const Text(
                         'Login',
                         style: TextStyle(
@@ -283,8 +279,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ],
                 ),
-                // 🔽 Expandable Court Owner Info
 
+                const SizedBox(height: 20),
+
+                // 🔽 COURT OWNER INFO (KEPT)
                 Container(
                   decoration: BoxDecoration(
                     color: Colors.white,
@@ -302,7 +300,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     children: const [
                       Text(
-                        'If you registering as a Court Owner, please email the following documents ALONG WITH YOUR REGISTERED USERNAME AND EMAIL to:',
+                        'If you are registering as a Court Owner, please email the following documents along with your registered username and email to:',
                         style: TextStyle(fontSize: 13),
                       ),
                       SizedBox(height: 6),
@@ -325,6 +323,43 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         style: TextStyle(fontWeight: FontWeight.w600),
                       ),
                     ],
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // 🔵 GOOGLE BUTTON
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: OutlinedButton(
+                    onPressed: isLoading ? null : _continueWithGoogle,
+                    style: OutlinedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      side: BorderSide(color: Colors.grey.shade300),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: const [
+                        FaIcon(
+                          FontAwesomeIcons.google,
+                          size: 18,
+                          color: Colors.blue,
+                        ),
+                        SizedBox(width: 12),
+                        Text(
+                          'Continue with Google',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],

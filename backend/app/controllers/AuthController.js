@@ -4,53 +4,96 @@ const { asyncHandler } = require('../utils/ErrorHandler');
 const { getFileUrl } = require('../utils/FileUpload');
 
 class AuthController extends BaseController {
-  /**
-   * Register new user
-   */
+  /* =========================
+     REGISTER (EMAIL)
+  ========================= */
   static register = asyncHandler(async (req, res) => {
-    // Process file upload if present
     const data = { ...req.body };
+
     if (req.file) {
       data.profilePicture = getFileUrl(req.file.filename);
     }
+
     const result = await AuthService.register(data);
-    return BaseController.success(res, result, 'Registration successful', 201);
+    return BaseController.success(
+      res,
+      result,
+      'Registration successful',
+      201
+    );
   });
 
-  /**
-   * Login user
-   */
+  /* =========================
+     LOGIN (EMAIL)
+  ========================= */
   static login = asyncHandler(async (req, res) => {
     const { emailOrUsername, password } = req.body;
     const result = await AuthService.login(emailOrUsername, password);
     return BaseController.success(res, result, 'Login successful');
   });
 
-  /**
-   * Request password reset
-   */
+  /* =========================
+     GOOGLE LOGIN (EXISTING USER)
+  ========================= */
+  static googleLogin = asyncHandler(async (req, res) => {
+    const { idToken } = req.body;
+
+    if (!idToken) {
+      return BaseController.error(res, 'ID token is required', 400);
+    }
+
+    const result = await AuthService.googleLogin(idToken);
+    return BaseController.success(res, result, 'Google login successful');
+  });
+
+  /* =========================
+     GOOGLE SIGNUP (ROLE REQUIRED)
+  ========================= */
+  static googleComplete = asyncHandler(async (req, res) => {
+    const { idToken, role } = req.body;
+
+    if (!idToken) {
+      return BaseController.error(res, 'ID token is required', 400);
+    }
+
+    if (!role || !['PLAYER', 'COURT_OWNER'].includes(role)) {
+      return BaseController.error(res, 'Invalid role', 400);
+    }
+
+    const result = await AuthService.googleComplete(idToken, role);
+    return BaseController.success(
+      res,
+      result,
+      'Google signup completed',
+      201
+    );
+  });
+
+  /* =========================
+     PASSWORD RESET
+  ========================= */
   static requestPasswordReset = asyncHandler(async (req, res) => {
     const { email } = req.body;
     await AuthService.generatePasswordResetToken(email);
     return BaseController.success(res, null, 'Password reset email sent');
   });
 
-  /**
-   * Reset password
-   */
   static resetPassword = asyncHandler(async (req, res) => {
     const { token, password } = req.body;
     await AuthService.resetPassword(token, password);
     return BaseController.success(res, null, 'Password reset successful');
   });
 
-  /**
-   * Get current user
-   */
+  /* =========================
+     CURRENT USER
+  ========================= */
   static me = asyncHandler(async (req, res) => {
-    return BaseController.success(res, req.user, 'User retrieved successfully');
+    return BaseController.success(
+      res,
+      req.user,
+      'User retrieved successfully'
+    );
   });
 }
 
 module.exports = AuthController;
-

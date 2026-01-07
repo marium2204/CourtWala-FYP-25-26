@@ -189,21 +189,24 @@ class BookingService {
       where: { id },
       include: {
         court: {
-          select: {
-            id: true,
-            name: true,
-            pricePerHour: true,
-            owner: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                email: true,
-                phone: true,
-              },
-            },
-          },
-        },
+  select: {
+    id: true,
+    name: true,
+    location: true,
+    sport: true,
+    pricePerHour: true,
+    owner: {
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        phone: true,
+      },
+    },
+  },
+},
+
         player: {
           select: {
             id: true,

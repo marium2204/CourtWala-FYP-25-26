@@ -9,29 +9,52 @@ const {
   validatePasswordReset,
 } = require('../validators/AuthValidator');
 const { uploadSingle } = require('../utils/FileUpload');
-const { asyncHandler } = require('../utils/ErrorHandler');
 
 // Multer error handler wrapper
 const handleFileUpload = (uploadMiddleware) => {
   return (req, res, next) => {
     uploadMiddleware(req, res, (err) => {
-      if (err) {
-        // Multer errors are passed to error handler
-        return next(err);
-      }
+      if (err) return next(err);
       next();
     });
   };
 };
 
-// Public routes
-router.post('/register', handleFileUpload(uploadSingle('profilePicture')), validateRegister, AuthController.register);
-router.post('/login', validateLogin, AuthController.login);
-router.post('/forgot-password', validatePasswordResetRequest, AuthController.requestPasswordReset);
-router.post('/reset-password', validatePasswordReset, AuthController.resetPassword);
+/* =========================
+   PUBLIC ROUTES
+========================= */
 
-// Protected routes
+router.post(
+  '/register',
+  handleFileUpload(uploadSingle('profilePicture')),
+  validateRegister,
+  AuthController.register
+);
+
+router.post('/login', validateLogin, AuthController.login);
+
+// 🔑 Google LOGIN (existing users)
+router.post('/google', AuthController.googleLogin);
+
+// 🔑 Google SIGNUP (role required)
+router.post('/google/complete', AuthController.googleComplete);
+
+router.post(
+  '/forgot-password',
+  validatePasswordResetRequest,
+  AuthController.requestPasswordReset
+);
+
+router.post(
+  '/reset-password',
+  validatePasswordReset,
+  AuthController.resetPassword
+);
+
+/* =========================
+   PROTECTED ROUTES
+========================= */
+
 router.get('/me', authenticate, AuthController.me);
 
 module.exports = router;
-

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:courtwala/admin_panel/manage_bookings.dart';
 import 'package:flutter/material.dart';
 import '../theme/colors.dart';
 import '../services/api_service.dart';
@@ -28,7 +29,6 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   int pendingCourtApprovals = 0;
   int pendingOwnerApprovals = 0;
 
-  // Derived
   int totalPlayers = 0;
   int totalOwners = 0;
 
@@ -43,11 +43,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     if (!mounted) return;
 
     if (token == null) {
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const SplashScreen()),
-        (_) => false,
-      );
+      _goToSplash();
       return;
     }
 
@@ -67,7 +63,6 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           totalOwners = data['totalOwners'] ?? 0;
 
           totalUsers = totalPlayers + totalOwners;
-
           totalCourts = data['totalCourts'] ?? 0;
           totalBookings = data['totalBookings'] ?? 0;
           pendingCourtApprovals = data['pendingCourts'] ?? 0;
@@ -82,7 +77,45 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     }
   }
 
-  // ====================== UI ======================
+  /* ================= LOGOUT ================= */
+
+  Future<void> _logout() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Logout'),
+        content: const Text('Are you sure you want to logout?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+            ),
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    await TokenService.clear();
+    _goToSplash();
+  }
+
+  void _goToSplash() {
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const SplashScreen()),
+      (_) => false,
+    );
+  }
+
+  /* ================= UI ================= */
 
   @override
   Widget build(BuildContext context) {
@@ -90,8 +123,10 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       backgroundColor: AppColors.backgroundBeige,
       appBar: AppBar(
         backgroundColor: AppColors.primaryColor,
-        title: const Text('Admin Dashboard',
-            style: TextStyle(color: Colors.white)),
+        title: const Text(
+          'Admin Dashboard',
+          style: TextStyle(color: Colors.white),
+        ),
       ),
       drawer: _drawer(),
       body: isLoading
@@ -106,12 +141,8 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                     Icons.pending_actions),
                 _tile('Pending Owners', pendingOwnerApprovals,
                     Icons.person_search),
-
                 const SizedBox(height: 24),
-
-                // ===== NEW SECTION =====
                 _sectionTitle('Platform Insights'),
-
                 _progressStat(
                   'Court Approval Progress',
                   totalCourts - pendingCourtApprovals,
@@ -119,7 +150,6 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                   Colors.green,
                   labelSuffix: 'approved',
                 ),
-
                 _progressStat(
                   'Owners Awaiting Approval',
                   totalOwners - pendingOwnerApprovals,
@@ -127,23 +157,6 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                   Colors.blue,
                   labelSuffix: 'pending',
                 ),
-
-                // _progressStat(
-                //   'Players in System',
-                //   totalPlayers,
-                //   totalUsers,
-                //   Colors.orange,
-                //   labelSuffix: 'players',
-                // ),
-
-                // _progressStat(
-                //   'Court Owners in System',
-                //   totalOwners,
-                //   totalUsers,
-                //   Colors.purple,
-                //   labelSuffix: 'owners',
-                // ),
-
                 _infoStat(
                   'Average Bookings per Court',
                   totalCourts == 0
@@ -155,16 +168,13 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     );
   }
 
-  // ====================== HELPERS ======================
+  /* ================= HELPERS ================= */
 
   Widget _sectionTitle(String text) => Padding(
         padding: const EdgeInsets.only(bottom: 12),
         child: Text(
           text,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
       );
 
@@ -185,7 +195,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '$title (${value}/${total})',
+              '$title ($value/$total)',
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
@@ -245,6 +255,11 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                 () => _push(ManageCourtsScreen(adminToken: adminToken!))),
             _nav('Manage Court Owners', Icons.person,
                 () => _push(ManageOwnersScreen(adminToken: adminToken!))),
+            _nav(
+              'Manage Bookings',
+              Icons.book_online,
+              () => _push(ManageBookingsScreen(adminToken: adminToken!)),
+            ),
             const Divider(),
             _nav('Announcements', Icons.announcement,
                 () => _push(AnnouncementsScreen(adminToken: adminToken!))),
@@ -252,6 +267,15 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                 () => _push(ReportsScreen(adminToken: adminToken!))),
             _nav('Tournaments', Icons.emoji_events,
                 () => _push(ManageTournamentsScreen(adminToken: adminToken!))),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.logout, color: Colors.red),
+              title: const Text(
+                'Logout',
+                style: TextStyle(color: Colors.red),
+              ),
+              onTap: _logout,
+            ),
           ],
         ),
       );

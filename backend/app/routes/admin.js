@@ -71,5 +71,13 @@ router.delete('/tournaments/:id', asyncHandler(async (req, res) => {
   return BaseController.success(res, null, 'Tournament deleted successfully');
 }));
 
+const AdminBookingController = require('../controllers/Admin/BookingController');
+
+// Admin booking oversight
+router.get(
+  '/bookings',
+  asyncHandler(AdminBookingController.getAll)
+);
+
 module.exports = router;
 
