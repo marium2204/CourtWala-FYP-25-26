@@ -1,8 +1,11 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+
 import 'login_screen.dart';
 import '../constants/api_constants.dart';
+import '../theme/colors.dart';
+import '../theme/app_text_styles.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -54,66 +57,106 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFE7E5D7),
+      backgroundColor: AppColors.backgroundColor,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(28),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
           child: Column(
             children: [
               Align(
-                alignment: Alignment.topLeft,
+                alignment: Alignment.centerLeft,
                 child: IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Color(0xFF65AAC2)),
+                  icon: Icon(Icons.arrow_back, color: AppColors.primaryColor),
                   onPressed: () => Navigator.pop(context),
                 ),
               ),
-              Image.asset('assets/Court.png', height: 120),
-              const SizedBox(height: 20),
-              const Text(
-                'Forgot Password',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF65AAC2),
+
+              const SizedBox(height: 10),
+
+              /// =========================
+              /// Image
+              /// =========================
+              Image.asset(
+                'assets/forgot.png',
+                height: size.height * 0.18,
+                fit: BoxFit.contain,
+              ),
+
+              const SizedBox(height: 24),
+
+              /// =========================
+              /// Card
+              /// =========================
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: AppColors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primaryColor.withOpacity(0.08),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 15),
-              const Text(
-                'Enter your email to receive a password reset link.',
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 25),
-              TextField(
-                controller: emailCtrl,
-                decoration: const InputDecoration(
-                  filled: true,
-                  fillColor: Colors.white,
-                  hintText: 'Email',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.all(Radius.circular(12)),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 25),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: isLoading ? null : sendResetRequest,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF65AAC2),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(25)),
-                  ),
-                  child: isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text(
-                          'Send Reset Email',
-                          style: TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.bold),
+                child: Column(
+                  children: [
+                    Text(
+                      'Forgot Password',
+                      style: AppTextStyles.heading,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Enter your email address and we’ll send you a link to reset your password.',
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.subtitle,
+                    ),
+                    const SizedBox(height: 28),
+                    TextField(
+                      controller: emailCtrl,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: AppColors.white,
+                        hintText: 'Email address',
+                        hintStyle: AppTextStyles.subtitle,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 16,
                         ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 28),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton(
+                        onPressed: isLoading ? null : sendResetRequest,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.accentColor,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                        ),
+                        child: isLoading
+                            ? const CircularProgressIndicator(
+                                color: Colors.white,
+                              )
+                            : Text(
+                                'SEND RESET EMAIL',
+                                style: AppTextStyles.button,
+                              ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],

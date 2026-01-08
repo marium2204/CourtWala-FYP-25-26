@@ -12,19 +12,18 @@ class CourtDetails extends StatelessWidget {
     required this.court,
   });
 
-  // ================= IMAGE HANDLER =================
-  Widget _buildCourtImage() {
+  Widget _buildImage() {
     final image = court['image'];
 
     if (image == null || image.toString().isEmpty) {
-      return _imageFallback();
+      return _imagePlaceholder();
     }
 
     if (image is String && image.startsWith('/')) {
       return Image.file(
         File(image),
         width: double.infinity,
-        height: 240,
+        height: 180,
         fit: BoxFit.cover,
       );
     }
@@ -33,21 +32,21 @@ class CourtDetails extends StatelessWidget {
       return Image.network(
         image,
         width: double.infinity,
-        height: 240,
+        height: 180,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => _imageFallback(),
+        errorBuilder: (_, __, ___) => _imagePlaceholder(),
       );
     }
 
-    return _imageFallback();
+    return _imagePlaceholder();
   }
 
-  Widget _imageFallback() {
+  Widget _imagePlaceholder() {
     return Container(
-      height: 240,
-      color: Colors.grey.shade300,
+      height: 180,
+      color: Colors.grey.shade200,
       child: const Center(
-        child: Icon(Icons.image_not_supported, size: 60),
+        child: Icon(Icons.image_not_supported, size: 48),
       ),
     );
   }
@@ -57,164 +56,183 @@ class CourtDetails extends StatelessWidget {
     final facilities = (court['facilities'] as List?)?.cast<String>() ?? [];
 
     return Scaffold(
-      backgroundColor: AppColors.backgroundBeige,
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text(
-          court['name'] ?? 'Court Details',
-          style: const TextStyle(color: Colors.white),
+        title: const Text(
+          'Court Details',
+          style: TextStyle(color: Colors.white),
         ),
         backgroundColor: AppColors.primaryColor,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ================= IMAGE =================
-            ClipRRect(
-              borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(24),
-                bottomRight: Radius.circular(24),
+            // ================= SECTION: COURT DETAILS =================
+            const Text(
+              'Court Details',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.primaryColor,
               ),
-              child: _buildCourtImage(),
+            ),
+            const SizedBox(height: 12),
+
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _infoLine('Court Name', court['name']),
+                    _infoLine('Description', court['description']),
+                    _infoLine('Address', court['location']),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _infoLine('City', court['city']),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _infoLine('State', court['state']),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _infoLine('Zip Code', court['zip']),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _infoLine(
+                            'Price / hour',
+                            '${court['price']} PKR',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
             ),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
 
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // ================= NAME =================
-                  Text(
-                    court['name'] ?? '',
-                    style: const TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.headingBlue,
-                    ),
+            // ================= SECTION: SPORT =================
+            const Text(
+              'Sport',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.primaryColor,
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            Wrap(
+              spacing: 10,
+              children: [
+                Chip(
+                  label: Text(court['sport'] ?? ''),
+                  backgroundColor: AppColors.primaryColor,
+                  labelStyle: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 24),
+
+            // ================= SECTION: IMAGES =================
+            const Text(
+              'Images',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.primaryColor,
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: _buildImage(),
+            ),
+
+            const SizedBox(height: 24),
+
+            // ================= SECTION: FACILITIES =================
+            const Text(
+              'Facilities',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.primaryColor,
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            facilities.isEmpty
+                ? const Text(
+                    'No facilities added',
+                    style: TextStyle(color: Colors.grey),
+                  )
+                : Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: facilities.map((f) {
+                      return Chip(
+                        label: Text(f),
+                        backgroundColor:
+                            AppColors.primaryColor.withOpacity(0.1),
+                        labelStyle: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primaryColor,
+                        ),
+                      );
+                    }).toList(),
                   ),
 
-                  const SizedBox(height: 6),
+            const SizedBox(height: 36),
 
-                  Row(
-                    children: [
-                      const Icon(Icons.sports_tennis,
-                          size: 20, color: AppColors.accentColor),
-                      const SizedBox(width: 6),
-                      Text(
-                        court['sport'] ?? '',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          color: AppColors.accentColor,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // ================= INFO CARD =================
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.08),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
+            // ================= ACTION =================
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => EditCourtScreen(court: court),
                     ),
-                    child: Column(
-                      children: [
-                        _infoRow(
-                          Icons.location_on,
-                          court['location'] ?? 'N/A',
-                        ),
-                        const SizedBox(height: 10),
-                        _infoRow(
-                          Icons.attach_money,
-                          '${court['price'] ?? 0} / hr',
-                        ),
-                      ],
-                    ),
+                  );
+                },
+                icon: const Icon(Icons.edit, color: Colors.white),
+                label: const Text(
+                  'Edit Court',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.backgroundColor,
                   ),
-
-                  const SizedBox(height: 20),
-
-                  // ================= FACILITIES =================
-                  const Text(
-                    'Facilities',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryColor,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
                   ),
-                  const SizedBox(height: 12),
-
-                  facilities.isEmpty
-                      ? const Text('No facilities listed')
-                      : Wrap(
-                          spacing: 12,
-                          runSpacing: 12,
-                          children: facilities.map((f) {
-                            return Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 10,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.primaryColor.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: AppColors.primaryColor,
-                                ),
-                              ),
-                              child: Text(
-                                f,
-                                style: const TextStyle(
-                                  color: AppColors.primaryColor,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                        ),
-
-                  const SizedBox(height: 30),
-
-                  // ================= ACTIONS =================
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => EditCourtScreen(court: court),
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.edit, color: Colors.white),
-                      label: const Text(
-                        'Edit Court',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primaryColor,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 30),
-                ],
+                ),
               ),
             ),
           ],
@@ -223,18 +241,29 @@ class CourtDetails extends StatelessWidget {
     );
   }
 
-  Widget _infoRow(IconData icon, String text) {
-    return Row(
-      children: [
-        Icon(icon, color: AppColors.primaryColor),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            text,
-            style: const TextStyle(fontSize: 16),
+  Widget _infoLine(String label, dynamic value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 13,
+              color: Colors.grey,
+            ),
           ),
-        ),
-      ],
+          const SizedBox(height: 4),
+          Text(
+            value?.toString() ?? 'N/A',
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

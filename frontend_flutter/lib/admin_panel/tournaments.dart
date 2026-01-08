@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../theme/colors.dart';
+import '../theme/app_text_styles.dart';
 import '../services/api_service.dart';
 
 class Tournament {
@@ -114,17 +115,24 @@ class _ManageTournamentsScreenState extends State<ManageTournamentsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.backgroundColor,
       appBar: AppBar(
         title: const Text(
           'Manage Tournaments',
           style: TextStyle(color: Colors.white),
         ),
         backgroundColor: AppColors.primaryColor,
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : tournaments.isEmpty
-              ? const Center(child: Text('No tournaments found'))
+              ? Center(
+                  child: Text(
+                    'No tournaments found',
+                    style: AppTextStyles.subtitle,
+                  ),
+                )
               : ListView.builder(
                   padding: const EdgeInsets.all(16),
                   itemCount: tournaments.length,
@@ -133,89 +141,107 @@ class _ManageTournamentsScreenState extends State<ManageTournamentsScreen> {
                     final isTeam = _isTeamSport(t.sport);
                     final isFull = _isFull(t);
 
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 14),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppColors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primaryColor.withOpacity(0.08),
+                            blurRadius: 16,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
                       ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(14),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // HEADER
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    t.name,
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.headingBlue,
-                                    ),
-                                  ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          /// =========================
+                          /// Header
+                          /// =========================
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  t.name,
+                                  style: AppTextStyles.title,
                                 ),
-                                if (isFull)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 10, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: Colors.red.withOpacity(0.15),
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: const Text(
-                                      'FULL',
-                                      style: TextStyle(
-                                        color: Colors.red,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-
-                            const SizedBox(height: 6),
-
-                            Text('${t.sport} • ${t.skillLevel}'),
-                            Text(
-                              '${_formatDate(t.startDate)} → ${_formatDate(t.endDate)}',
-                              style: const TextStyle(color: Colors.grey),
-                            ),
-
-                            const SizedBox(height: 8),
-
-                            // PARTICIPANTS / TEAMS
-                            Text(
-                              '${isTeam ? "Teams" : "Participants"}: '
-                              '${t.currentParticipants} / ${t.maxParticipants}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
                               ),
-                            ),
-
-                            const SizedBox(height: 10),
-
-                            // ACTIONS
-                            Row(
-                              children: [
-                                TextButton(
-                                  onPressed:
-                                      () {}, // edit dialog already exists
-                                  child: const Text('Edit'),
-                                ),
-                                TextButton(
-                                  onPressed: () => _deleteTournament(t.id),
-                                  style: TextButton.styleFrom(
-                                    foregroundColor: Colors.red,
+                              if (isFull)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
                                   ),
-                                  child: const Text('Delete'),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red.withOpacity(0.15),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: const Text(
+                                    'FULL',
+                                    style: TextStyle(
+                                      color: Colors.red,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 12,
+                                    ),
+                                  ),
                                 ),
-                              ],
+                            ],
+                          ),
+
+                          const SizedBox(height: 6),
+
+                          /// =========================
+                          /// Meta
+                          /// =========================
+                          Text(
+                            '${t.sport} • ${t.skillLevel}',
+                            style: AppTextStyles.subtitle,
+                          ),
+                          Text(
+                            '${_formatDate(t.startDate)} → ${_formatDate(t.endDate)}',
+                            style:
+                                AppTextStyles.subtitle.copyWith(fontSize: 13),
+                          ),
+
+                          const SizedBox(height: 12),
+
+                          /// =========================
+                          /// Participants
+                          /// =========================
+                          Text(
+                            '${isTeam ? "Teams" : "Participants"}: '
+                            '${t.currentParticipants} / ${t.maxParticipants}',
+                            style: AppTextStyles.subtitle.copyWith(
+                              fontWeight: FontWeight.w600,
                             ),
-                          ],
-                        ),
+                          ),
+
+                          const SizedBox(height: 14),
+
+                          /// =========================
+                          /// Actions
+                          /// =========================
+                          Row(
+                            children: [
+                              TextButton(
+                                onPressed: () {},
+                                child: const Text('Edit'),
+                              ),
+                              const SizedBox(width: 8),
+                              OutlinedButton(
+                                onPressed: () => _deleteTournament(t.id),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.red,
+                                  side: const BorderSide(color: Colors.red),
+                                ),
+                                child: const Text('Delete'),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     );
                   },

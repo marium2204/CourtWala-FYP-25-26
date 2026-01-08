@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 
 import '../theme/colors.dart';
 import '../services/token_service.dart';
-import '../authentication_screens/splash_screen.dart';
+import '../authentication_screens/auth_gate.dart';
 
 class OwnerEditProfileScreen extends StatefulWidget {
   final Map<String, dynamic> owner;
@@ -59,7 +59,7 @@ class _OwnerEditProfileScreenState extends State<OwnerEditProfileScreen> {
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const SplashScreen()),
+        MaterialPageRoute(builder: (_) => const AuthGate()),
       );
       return;
     }
@@ -83,7 +83,7 @@ class _OwnerEditProfileScreenState extends State<OwnerEditProfileScreen> {
       if (_avatarFile != null) {
         request.files.add(
           await http.MultipartFile.fromPath(
-            'profilePicture', // MUST match backend field name
+            'profilePicture',
             _avatarFile!.path,
           ),
         );
@@ -117,14 +117,15 @@ class _OwnerEditProfileScreenState extends State<OwnerEditProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.backgroundBeige,
+      backgroundColor: const Color(0xFFF6F8FA),
       appBar: AppBar(
         backgroundColor: AppColors.primaryColor,
         title: const Text(
           'Edit Profile',
-          style: TextStyle(color: Colors.white),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         iconTheme: const IconThemeData(color: Colors.white),
+        elevation: 0,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -132,49 +133,98 @@ class _OwnerEditProfileScreenState extends State<OwnerEditProfileScreen> {
           key: _formKey,
           child: Column(
             children: [
-              // ================= AVATAR =================
-              Stack(
-                alignment: Alignment.bottomRight,
-                children: [
-                  CircleAvatar(
-                    radius: 55,
-                    backgroundColor: AppColors.primaryColor,
-                    backgroundImage:
-                        _avatarFile != null ? FileImage(_avatarFile!) : null,
-                    child: _avatarFile == null
-                        ? const Icon(Icons.person,
-                            size: 50, color: Colors.white)
-                        : null,
-                  ),
-                  GestureDetector(
-                    onTap: _pickImage,
-                    child: CircleAvatar(
-                      radius: 18,
-                      backgroundColor: Colors.black54,
-                      child:
-                          const Icon(Icons.edit, size: 18, color: Colors.white),
+              // ================= PROFILE CARD =================
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 24),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.04),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
                     ),
-                  ),
-                ],
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    Stack(
+                      alignment: Alignment.bottomRight,
+                      children: [
+                        CircleAvatar(
+                          radius: 55,
+                          backgroundColor: AppColors.primaryColor,
+                          backgroundImage: _avatarFile != null
+                              ? FileImage(_avatarFile!)
+                              : null,
+                          child: _avatarFile == null
+                              ? const Icon(Icons.person,
+                                  size: 50, color: Colors.white)
+                              : null,
+                        ),
+                        GestureDetector(
+                          onTap: _pickImage,
+                          child: CircleAvatar(
+                            radius: 18,
+                            backgroundColor: Colors.black54,
+                            child: const Icon(Icons.edit,
+                                size: 18, color: Colors.white),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Update your profile information',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  ],
+                ),
               ),
 
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
 
-              _field(_fullNameController, 'Full Name', Icons.person),
-              const SizedBox(height: 16),
-              _field(_emailController, 'Email', Icons.email, enabled: false),
-              const SizedBox(height: 16),
-              _field(_phoneController, 'Phone', Icons.phone),
+              // ================= FORM CARD =================
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.04),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    _field(_fullNameController, 'Full Name', Icons.person),
+                    const SizedBox(height: 16),
+                    _field(
+                      _emailController,
+                      'Email',
+                      Icons.email,
+                      enabled: false,
+                    ),
+                    const SizedBox(height: 16),
+                    _field(_phoneController, 'Phone', Icons.phone),
+                  ],
+                ),
+              ),
 
               const SizedBox(height: 32),
 
               SizedBox(
                 width: double.infinity,
+                height: 52,
                 child: ElevatedButton(
                   onPressed: isSaving ? null : _saveProfile,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryColor,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
@@ -183,7 +233,10 @@ class _OwnerEditProfileScreenState extends State<OwnerEditProfileScreen> {
                       ? const CircularProgressIndicator(color: Colors.white)
                       : const Text(
                           'Save Changes',
-                          style: TextStyle(fontSize: 18, color: Colors.white),
+                          style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white),
                         ),
                 ),
               ),
@@ -208,9 +261,10 @@ class _OwnerEditProfileScreenState extends State<OwnerEditProfileScreen> {
         labelText: label,
         prefixIcon: Icon(icon),
         filled: true,
-        fillColor: Colors.white,
+        fillColor: enabled ? const Color(0xFFF2F4F6) : Colors.grey.shade200,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
         ),
       ),
       validator: (v) => v == null || v.isEmpty ? 'Enter $label' : null,

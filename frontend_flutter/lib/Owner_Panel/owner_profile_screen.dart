@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import '../theme/colors.dart';
 import '../services/api_service.dart';
 import '../services/token_service.dart';
-import '../authentication_screens/splash_screen.dart';
+import '../authentication_screens/auth_gate.dart';
 import 'owner_profile_edit.dart';
 
 class CourtOwnerProfileScreen extends StatefulWidget {
@@ -35,19 +35,17 @@ class _CourtOwnerProfileScreenState extends State<CourtOwnerProfileScreen> {
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const SplashScreen()),
+        MaterialPageRoute(builder: (_) => const AuthGate()),
       );
       return;
     }
 
     try {
-      // Fetch profile
       final profileRes = await ApiService.get('/owner/profile', token);
       if (profileRes.statusCode != 200) {
         throw Exception(profileRes.body);
       }
 
-      // Fetch dashboard stats
       final dashboardRes = await ApiService.get('/owner/dashboard', token);
       if (dashboardRes.statusCode != 200) {
         throw Exception(dashboardRes.body);
@@ -99,80 +97,79 @@ class _CourtOwnerProfileScreenState extends State<CourtOwnerProfileScreen> {
     final confirmedBookings = dashboard!['confirmedBookings'] ?? 0;
 
     return Scaffold(
-      backgroundColor: AppColors.backgroundBeige,
-      appBar: AppBar(
-        backgroundColor: AppColors.primaryColor,
-        title: const Text(
-          'Owner Profile',
-          style: TextStyle(color: Colors.white),
-        ),
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
+      backgroundColor: const Color(0xFFF6F8FA),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // ================= PROFILE CARD =================
-          Card(
-            elevation: 4,
-            shape: RoundedRectangleBorder(
+          // ================= PROFILE HEADER =================
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
               borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 36,
-                    backgroundColor: AppColors.primaryColor,
-                    child: Text(
-                      name.isNotEmpty ? name[0].toUpperCase() : '?',
-                      style: const TextStyle(
-                        fontSize: 26,
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 36,
+                  backgroundColor: AppColors.primaryColor,
+                  child: Text(
+                    name.isNotEmpty ? name[0].toUpperCase() : '?',
+                    style: const TextStyle(
+                      fontSize: 26,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primaryColor),
                       ),
-                    ),
+                      const SizedBox(height: 4),
+                      Text(email,
+                          style: const TextStyle(
+                              fontSize: 13, color: Colors.grey)),
+                      Text(phone,
+                          style: const TextStyle(
+                              fontSize: 13, color: Colors.grey)),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          _statusBadge(status),
+                          const SizedBox(width: 10),
+                          Text(
+                            'Joined: $joinedDate',
+                            style: const TextStyle(
+                                fontSize: 12, color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(name,
-                            style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.headingBlue)),
-                        const SizedBox(height: 4),
-                        Text(email,
-                            style: const TextStyle(
-                                fontSize: 13, color: Colors.grey)),
-                        Text(phone,
-                            style: const TextStyle(
-                                fontSize: 13, color: Colors.grey)),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            _statusBadge(status),
-                            const SizedBox(width: 10),
-                            Text(
-                              'Joined: $joinedDate',
-                              style: const TextStyle(
-                                  fontSize: 12, color: Colors.grey),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
 
           const SizedBox(height: 24),
 
-          // ================= STATS =================
+          // ================= DASHBOARD STATS =================
           Row(
             children: [
               _infoTile('Courts', totalCourts.toString(), Icons.sports_tennis),
@@ -184,10 +181,10 @@ class _CourtOwnerProfileScreenState extends State<CourtOwnerProfileScreen> {
           const SizedBox(height: 12),
           Row(
             children: [
-              _infoTile('Pending Bookings', pendingBookings.toString(),
-                  Icons.hourglass_top),
+              _infoTile(
+                  'Pending', pendingBookings.toString(), Icons.hourglass_top),
               const SizedBox(width: 12),
-              _infoTile('Confirmed Bookings', confirmedBookings.toString(),
+              _infoTile('Confirmed', confirmedBookings.toString(),
                   Icons.check_circle),
             ],
           ),
@@ -198,44 +195,62 @@ class _CourtOwnerProfileScreenState extends State<CourtOwnerProfileScreen> {
           Row(
             children: [
               Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => OwnerEditProfileScreen(owner: owner!),
-                      ),
-                    );
-                    _loadData();
-                  },
-                  icon: const Icon(Icons.edit, size: 18),
-                  label: const Text('Edit Profile'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryColor,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                child: SizedBox(
+                  height: 48,
+                  child: ElevatedButton.icon(
+                    onPressed: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => OwnerEditProfileScreen(owner: owner!),
+                        ),
+                      );
+                      _loadData();
+                    },
+                    icon: const Icon(
+                      Icons.edit,
+                      size: 18,
+                      color: AppColors.backgroundColor,
+                    ),
+                    label: const Text(
+                      'Edit Profile',
+                      style: TextStyle(color: AppColors.backgroundColor),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryColor,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
                   ),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () async {
-                    await TokenService.clear();
-                    if (!mounted) return;
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(builder: (_) => const SplashScreen()),
-                    );
-                  },
-                  icon: const Icon(Icons.logout, size: 18),
-                  label: const Text('Logout'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.redAccent,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                child: SizedBox(
+                  height: 48,
+                  child: ElevatedButton.icon(
+                    onPressed: () async {
+                      await TokenService.clear();
+                      if (!mounted) return;
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(builder: (_) => const AuthGate()),
+                      );
+                    },
+                    icon: const Icon(
+                      Icons.logout,
+                      size: 18,
+                      color: AppColors.backgroundColor,
+                    ),
+                    label: const Text(
+                      'Logout',
+                      style: TextStyle(color: AppColors.backgroundColor),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.redAccent,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
                   ),
                 ),
               ),
@@ -279,25 +294,33 @@ class _CourtOwnerProfileScreenState extends State<CourtOwnerProfileScreen> {
 
   Widget _infoTile(String title, String value, IconData icon) {
     return Expanded(
-      child: Card(
-        elevation: 3,
-        shape: RoundedRectangleBorder(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
           borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          child: Column(
-            children: [
-              Icon(icon, color: AppColors.primaryColor),
-              const SizedBox(height: 6),
-              Text(value,
-                  style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 4),
-              Text(title,
-                  style: const TextStyle(fontSize: 12, color: Colors.grey)),
-            ],
-          ),
+        child: Column(
+          children: [
+            Icon(icon, color: AppColors.primaryColor),
+            const SizedBox(height: 8),
+            Text(
+              value,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              title,
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
         ),
       ),
     );

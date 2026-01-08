@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+
 import '../theme/colors.dart';
+import '../theme/app_text_styles.dart';
 import '../services/api_service.dart';
 
 class Court {
@@ -84,9 +86,11 @@ class _ManageCourtsScreenState extends State<ManageCourtsScreen> {
 
       if (res.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Court ${status.toLowerCase()} successfully')),
+          SnackBar(
+            content: Text('Court ${status.toLowerCase()} successfully'),
+          ),
         );
-        _fetchCourts(); // refresh list from DB
+        _fetchCourts(); // refresh list
       }
     } catch (e) {
       debugPrint('Update court status error: $e');
@@ -114,95 +118,128 @@ class _ManageCourtsScreenState extends State<ManageCourtsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.backgroundBeige,
+      backgroundColor: AppColors.backgroundColor,
       appBar: AppBar(
-        title: const Text(
-          'Manage Courts',
-          style: TextStyle(color: Colors.white),
-        ),
+        title:
+            const Text('Manage Courts', style: TextStyle(color: Colors.white)),
         backgroundColor: AppColors.primaryColor,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : courts.isEmpty
-              ? const Center(child: Text('No courts found'))
+              ? Center(
+                  child: Text(
+                    'No courts found',
+                    style: AppTextStyles.subtitle,
+                  ),
+                )
               : ListView.builder(
                   padding: const EdgeInsets.all(16),
                   itemCount: courts.length,
                   itemBuilder: (_, i) {
                     final c = courts[i];
-                    return Card(
-                      elevation: 3,
-                      margin: const EdgeInsets.only(bottom: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 14),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppColors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primaryColor.withOpacity(0.08),
+                            blurRadius: 16,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
                       ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(14),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Court name
-                            Text(
-                              c.name,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.headingBlue,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          /// =========================
+                          /// Court Info
+                          /// =========================
+                          Text(
+                            c.name,
+                            style: AppTextStyles.title,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Sport: ${c.sport}',
+                            style: AppTextStyles.subtitle,
+                          ),
 
-                            // Sport
-                            Text(
-                              'Sport: ${c.sport}',
-                              style: const TextStyle(color: Colors.grey),
-                            ),
-                            const SizedBox(height: 10),
+                          const SizedBox(height: 14),
 
-                            // Status + Actions
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Chip(
-                                  label: Text(c.status),
-                                  backgroundColor:
+                          /// =========================
+                          /// Status & Actions
+                          /// =========================
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color:
                                       _statusColor(c.status).withOpacity(0.15),
-                                  labelStyle: TextStyle(
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  c.status,
+                                  style: TextStyle(
                                     color: _statusColor(c.status),
-                                    fontWeight: FontWeight.bold,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12,
                                   ),
                                 ),
-                                if (_isPending(c.status))
-                                  Row(
-                                    children: [
-                                      TextButton(
-                                        onPressed: () => _updateCourtStatus(
-                                          c,
-                                          'ACTIVE',
-                                          reason:
-                                              'Court meets approval criteria',
-                                        ),
-                                        child: const Text('Approve'),
+                              ),
+                              if (_isPending(c.status))
+                                Row(
+                                  children: [
+                                    ElevatedButton(
+                                      onPressed: () => _updateCourtStatus(
+                                        c,
+                                        'ACTIVE',
+                                        reason: 'Court meets approval criteria',
                                       ),
-                                      TextButton(
-                                        onPressed: () => _updateCourtStatus(
-                                          c,
-                                          'REJECTED',
-                                          reason: 'Rejected by admin',
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.green,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 14,
+                                          vertical: 8,
                                         ),
-                                        style: TextButton.styleFrom(
-                                          foregroundColor: Colors.red,
-                                        ),
-                                        child: const Text('Reject'),
                                       ),
-                                    ],
-                                  ),
-                              ],
-                            ),
-                          ],
-                        ),
+                                      child: const Text('Approve'),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    OutlinedButton(
+                                      onPressed: () => _updateCourtStatus(
+                                        c,
+                                        'REJECTED',
+                                        reason: 'Rejected by admin',
+                                      ),
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: Colors.red,
+                                        side: const BorderSide(
+                                          color: Colors.red,
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 14,
+                                          vertical: 8,
+                                        ),
+                                      ),
+                                      child: const Text('Reject'),
+                                    ),
+                                  ],
+                                ),
+                            ],
+                          ),
+                        ],
                       ),
                     );
                   },

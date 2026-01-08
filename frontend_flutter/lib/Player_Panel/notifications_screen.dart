@@ -92,7 +92,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           date.day == now.day - 1) {
         key = "Yesterday";
       } else {
-        key = "${date.day}-${date.month}-${date.year}";
+        key = "${date.day}/${date.month}/${date.year}";
       }
 
       grouped.putIfAbsent(key, () => []);
@@ -108,41 +108,51 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final groupedNotifications = _grouped();
 
     return Scaffold(
-      backgroundColor: AppColors.backgroundBeige,
+      backgroundColor: const Color(0xFFF6F8FA),
       appBar: AppBar(
         backgroundColor: AppColors.primaryColor,
         title: const Text(
           "Notifications",
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
+        iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           TextButton(
             onPressed: notifications.isEmpty ? null : _markAllRead,
-            child: const Text("Mark All Read",
-                style: TextStyle(color: Colors.white)),
+            child: const Text(
+              "Mark all read",
+              style: TextStyle(color: Colors.white),
+            ),
           )
         ],
+        elevation: 0,
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : notifications.isEmpty
               ? const Center(
-                  child: Text("No notifications yet!",
-                      style: TextStyle(color: Colors.grey)),
+                  child: Text(
+                    "No notifications yet",
+                    style: TextStyle(color: Colors.grey),
+                  ),
                 )
               : ListView(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(16),
                   children: groupedNotifications.entries.map((entry) {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(entry.key,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.headingBlue)),
-                        const SizedBox(height: 6),
-                        ...entry.value.map(_notificationTile).toList(),
-                        const SizedBox(height: 12),
+                        Text(
+                          entry.key,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.accentColor,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        ...entry.value.map(_notificationTile),
+                        const SizedBox(height: 18),
                       ],
                     );
                   }).toList(),
@@ -157,58 +167,93 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     return GestureDetector(
       onTap: isUnread ? () => _markAsRead(n['id']) : null,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: isUnread ? Colors.blue.withOpacity(0.05) : Colors.white,
-          borderRadius: BorderRadius.circular(14),
+          color: isUnread
+              ? AppColors.primaryColor.withOpacity(0.06)
+              : Colors.white,
+          borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.05),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
-        child: ListTile(
-          leading: Stack(
-            children: [
-              Icon(Icons.notifications,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Stack(
+              children: [
+                Icon(
+                  Icons.notifications_outlined,
                   size: 30,
-                  color: isUnread ? AppColors.primaryColor : Colors.grey),
-              if (isUnread)
-                Positioned(
-                  right: 0,
-                  top: 0,
-                  child: Container(
-                    width: 8,
-                    height: 8,
-                    decoration: const BoxDecoration(
-                        color: Colors.orange, shape: BoxShape.circle),
+                  color: isUnread ? AppColors.primaryColor : Colors.grey,
+                ),
+                if (isUnread)
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    child: Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: Colors.orange,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
                   ),
-                )
-            ],
-          ),
-          title: Text(
-            n['title'],
-            style: TextStyle(
-                fontWeight: isUnread ? FontWeight.bold : FontWeight.normal),
-          ),
-          subtitle: Text(n['message']),
-          trailing: isUnread
-              ? Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.orange,
-                    borderRadius: BorderRadius.circular(12),
+              ],
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          n['title'],
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight:
+                                isUnread ? FontWeight.bold : FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      if (isUnread)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.orange,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Text(
+                            "NEW",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
-                  child: const Text("NEW",
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold)),
-                )
-              : null,
+                  const SizedBox(height: 6),
+                  Text(
+                    n['message'],
+                    style: const TextStyle(
+                      color: Colors.black87,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

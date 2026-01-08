@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
 
 import '../constants/api_constants.dart';
+import '../theme/colors.dart';
 
 class ChatbotScreen extends StatefulWidget {
   const ChatbotScreen({super.key});
@@ -28,9 +29,6 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     },
   ];
 
-  // =====================
-  // SAFE DATETIME HANDLER
-  // =====================
   DateTime _safeDateTime(dynamic value) {
     if (value is DateTime) return value;
     if (value is String) {
@@ -41,9 +39,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     return DateTime.now();
   }
 
-  // =====================
-  // SEND MESSAGE
-  // =====================
+  // ================= SEND MESSAGE =================
   Future<void> _sendMessage() async {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
@@ -80,9 +76,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     }
   }
 
-  // =====================
-  // TYPING ANIMATION
-  // =====================
+  // ================= BOT TYPING EFFECT =================
   Future<void> _typeBotMessage(String text) async {
     final index = _messages.length;
 
@@ -123,24 +117,23 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     });
   }
 
-  // =====================
-  // UI
-  // =====================
+  // ================= UI =================
   @override
   Widget build(BuildContext context) {
-    final bg = _isDarkMode ? const Color(0xFF121212) : const Color(0xFFF7F3EE);
-    final userBubble = _isDarkMode ? Colors.blueAccent : Colors.blue;
+    final bg = _isDarkMode ? const Color(0xFF121212) : const Color(0xFFF6F8FA);
+    final userBubble =
+        _isDarkMode ? AppColors.primaryColor : AppColors.primaryColor;
     final botBubble = _isDarkMode ? const Color(0xFF1E1E1E) : Colors.white;
     final textColor = _isDarkMode ? Colors.white : Colors.black87;
 
     return Scaffold(
       backgroundColor: bg,
       appBar: AppBar(
-        backgroundColor: _isDarkMode ? Colors.black : Colors.blue,
+        backgroundColor: _isDarkMode ? Colors.black : AppColors.primaryColor,
         title: const Text(
           'CourtWala AI',
           style: TextStyle(
-            color: Colors.white, // ✅ FIX: always visible
+            color: Colors.white,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -166,11 +159,14 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
               itemCount: _messages.length + (_botTyping ? 1 : 0),
               itemBuilder: (_, i) {
                 if (_botTyping && i == _messages.length) {
-                  return Text(
-                    '🤖 Typing...',
-                    style: TextStyle(
-                      fontStyle: FontStyle.italic,
-                      color: textColor,
+                  return Padding(
+                    padding: const EdgeInsets.only(left: 8, bottom: 8),
+                    child: Text(
+                      '🤖 Typing...',
+                      style: TextStyle(
+                        fontStyle: FontStyle.italic,
+                        color: textColor.withOpacity(0.7),
+                      ),
                     ),
                   );
                 }
@@ -184,10 +180,18 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                       isUser ? Alignment.centerRight : Alignment.centerLeft,
                   child: Container(
                     margin: const EdgeInsets.symmetric(vertical: 6),
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
                       color: isUser ? userBubble : botBubble,
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(18),
+                      boxShadow: [
+                        if (!isUser)
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.04),
+                            blurRadius: 6,
+                            offset: const Offset(0, 3),
+                          ),
+                      ],
                     ),
                     child: Column(
                       crossAxisAlignment: isUser
@@ -196,7 +200,10 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                       children: [
                         Text(
                           msg['text'],
-                          style: TextStyle(color: textColor),
+                          style: TextStyle(
+                            color: isUser ? Colors.white : textColor,
+                            height: 1.4,
+                          ),
                         ),
                         const SizedBox(height: 6),
                         Row(
@@ -266,12 +273,13 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
             ),
           ),
           const SizedBox(width: 8),
-          IconButton(
-            icon: Icon(
-              Icons.send,
-              color: _isDarkMode ? Colors.white : Colors.blue,
+          CircleAvatar(
+            radius: 22,
+            backgroundColor: AppColors.primaryColor,
+            child: IconButton(
+              icon: const Icon(Icons.send, color: Colors.white, size: 18),
+              onPressed: _sendMessage,
             ),
-            onPressed: _sendMessage,
           ),
         ],
       ),

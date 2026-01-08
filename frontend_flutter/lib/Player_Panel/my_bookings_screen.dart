@@ -53,6 +53,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Cancel Booking'),
         content: const Text('Are you sure you want to cancel this booking?'),
         actions: [
@@ -63,7 +64,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             child: const Text(
-              'Yes',
+              'Yes, Cancel',
               style: TextStyle(color: Colors.red),
             ),
           ),
@@ -113,11 +114,22 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     return "$start - $end";
   }
 
+  Color _statusColor(String status) {
+    switch (status) {
+      case 'CONFIRMED':
+        return Colors.green;
+      case 'CANCELLED':
+        return Colors.red;
+      default:
+        return Colors.orange;
+    }
+  }
+
   // ================= UI =================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.backgroundBeige,
+      backgroundColor: const Color(0xFFF6F8FA),
       appBar: AppBar(
         title: const Text(
           'My Bookings',
@@ -125,6 +137,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
         ),
         backgroundColor: AppColors.primaryColor,
         iconTheme: const IconThemeData(color: Colors.white),
+        elevation: 0,
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -136,125 +149,130 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                   ),
                 )
               : ListView.builder(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(16),
                   itemCount: _bookings.length,
                   itemBuilder: (_, i) {
                     final b = _bookings[i];
                     final status = b['status'] ?? 'UNKNOWN';
-                    final isConfirmed = status == 'CONFIRMED';
                     final court = b['court'] as Map<String, dynamic>?;
 
-                    return Card(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(18),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
                       ),
-                      elevation: 3,
-                      margin: const EdgeInsets.only(bottom: 12),
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Court name
-                            Text(
-                              court?['name'] ?? 'Court deleted',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.headingBlue,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Court Name
+                          Text(
+                            court?['name'] ?? 'Court deleted',
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.accentColor,
+                            ),
+                          ),
+
+                          const SizedBox(height: 8),
+
+                          // Date & Time
+                          Row(
+                            children: [
+                              const Icon(Icons.calendar_today,
+                                  size: 16, color: AppColors.primaryColor),
+                              const SizedBox(width: 6),
+                              Text(
+                                _formatDate(b['date']),
+                                style: const TextStyle(color: Colors.grey),
                               ),
-                            ),
-                            const SizedBox(height: 6),
+                              const SizedBox(width: 16),
+                              const Icon(Icons.access_time,
+                                  size: 16, color: AppColors.primaryColor),
+                              const SizedBox(width: 6),
+                              Text(
+                                _formatTime(b),
+                                style: const TextStyle(color: Colors.grey),
+                              ),
+                            ],
+                          ),
 
-                            // Date & Time
-                            Row(
-                              children: [
-                                const Icon(Icons.calendar_today,
-                                    size: 16, color: AppColors.primaryColor),
-                                const SizedBox(width: 6),
-                                Text(
-                                  _formatDate(b['date']),
-                                  style: const TextStyle(color: Colors.grey),
+                          const SizedBox(height: 14),
+
+                          // Status & Actions
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: _statusColor(status).withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(20),
                                 ),
-                                const SizedBox(width: 16),
-                                const Icon(Icons.access_time,
-                                    size: 16, color: AppColors.primaryColor),
-                                const SizedBox(width: 6),
-                                Text(
-                                  _formatTime(b),
-                                  style: const TextStyle(color: Colors.grey),
-                                ),
-                              ],
-                            ),
-
-                            const SizedBox(height: 12),
-
-                            // Status + Cancel
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 6),
-                                  decoration: BoxDecoration(
-                                    color: isConfirmed
-                                        ? Colors.green.withOpacity(0.15)
-                                        : Colors.orange.withOpacity(0.15),
-                                    borderRadius: BorderRadius.circular(12),
+                                child: Text(
+                                  status,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: _statusColor(status),
                                   ),
-                                  child: Text(
-                                    status,
+                                ),
+                              ),
+                              if (status == 'CONFIRMED')
+                                ElevatedButton.icon(
+                                  onPressed: () => _cancelBooking(b['id']),
+                                  icon: const Icon(Icons.cancel,
+                                      size: 16, color: Colors.white),
+                                  label: const Text(
+                                    'Cancel',
                                     style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: isConfirmed
-                                          ? Colors.green
-                                          : Colors.orange,
+                                        fontSize: 13, color: Colors.white),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFFC4461F),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(14),
                                     ),
                                   ),
                                 ),
-                                if (isConfirmed)
-                                  ElevatedButton.icon(
-                                    onPressed: () => _cancelBooking(b['id']),
-                                    icon: const Icon(Icons.cancel,
-                                        size: 16, color: Colors.white),
-                                    label: const Text(
-                                      'Cancel',
-                                      style: TextStyle(
-                                          fontSize: 12, color: Colors.white),
-                                    ),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFFC4461F),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: TextButton.icon(
-                                icon: const Icon(Icons.report,
-                                    color: Colors.red, size: 18),
-                                label: const Text(
-                                  'Report',
-                                  style: TextStyle(color: Colors.red),
-                                ),
-                                onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => ReportToAdminScreen(
-                                        reportType: 'BOOKING',
-                                        reportedBookingId: b['id'],
-                                      ),
-                                    ),
-                                  );
-                                },
+                            ],
+                          ),
+
+                          const SizedBox(height: 6),
+
+                          // Report
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton.icon(
+                              icon: const Icon(Icons.report,
+                                  color: Colors.red, size: 18),
+                              label: const Text(
+                                'Report',
+                                style: TextStyle(color: Colors.red),
                               ),
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => ReportToAdminScreen(
+                                      reportType: 'BOOKING',
+                                      reportedBookingId: b['id'],
+                                    ),
+                                  ),
+                                );
+                              },
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     );
                   },

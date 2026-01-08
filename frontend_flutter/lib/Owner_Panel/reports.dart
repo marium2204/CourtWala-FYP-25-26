@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/token_service.dart';
 import '../theme/colors.dart';
-import '../authentication_screens/splash_screen.dart';
+import '../authentication_screens/auth_gate.dart';
 
 class ReportToAdminScreen extends StatefulWidget {
   /// One of: USER, COURT, BOOKING
@@ -48,7 +48,7 @@ class _ReportToAdminScreenState extends State<ReportToAdminScreen> {
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const SplashScreen()),
+        MaterialPageRoute(builder: (_) => const AuthGate()),
       );
       return;
     }
@@ -74,7 +74,7 @@ class _ReportToAdminScreenState extends State<ReportToAdminScreen> {
       }
 
       final res = await ApiService.post(
-        '/player/reports', // ✅ ONLY VALID ROUTE
+        '/player/reports',
         token,
         payload,
       );
@@ -109,14 +109,18 @@ class _ReportToAdminScreenState extends State<ReportToAdminScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.backgroundBeige,
+      backgroundColor: const Color(0xFFF6F8FA),
       appBar: AppBar(
         backgroundColor: AppColors.primaryColor,
         title: const Text(
           'Report to Admin',
-          style: TextStyle(color: Colors.white),
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         iconTheme: const IconThemeData(color: Colors.white),
+        elevation: 0,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -125,50 +129,85 @@ class _ReportToAdminScreenState extends State<ReportToAdminScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ===== INFO =====
-              Text(
-                'Reporting ${widget.reportType}',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.headingBlue,
+              // ================= CONTEXT CARD =================
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.04),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'Please clearly describe the issue. Admin will review and take action.',
-                style: TextStyle(color: Colors.grey),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Reporting ${widget.reportType}',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Please clearly describe the issue. Our admin team will review and take appropriate action.',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  ],
+                ),
               ),
 
               const SizedBox(height: 24),
 
-              // ===== MESSAGE =====
-              TextFormField(
-                controller: _messageCtrl,
-                maxLines: 5,
-                decoration: InputDecoration(
-                  labelText: 'Message',
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
+              // ================= MESSAGE FIELD =================
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.04),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-                validator: (v) => v == null || v.trim().isEmpty
-                    ? 'Message is required'
-                    : null,
+                child: TextFormField(
+                  controller: _messageCtrl,
+                  maxLines: 6,
+                  decoration: InputDecoration(
+                    labelText: 'Message',
+                    alignLabelWithHint: true,
+                    filled: true,
+                    fillColor: const Color(0xFFF2F4F6),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                  validator: (v) => v == null || v.trim().isEmpty
+                      ? 'Message is required'
+                      : null,
+                ),
               ),
 
               const Spacer(),
 
-              // ===== SUBMIT =====
+              // ================= SUBMIT BUTTON =================
               SizedBox(
                 width: double.infinity,
+                height: 52,
                 child: ElevatedButton(
                   onPressed: _submitting ? null : _submitReport,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryColor,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
@@ -178,7 +217,8 @@ class _ReportToAdminScreenState extends State<ReportToAdminScreen> {
                       : const Text(
                           'Submit Report',
                           style: TextStyle(
-                            fontSize: 18,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
                             color: Colors.white,
                           ),
                         ),

@@ -10,6 +10,9 @@ import '../Owner_Panel/owner_home.dart';
 import '../Player_Panel/player_home.dart';
 import '../Authentication_screens/owner_pending_screen.dart';
 
+import '../theme/colors.dart';
+import '../theme/app_text_styles.dart';
+
 class GoogleRoleScreen extends StatefulWidget {
   final String idToken;
 
@@ -88,54 +91,114 @@ class _GoogleRoleScreenState extends State<GoogleRoleScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFE7E5D7),
+      backgroundColor: AppColors.backgroundColor,
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text(
-                'Choose your role',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF65AAC2),
-                ),
+              /// =========================
+              /// Top Image
+              /// =========================
+              Image.asset(
+                'assets/role selection.png', // ✅ change if needed
+                height: size.height * 0.22,
+                fit: BoxFit.contain,
               ),
-              const SizedBox(height: 30),
-              RadioListTile<String>(
-                value: 'PLAYER',
-                groupValue: selectedRole,
-                onChanged: (v) => setState(() => selectedRole = v!),
-                title: const Text('Player'),
-              ),
-              RadioListTile<String>(
-                value: 'COURT_OWNER',
-                groupValue: selectedRole,
-                onChanged: (v) => setState(() => selectedRole = v!),
-                title: const Text('Court Owner'),
-              ),
-              const SizedBox(height: 30),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: isLoading ? null : _continue,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF65AAC2),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(25),
+
+              const SizedBox(height: 24),
+
+              /// =========================
+              /// Card
+              /// =========================
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: AppColors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primaryColor.withOpacity(0.08),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
                     ),
-                  ),
-                  child: isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text('Continue'),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Choose your role',
+                      style: AppTextStyles.heading,
+                    ),
+                    const SizedBox(height: 24),
+                    _roleTile(
+                      value: 'PLAYER',
+                      title: 'Player',
+                      subtitle: 'Book courts and join games',
+                    ),
+                    const SizedBox(height: 12),
+                    _roleTile(
+                      value: 'COURT_OWNER',
+                      title: 'Court Owner',
+                      subtitle: 'Manage courts and bookings',
+                    ),
+                    const SizedBox(height: 28),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton(
+                        onPressed: isLoading ? null : _continue,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.accentColor,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                        ),
+                        child: isLoading
+                            ? const CircularProgressIndicator(
+                                color: Colors.white,
+                              )
+                            : Text(
+                                'CONTINUE',
+                                style: AppTextStyles.button,
+                              ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _roleTile({
+    required String value,
+    required String title,
+    required String subtitle,
+  }) {
+    return RadioListTile<String>(
+      value: value,
+      groupValue: selectedRole,
+      onChanged: (v) => setState(() => selectedRole = v!),
+      activeColor: AppColors.primaryColor,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+      title: Text(
+        title,
+        style: AppTextStyles.subtitle.copyWith(
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: AppTextStyles.subtitle.copyWith(
+          fontSize: 13,
         ),
       ),
     );

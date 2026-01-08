@@ -23,16 +23,12 @@ class _ChallengesScreenState extends State<ChallengesScreen>
   @override
   void initState() {
     super.initState();
-
-    // ✅ SAFE INITIALIZATION
     _tabController = TabController(length: 2, vsync: this);
-
     _fetchAll();
   }
 
   @override
   void dispose() {
-    // ✅ PREVENT MEMORY LEAKS
     _tabController?.dispose();
     super.dispose();
   }
@@ -102,7 +98,6 @@ class _ChallengesScreenState extends State<ChallengesScreen>
         {'message': controller.text.trim()},
       );
 
-      // ✅ OPTIMISTIC UPDATE
       setState(() {
         request['status'] = 'ACCEPTED';
         request['message'] = controller.text.trim();
@@ -155,7 +150,6 @@ class _ChallengesScreenState extends State<ChallengesScreen>
   // ================= UI =================
   @override
   Widget build(BuildContext context) {
-    // ✅ SAFETY GUARD
     if (_tabController == null) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
@@ -163,11 +157,22 @@ class _ChallengesScreenState extends State<ChallengesScreen>
     }
 
     return Scaffold(
-      backgroundColor: AppColors.backgroundBeige,
+      backgroundColor: const Color(0xFFF6F8FA),
       appBar: AppBar(
         backgroundColor: AppColors.primaryColor,
+        title: const Text(
+          'Challenges',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         bottom: TabBar(
           controller: _tabController!,
+          indicatorColor: Colors.white,
+          labelColor: Colors.white, // ✅ FIX
+          unselectedLabelColor: Colors.white70, // ✅ FIX
+          labelStyle: const TextStyle(fontWeight: FontWeight.bold),
           tabs: const [
             Tab(text: 'RECEIVED'),
             Tab(text: 'SENT'),
@@ -189,82 +194,111 @@ class _ChallengesScreenState extends State<ChallengesScreen>
   Widget _list(List<Map<String, dynamic>> list, {required bool received}) {
     if (list.isEmpty) {
       return const Center(
-        child: Text('No challenges', style: TextStyle(color: Colors.grey)),
+        child: Text(
+          'No challenges',
+          style: TextStyle(color: Colors.grey),
+        ),
       );
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       itemCount: list.length,
       itemBuilder: (_, i) {
         final r = list[i];
         final status = r['status'];
         final other = received ? r['sender'] : r['receiver'];
 
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+        return Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _statusBadge(status),
+              const SizedBox(height: 10),
+              Text(
+                '${other['firstName']} ${other['lastName']}',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Sport: ${r['sport']}',
+                style: const TextStyle(color: Colors.grey),
+              ),
+              if (r['message'] != null &&
+                  r['message'].toString().isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text('Message: ${r['message']}'),
+              ],
+              if (received && status == 'PENDING') ...[
+                const SizedBox(height: 16),
                 Row(
                   children: [
-                    Icon(Icons.circle, size: 10, color: _statusColor(status)),
-                    const SizedBox(width: 6),
-                    Text(
-                      status,
-                      style: TextStyle(
-                        color: _statusColor(status),
-                        fontWeight: FontWeight.bold,
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () => _acceptWithMessage(r),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: const Text('Accept'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () => _reject(r),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: const Text('Reject'),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  '${other['firstName']} ${other['lastName']}',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.headingBlue,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text('Sport: ${r['sport']}'),
-                if (r['message'] != null && r['message'].toString().isNotEmpty)
-                  Text('Message: ${r['message']}'),
-                const SizedBox(height: 10),
-                if (received && status == 'PENDING')
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () => _acceptWithMessage(r),
-                          style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green),
-                          child: const Text('Accept',
-                              style: TextStyle(color: Colors.white)),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () => _reject(r),
-                          style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red),
-                          child: const Text('Reject',
-                              style: TextStyle(color: Colors.white)),
-                        ),
-                      ),
-                    ],
-                  ),
               ],
-            ),
+            ],
           ),
         );
       },
+    );
+  }
+
+  Widget _statusBadge(String status) {
+    final color = _statusColor(status);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        status,
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
     );
   }
 }

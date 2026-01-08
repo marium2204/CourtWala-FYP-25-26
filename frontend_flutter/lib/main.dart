@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'authentication_screens/splash_screen.dart';
+
+import 'Authentication_screens/auth_gate.dart';
+import 'theme/colors.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -13,10 +15,14 @@ class CourtWalaApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'CourtWala',
-      home: SplashScreen(), 
+      theme: ThemeData(
+        fontFamily: 'Poppins',
+        scaffoldBackgroundColor: AppColors.backgroundColor,
+      ),
+      home: const AuthGate(),
     );
   }
 }

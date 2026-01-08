@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../theme/colors.dart';
+import '../theme/app_text_styles.dart';
 import '../services/api_service.dart';
 import '../services/token_service.dart';
 
@@ -36,8 +37,6 @@ class _AddEditCourtScreenState extends State<AddEditCourtScreen> {
     'Shower': false,
     'Equipment Rental': false,
   };
-
-  // ================= SLOT STATE =================
 
   final List<Map<String, String>> _slots = [];
 
@@ -98,7 +97,6 @@ class _AddEditCourtScreenState extends State<AddEditCourtScreen> {
     setState(() => _submitting = true);
 
     try {
-      // 1️⃣ CREATE COURT
       final res = await ApiService.multipartPost(
         '/owner/courts',
         token,
@@ -126,7 +124,6 @@ class _AddEditCourtScreenState extends State<AddEditCourtScreen> {
       final body = jsonDecode(res.body);
       final courtId = body['data']['id'];
 
-      // 2️⃣ CREATE SLOTS
       await ApiService.post(
         '/owner/courts/$courtId/slots',
         token,
@@ -158,68 +155,91 @@ class _AddEditCourtScreenState extends State<AddEditCourtScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.backgroundBeige,
+      backgroundColor: AppColors.backgroundColor,
       appBar: AppBar(
         title: const Text('Add Court', style: TextStyle(color: Colors.white)),
         backgroundColor: AppColors.primaryColor,
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            _field(_nameController, 'Court Name'),
-            _field(_descriptionController, 'Description', maxLines: 3),
-            _field(_addressController, 'Address'),
-            _field(_cityController, 'City'),
-            _field(_stateController, 'State'),
-            _field(_zipController, 'Zip Code'),
-            _field(_priceController, 'Price per hour (PKR)',
-                keyboardType: TextInputType.number),
-            const SizedBox(height: 16),
-            _sportSelector(),
-            const SizedBox(height: 16),
-            _imagePicker(),
-            const SizedBox(height: 16),
-            _amenitiesChips(),
-            const SizedBox(height: 24),
-            const Text(
-              'Available Time Slots',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            ..._slots.map((s) => ListTile(
-                  leading: const Icon(Icons.schedule),
-                  title: Text('${s['startTime']} - ${s['endTime']}'),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _section('Court Details'),
+              _field(_nameController, 'Court Name'),
+              _field(_descriptionController, 'Description', maxLines: 3),
+              _field(_addressController, 'Address'),
+              _rowFields(
+                _cityController,
+                'City',
+                _stateController,
+                'State',
+              ),
+              _rowFields(
+                _zipController,
+                'Zip Code',
+                _priceController,
+                'Price per hour (PKR)',
+                keyboardType2: TextInputType.number,
+              ),
+              const SizedBox(height: 20),
+              _section('Sport'),
+              _sportSelector(),
+              const SizedBox(height: 20),
+              _section('Images'),
+              _imagePicker(),
+              const SizedBox(height: 20),
+              _section('Amenities'),
+              _amenitiesChips(),
+              const SizedBox(height: 24),
+              _section('Available Time Slots'),
+              const SizedBox(height: 8),
+              ..._slots.map(
+                (s) => ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading:
+                      const Icon(Icons.schedule, color: AppColors.primaryColor),
+                  title: Text(
+                    '${s['startTime']} - ${s['endTime']}',
+                    style: AppTextStyles.subtitle,
+                  ),
                   trailing: IconButton(
                     icon: const Icon(Icons.delete, color: Colors.red),
                     onPressed: () => setState(() => _slots.remove(s)),
                   ),
-                )),
-            TextButton.icon(
-              onPressed: _addSlot,
-              icon: const Icon(Icons.add),
-              label: const Text('Add Slot'),
-            ),
-            const SizedBox(height: 30),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _submitting ? null : _submitCourt,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryColor,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
-                child: _submitting
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text(
-                        'Submit Court',
-                        style: TextStyle(color: Colors.white, fontSize: 18),
-                      ),
               ),
-            ),
-          ]),
+              TextButton.icon(
+                onPressed: _addSlot,
+                icon: const Icon(Icons.add),
+                label: const Text('Add Slot'),
+              ),
+              const SizedBox(height: 32),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _submitting ? null : _submitCourt,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryColor,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  child: _submitting
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text(
+                          'Submit Court',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -227,8 +247,17 @@ class _AddEditCourtScreenState extends State<AddEditCourtScreen> {
 
   // ================= HELPERS =================
 
-  Widget _field(TextEditingController c, String label,
-      {int maxLines = 1, TextInputType keyboardType = TextInputType.text}) {
+  Widget _section(String title) => Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Text(title, style: AppTextStyles.sectionTitle),
+      );
+
+  Widget _field(
+    TextEditingController c,
+    String label, {
+    int maxLines = 1,
+    TextInputType keyboardType = TextInputType.text,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: TextFormField(
@@ -239,10 +268,30 @@ class _AddEditCourtScreenState extends State<AddEditCourtScreen> {
         decoration: InputDecoration(
           labelText: label,
           filled: true,
-          fillColor: Colors.white,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          fillColor: AppColors.white,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(color: AppColors.borderColor),
+          ),
         ),
       ),
+    );
+  }
+
+  Widget _rowFields(
+    TextEditingController c1,
+    String l1,
+    TextEditingController c2,
+    String l2, {
+    TextInputType keyboardType1 = TextInputType.text,
+    TextInputType keyboardType2 = TextInputType.text,
+  }) {
+    return Row(
+      children: [
+        Expanded(child: _field(c1, l1, keyboardType: keyboardType1)),
+        const SizedBox(width: 12),
+        Expanded(child: _field(c2, l2, keyboardType: keyboardType2)),
+      ],
     );
   }
 
@@ -251,12 +300,18 @@ class _AddEditCourtScreenState extends State<AddEditCourtScreen> {
     return Wrap(
       spacing: 10,
       children: sports.map((s) {
+        final selected = _selectedSport == s;
         return ChoiceChip(
-          label: Text(s),
-          selected: _selectedSport == s,
+          label: Text(
+            s,
+            style: TextStyle(
+              color: selected ? Colors.white : AppColors.textPrimary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          selected: selected,
           selectedColor: AppColors.primaryColor,
-          labelStyle: TextStyle(
-              color: _selectedSport == s ? Colors.white : Colors.black),
+          backgroundColor: AppColors.white,
           onSelected: (_) => setState(() => _selectedSport = s),
         );
       }).toList(),
@@ -265,14 +320,22 @@ class _AddEditCourtScreenState extends State<AddEditCourtScreen> {
 
   Widget _imagePicker() {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Wrap(
           spacing: 10,
+          runSpacing: 10,
           children: _pickedImages
-              .map((f) =>
-                  Image.file(f, width: 80, height: 80, fit: BoxFit.cover))
+              .map(
+                (f) => ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child:
+                      Image.file(f, width: 90, height: 90, fit: BoxFit.cover),
+                ),
+              )
               .toList(),
         ),
+        const SizedBox(height: 8),
         TextButton.icon(
           onPressed: _pickImage,
           icon: const Icon(Icons.photo_library),
@@ -286,12 +349,18 @@ class _AddEditCourtScreenState extends State<AddEditCourtScreen> {
     return Wrap(
       spacing: 10,
       children: _amenities.keys.map((k) {
+        final selected = _amenities[k]!;
         return FilterChip(
-          label: Text(k),
-          selected: _amenities[k]!,
+          label: Text(
+            k,
+            style: TextStyle(
+              color: selected ? Colors.white : AppColors.textPrimary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          selected: selected,
           selectedColor: AppColors.primaryColor,
-          labelStyle:
-              TextStyle(color: _amenities[k]! ? Colors.white : Colors.black),
+          backgroundColor: AppColors.white,
           onSelected: (v) => setState(() => _amenities[k] = v),
         );
       }).toList(),

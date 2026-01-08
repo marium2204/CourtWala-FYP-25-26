@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 
+import '../theme/colors.dart';
 import '../services/api_service.dart';
 import '../services/token_service.dart';
-import '../theme/colors.dart';
 
 class TournamentsScreen extends StatefulWidget {
   const TournamentsScreen({super.key});
@@ -141,7 +141,17 @@ class _TournamentsScreenState extends State<TournamentsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.backgroundBeige,
+      appBar: AppBar(
+        backgroundColor: AppColors.primaryColor,
+        title: const Text(
+          'Tournaments',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+      backgroundColor: const Color(0xFFF6F8FA),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _tournaments.isEmpty
@@ -152,116 +162,140 @@ class _TournamentsScreenState extends State<TournamentsScreen> {
                   ),
                 )
               : ListView.builder(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(16),
                   itemCount: _tournaments.length,
                   itemBuilder: (_, i) {
                     final t = _tournaments[i];
                     final joined = _isJoined(t);
                     final isFull = _isFull(t);
 
-                    return Card(
-                      color: joined
-                          ? Colors.green.withOpacity(0.05)
-                          : Colors.white,
-                      margin: const EdgeInsets.only(bottom: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(18),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
                       ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // JOINED BADGE
-                            if (joined) _badge('JOINED', Colors.green),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // BADGES
+                          Row(
+                            children: [
+                              if (joined) _badge('JOINED', Colors.green),
+                              if (!joined && isFull) _badge('FULL', Colors.red),
+                            ],
+                          ),
 
-                            // FULL BADGE
-                            if (!joined && isFull) _badge('FULL', Colors.red),
+                          const SizedBox(height: 6),
 
-                            Text(
-                              t['name'] ?? 'Tournament',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.headingBlue,
+                          // TITLE
+                          Text(
+                            t['name'] ?? 'Tournament',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primaryColor,
+                            ),
+                          ),
+
+                          const SizedBox(height: 6),
+                          Text('Sport: ${t['sport']}'),
+
+                          if (t['description'] != null &&
+                              t['description'].toString().isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 6),
+                              child: Text(
+                                t['description'],
+                                style: const TextStyle(color: Colors.grey),
                               ),
                             ),
 
-                            const SizedBox(height: 6),
-                            Text('Sport: ${t['sport']}'),
+                          const SizedBox(height: 10),
 
-                            if (t['description'] != null)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 6),
-                                child: Text(
-                                  t['description'],
-                                  style: const TextStyle(color: Colors.grey),
+                          Row(
+                            children: [
+                              const Icon(Icons.calendar_today,
+                                  size: 16, color: AppColors.primaryColor),
+                              const SizedBox(width: 6),
+                              Text(
+                                '${_formatDate(t['startDate'])} → ${_formatDate(t['endDate'])}',
+                                style: const TextStyle(color: Colors.grey),
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 10),
+
+                          Text(
+                            '${_participantLabel(t['sport'])}: '
+                            '${t['currentParticipants']} / ${t['maxParticipants']}',
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+
+                          if (t['skillLevel'] != null)
+                            Container(
+                              margin: const EdgeInsets.only(top: 8),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: _levelColor(t['skillLevel'])
+                                    .withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                t['skillLevel'],
+                                style: TextStyle(
+                                  color: _levelColor(t['skillLevel']),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
-
-                            const SizedBox(height: 6),
-                            Text('Starts: ${_formatDate(t['startDate'])}'),
-                            Text('Ends: ${_formatDate(t['endDate'])}'),
-
-                            const SizedBox(height: 6),
-
-                            Text(
-                              '${_participantLabel(t['sport'])}: '
-                              '${t['currentParticipants']} / ${t['maxParticipants']}',
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.w600),
                             ),
 
-                            if (t['skillLevel'] != null)
-                              Container(
-                                margin: const EdgeInsets.only(top: 6),
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: _levelColor(t['skillLevel'])
-                                      .withOpacity(0.15),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  t['skillLevel'],
-                                  style: TextStyle(
-                                    color: _levelColor(t['skillLevel']),
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
+                          const SizedBox(height: 16),
 
-                            const SizedBox(height: 12),
-
-                            // ✅ FINAL BUTTON LOGIC
-                            SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton(
-                                onPressed: joined
-                                    ? () => _leave(t)
+                          // ACTION BUTTON
+                          SizedBox(
+                            width: double.infinity,
+                            height: 46,
+                            child: ElevatedButton(
+                              onPressed: joined
+                                  ? () => _leave(t)
+                                  : isFull
+                                      ? null
+                                      : () => _join(t),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: joined
+                                    ? Colors.red
                                     : isFull
-                                        ? null
-                                        : () => _join(t),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: joined
-                                      ? Colors.red
-                                      : isFull
-                                          ? Colors.grey
-                                          : AppColors.primaryColor,
-                                ),
-                                child: Text(
-                                  joined
-                                      ? 'Leave Tournament'
-                                      : isFull
-                                          ? 'Tournament Full'
-                                          : 'Join Tournament',
-                                  style: const TextStyle(color: Colors.white),
+                                        ? Colors.grey
+                                        : AppColors.primaryColor,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
                                 ),
                               ),
+                              child: Text(
+                                joined
+                                    ? 'Leave Tournament'
+                                    : isFull
+                                        ? 'Tournament Full'
+                                        : 'Join Tournament',
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold),
+                              ),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     );
                   },
@@ -269,11 +303,11 @@ class _TournamentsScreenState extends State<TournamentsScreen> {
     );
   }
 
-  // ================= BADGE WIDGET =================
+  // ================= BADGE =================
   Widget _badge(String text, Color color) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      margin: const EdgeInsets.only(right: 8, bottom: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: BoxDecoration(
         color: color.withOpacity(0.15),
         borderRadius: BorderRadius.circular(20),

@@ -1,14 +1,10 @@
 import 'dart:convert';
-import 'package:courtwala/player_Panel/about_us_screen.dart';
-import 'package:courtwala/player_Panel/contact_us_screen.dart';
-import 'package:courtwala/player_Panel/tournaments_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:carousel_slider/carousel_slider.dart';
 
 import '../theme/colors.dart';
 import '../services/api_service.dart';
 import '../services/token_service.dart';
-import '../authentication_screens/splash_screen.dart';
+import '../authentication_screens/auth_gate.dart';
 
 import 'court_detail_screen.dart';
 import 'matchmaking_screen.dart';
@@ -18,6 +14,9 @@ import 'profile_screen.dart';
 import 'notifications_screen.dart';
 import 'ai_chatbot_screen.dart';
 import 'my_bookings_screen.dart';
+import 'about_us_screen.dart';
+import 'contact_us_screen.dart';
+import 'tournaments_screen.dart';
 
 class PlayerHomeScreen extends StatefulWidget {
   const PlayerHomeScreen({super.key});
@@ -30,12 +29,6 @@ class _PlayerHomeScreenState extends State<PlayerHomeScreen> {
   int _selectedIndex = 0;
   bool isLoading = true;
   List courts = [];
-
-  final List<String> carouselImages = [
-    'assets/carousel1.jpg',
-    'assets/carousel2.jpg',
-    'assets/carousel3.webp',
-  ];
 
   @override
   void initState() {
@@ -50,7 +43,7 @@ class _PlayerHomeScreenState extends State<PlayerHomeScreen> {
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const SplashScreen()),
+        MaterialPageRoute(builder: (_) => const AuthGate()),
       );
       return;
     }
@@ -63,8 +56,6 @@ class _PlayerHomeScreenState extends State<PlayerHomeScreen> {
           courts = data['courts'];
           isLoading = false;
         });
-      } else {
-        throw Exception(res.body);
       }
     } catch (e) {
       debugPrint('Fetch courts error: $e');
@@ -82,7 +73,7 @@ class _PlayerHomeScreenState extends State<PlayerHomeScreen> {
     if (!mounted) return;
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (_) => const SplashScreen()),
+      MaterialPageRoute(builder: (_) => const AuthGate()),
       (_) => false,
     );
   }
@@ -90,20 +81,22 @@ class _PlayerHomeScreenState extends State<PlayerHomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.backgroundBeige,
+      backgroundColor: const Color(0xFFF6F8FA),
 
       // ================= DRAWER =================
       drawer: Drawer(
         child: Column(
           children: [
-            DrawerHeader(
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(16, 48, 16, 20),
               decoration: const BoxDecoration(
                 color: AppColors.primaryColor,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: const [
-                  Icon(Icons.sports, size: 48, color: Colors.white),
+                  Icon(Icons.sports_tennis, size: 48, color: Colors.white),
                   SizedBox(height: 12),
                   Text(
                     'CourtWala',
@@ -113,6 +106,7 @@ class _PlayerHomeScreenState extends State<PlayerHomeScreen> {
                       color: Colors.white,
                     ),
                   ),
+                  SizedBox(height: 4),
                   Text(
                     'Play. Book. Compete.',
                     style: TextStyle(color: Colors.white70),
@@ -160,6 +154,7 @@ class _PlayerHomeScreenState extends State<PlayerHomeScreen> {
               },
             ),
             const Spacer(),
+            const Divider(),
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.red),
               title: const Text(
@@ -175,27 +170,32 @@ class _PlayerHomeScreenState extends State<PlayerHomeScreen> {
       // ================= APP BAR =================
       appBar: AppBar(
         backgroundColor: AppColors.primaryColor,
+        elevation: 0,
         title: const Text(
           "It's Game Time!",
-          style: TextStyle(color: Colors.white),
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
         ),
+        iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           IconButton(
-            icon: const Icon(Icons.chat, color: Colors.white),
+            icon: const Icon(Icons.chat_bubble_outline),
             onPressed: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const CommunityScreen()),
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.smart_toy_outlined, color: Colors.white),
+            icon: const Icon(Icons.smart_toy_outlined),
             onPressed: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const ChatbotScreen()),
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.notifications_none, color: Colors.white),
+            icon: const Icon(Icons.notifications_none),
             onPressed: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const NotificationsScreen()),
@@ -219,10 +219,10 @@ class _PlayerHomeScreenState extends State<PlayerHomeScreen> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
-        type: BottomNavigationBarType.fixed, // ✅ REQUIRED
-        backgroundColor: Colors.white, // ✅ REQUIRED
+        type: BottomNavigationBarType.fixed,
+        backgroundColor: Colors.white,
         selectedItemColor: AppColors.primaryColor,
-        unselectedItemColor: Colors.grey.shade600, // ✅ FIX
+        unselectedItemColor: Colors.grey.shade600,
         showUnselectedLabels: true,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.sports), label: "Courts"),
@@ -248,29 +248,12 @@ class _PlayerHomeScreenState extends State<PlayerHomeScreen> {
       return const Center(child: Text('No courts available'));
     }
 
-    return Column(
-      children: [
-        CarouselSlider(
-          options: CarouselOptions(height: 180, autoPlay: true),
-          items: carouselImages.map((img) {
-            return ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child:
-                  Image.asset(img, fit: BoxFit.cover, width: double.infinity),
-            );
-          }).toList(),
-        ),
-        const SizedBox(height: 12),
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            itemCount: courts.length,
-            itemBuilder: (context, index) {
-              return CourtCard(court: courts[index]);
-            },
-          ),
-        ),
-      ],
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: courts.length,
+      itemBuilder: (context, index) {
+        return CourtCard(court: courts[index]);
+      },
     );
   }
 }
@@ -292,20 +275,34 @@ class CourtCard extends StatelessWidget {
         );
       },
       child: Container(
-        margin: const EdgeInsets.only(bottom: 14),
-        padding: const EdgeInsets.all(12),
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(18),
           boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 6),
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 6),
+            ),
           ],
         ),
         child: Row(
           children: [
-            const Icon(Icons.sports_tennis,
-                size: 40, color: AppColors.primaryColor),
-            const SizedBox(width: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.primaryColor.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Icon(
+                Icons.sports_tennis,
+                size: 34,
+                color: AppColors.primaryColor,
+              ),
+            ),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -315,9 +312,19 @@ class CourtCard extends StatelessWidget {
                     style: const TextStyle(
                         fontSize: 16, fontWeight: FontWeight.bold),
                   ),
-                  Text(court['location'] ?? ''),
-                  Text("PKR ${court['price']} / hr",
-                      style: const TextStyle(color: AppColors.primaryColor)),
+                  const SizedBox(height: 4),
+                  Text(
+                    court['location'] ?? '',
+                    style: const TextStyle(color: Colors.grey),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    "PKR ${court['price']} / hr",
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primaryColor,
+                    ),
+                  ),
                 ],
               ),
             ),

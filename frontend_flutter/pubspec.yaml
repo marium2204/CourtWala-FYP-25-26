@@ -34,7 +34,7 @@ dev_dependencies:
   flutter_launcher_icons: ^0.13.1
 
 # 🔑 Flutter launcher icon configuration
-flutter_icons:
+flutter_launcher_icons:
   android: true
   ios: true
   image_path: "assets/CW.png"
@@ -49,9 +49,15 @@ flutter:
   assets:
     - assets/logo.png
     - assets/court_wala_logo.png
-    - assets/Court.png
-    - assets/carousel1.jpg
-    - assets/carousel2.jpg
-    - assets/carousel3.webp
-    - assets/badmintonCourt.jpeg
     - assets/CW.png
+    - assets/welcome.png
+    - assets/role selection.png
+    - assets/forgot.png
+
+  fonts:
+    - family: Poppins
+      fonts:
+        - asset: assets/fonts/Poppins-Regular.ttf
+        - asset: assets/fonts/Poppins-Medium.ttf
+        - asset: assets/fonts/Poppins-SemiBold.ttf
+        - asset: assets/fonts/Poppins-Bold.ttf

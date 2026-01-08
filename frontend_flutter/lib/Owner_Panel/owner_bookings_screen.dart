@@ -86,7 +86,7 @@ class _CourtOwnerBookingsScreenState extends State<CourtOwnerBookingsScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.backgroundBeige,
+      backgroundColor: const Color(0xFFF6F8FA),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : Column(
@@ -99,6 +99,8 @@ class _CourtOwnerBookingsScreenState extends State<CourtOwnerBookingsScreen>
                     labelColor: AppColors.primaryColor,
                     unselectedLabelColor: Colors.grey,
                     indicatorColor: AppColors.primaryColor,
+                    labelStyle: const TextStyle(
+                        fontWeight: FontWeight.w600, fontSize: 14),
                     tabs: tabs.map((t) => Tab(text: t)).toList(),
                   ),
                 ),
@@ -117,53 +119,80 @@ class _CourtOwnerBookingsScreenState extends State<CourtOwnerBookingsScreen>
   Widget _bookingList(List<Map<String, dynamic>> list) {
     if (list.isEmpty) {
       return const Center(
-        child: Text('No bookings found', style: TextStyle(color: Colors.grey)),
+        child: Text(
+          'No bookings found',
+          style: TextStyle(color: Colors.grey),
+        ),
       );
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       itemCount: list.length,
       itemBuilder: (_, i) {
         final b = list[i];
         final status = b['status'];
 
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _statusChip(status),
-                const SizedBox(height: 8),
-                Text(
-                  b['court']['name'],
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.headingBlue,
-                  ),
+        return Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _statusBadge(status),
+              const SizedBox(height: 10),
+              Text(
+                b['court']['name'],
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primaryColor,
                 ),
-                Text(
-                  "Player: ${b['player']['firstName']} ${b['player']['lastName']}",
-                ),
-                Text("Date: ${_formatDate(b['date'])}"),
-                Text("Time: ${b['startTime']} - ${b['endTime']}"),
-                Text("Price: PKR ${b['court']['pricePerHour']}"),
-                const SizedBox(height: 10),
-                _actions(b),
-              ],
-            ),
+              ),
+              const SizedBox(height: 6),
+              _infoRow('Player',
+                  "${b['player']['firstName']} ${b['player']['lastName']}"),
+              _infoRow('Date', _formatDate(b['date'])),
+              _infoRow('Time', '${b['startTime']} - ${b['endTime']}'),
+              _infoRow('Price', 'PKR ${b['court']['pricePerHour']}'),
+              const SizedBox(height: 14),
+              _actions(b),
+            ],
           ),
         );
       },
     );
   }
 
-  // ================= STATUS CHIP =================
-  Widget _statusChip(String status) {
+  Widget _infoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        children: [
+          Text(
+            '$label: ',
+            style: const TextStyle(
+                fontWeight: FontWeight.w500, color: Colors.black54),
+          ),
+          Expanded(child: Text(value)),
+        ],
+      ),
+    );
+  }
+
+  // ================= STATUS BADGE =================
+  Widget _statusBadge(String status) {
     Color c;
     switch (status) {
       case 'PENDING':
@@ -183,12 +212,20 @@ class _CourtOwnerBookingsScreenState extends State<CourtOwnerBookingsScreen>
         c = Colors.grey;
     }
 
-    return Row(
-      children: [
-        Icon(Icons.circle, size: 10, color: c),
-        const SizedBox(width: 6),
-        Text(status, style: TextStyle(color: c, fontWeight: FontWeight.bold)),
-      ],
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: c.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        status,
+        style: TextStyle(
+          color: c,
+          fontWeight: FontWeight.bold,
+          fontSize: 12,
+        ),
+      ),
     );
   }
 
@@ -202,31 +239,41 @@ class _CourtOwnerBookingsScreenState extends State<CourtOwnerBookingsScreen>
               child: ElevatedButton(
                 onPressed: () =>
                     _action(b['id'], '/owner/bookings/${b['id']}/approve'),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-                child: const Text('Approve',
-                    style: TextStyle(color: Colors.white)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('Approve'),
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 12),
             Expanded(
               child: ElevatedButton(
                 onPressed: () =>
                     _action(b['id'], '/owner/bookings/${b['id']}/reject'),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                child:
-                    const Text('Reject', style: TextStyle(color: Colors.white)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('Reject'),
               ),
             ),
           ],
         );
 
       case 'CONFIRMED':
-        return ElevatedButton(
-          onPressed: () => _action(b['id'], '/bookings/${b['id']}/cancel'),
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-          child: const Text(
-            'Cancel Booking',
-            style: TextStyle(color: Colors.white),
+        return SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: () => _action(b['id'], '/bookings/${b['id']}/cancel'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Cancel Booking'),
           ),
         );
 

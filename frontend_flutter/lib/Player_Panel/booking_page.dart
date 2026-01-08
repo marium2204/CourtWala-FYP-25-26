@@ -113,8 +113,8 @@ class _BookingPageState extends State<BookingPage> {
         {
           'courtId': widget.courtid,
           'date': date,
-          'startTime': _selectedSlot!['startTime'], // ✅ FIX
-          'endTime': _selectedSlot!['endTime'], // ✅ FIX
+          'startTime': _selectedSlot!['startTime'],
+          'endTime': _selectedSlot!['endTime'],
           'findOpponent': _findOpponent,
         },
       );
@@ -154,45 +154,66 @@ class _BookingPageState extends State<BookingPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.backgroundBeige,
+      backgroundColor: const Color(0xFFF6F8FA),
       appBar: AppBar(
         backgroundColor: AppColors.primaryColor,
-        title: const Text("Book Court", style: TextStyle(color: Colors.white)),
+        title: const Text(
+          "Book Court",
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
         iconTheme: const IconThemeData(color: Colors.white),
+        elevation: 0,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // COURT INFO
-          Card(
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-            elevation: 5,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(widget.courtName,
-                        style: const TextStyle(
-                            fontSize: 22, fontWeight: FontWeight.bold)),
-                    Text("📍 ${widget.location}"),
-                    Text("🏅 ${widget.sport}"),
-                    const SizedBox(height: 8),
-                    Text("PKR ${widget.price} / hr",
-                        style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primaryColor)),
-                  ]),
+          // ================= COURT SUMMARY =================
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.courtName,
+                  style: const TextStyle(
+                      fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 6),
+                Text("📍 ${widget.location}",
+                    style: const TextStyle(color: Colors.grey)),
+                Text("🏅 ${widget.sport}",
+                    style: const TextStyle(color: Colors.grey)),
+                const SizedBox(height: 10),
+                Text(
+                  "PKR ${widget.price} / hr",
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primaryColor,
+                  ),
+                ),
+              ],
             ),
           ),
 
           const SizedBox(height: 24),
 
-          // DATE
-          const Text("Select Date",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          // ================= DATE =================
+          const Text(
+            "Select Date",
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 8),
           GestureDetector(
             onTap: _pickDate,
@@ -206,26 +227,34 @@ class _BookingPageState extends State<BookingPage> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(_selectedDate == null
-                      ? "Choose a date"
-                      : "${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}"),
-                  const Icon(Icons.calendar_today),
+                  Text(
+                    _selectedDate == null
+                        ? "Choose a date"
+                        : "${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}",
+                  ),
+                  const Icon(Icons.calendar_today,
+                      color: AppColors.primaryColor),
                 ],
               ),
             ),
           ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
 
-          // SLOTS
-          const Text("Select Time Slot",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          // ================= SLOTS =================
+          const Text(
+            "Select Time Slot",
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 8),
 
           if (_loadingSlots)
             const Center(child: CircularProgressIndicator())
           else if (_slots.isEmpty)
-            const Text("No slots available for this date")
+            const Text(
+              "No slots available for this date",
+              style: TextStyle(color: Colors.grey),
+            )
           else
             Wrap(
               spacing: 10,
@@ -246,6 +275,8 @@ class _BookingPageState extends State<BookingPage> {
                         : isAvailable
                             ? Colors.black
                             : Colors.white,
+                    fontWeight:
+                        isSelected ? FontWeight.bold : FontWeight.normal,
                   ),
                   onSelected: isAvailable
                       ? (_) => setState(() => _selectedSlot = slot)
@@ -254,18 +285,38 @@ class _BookingPageState extends State<BookingPage> {
               }).toList(),
             ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
 
-          SwitchListTile(
-            value: _findOpponent,
-            onChanged: (v) => setState(() => _findOpponent = v),
-            title: const Text("Find an opponent",
-                style: TextStyle(fontWeight: FontWeight.bold)),
-            activeColor: AppColors.primaryColor,
+          // ================= FIND OPPONENT =================
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: SwitchListTile(
+              value: _findOpponent,
+              onChanged: (v) => setState(() => _findOpponent = v),
+              title: const Text(
+                "Find an opponent",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              subtitle: const Text(
+                "We'll help match you with another player",
+              ),
+              activeColor: AppColors.primaryColor,
+            ),
           ),
 
-          const SizedBox(height: 30),
+          const SizedBox(height: 32),
 
+          // ================= CONFIRM =================
           SizedBox(
             width: double.infinity,
             height: 52,
@@ -278,11 +329,14 @@ class _BookingPageState extends State<BookingPage> {
               ),
               child: _creatingBooking
                   ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text("Confirm Booking",
+                  : const Text(
+                      "Confirm Booking",
                       style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold)),
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
             ),
           ),
         ]),

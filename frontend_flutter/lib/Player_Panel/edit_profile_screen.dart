@@ -62,7 +62,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       if (token == null) throw Exception('Not authenticated');
 
       final res = await ApiService.put(
-        '/player/profile', // ✅ CORRECT
+        '/player/profile',
         token,
         {
           'firstName': _firstNameCtrl.text.trim(),
@@ -98,7 +98,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       if (token == null) throw Exception('Not authenticated');
 
       final res = await ApiService.post(
-        '/player/profile/change-password', // ✅ CORRECT
+        '/player/profile/change-password',
         token,
         {
           'currentPassword': _currentPasswordCtrl.text,
@@ -132,71 +132,140 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.backgroundBeige,
+      backgroundColor: const Color(0xFFF6F8FA),
       appBar: AppBar(
-        title: const Text('Edit Profile'),
         backgroundColor: AppColors.primaryColor,
+        title: const Text(
+          'Edit Profile',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        iconTheme: const IconThemeData(color: Colors.white),
+        elevation: 0,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Profile Information',
-                style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
-            Form(
-              key: _profileFormKey,
-              child: Column(
-                children: [
-                  _field(_firstNameCtrl, 'First Name'),
-                  _field(_lastNameCtrl, 'Last Name'),
-                  _field(_phoneCtrl, 'Phone'),
-                  const SizedBox(height: 12),
-                  ElevatedButton(
-                    onPressed: _savingProfile ? null : _updateProfile,
-                    child: _savingProfile
-                        ? const CircularProgressIndicator()
-                        : const Text('Save Profile'),
-                  ),
-                ],
+            // ================= PROFILE CARD =================
+            _sectionCard(
+              title: 'Profile Information',
+              child: Form(
+                key: _profileFormKey,
+                child: Column(
+                  children: [
+                    _field(_firstNameCtrl, 'First Name'),
+                    _field(_lastNameCtrl, 'Last Name'),
+                    _field(_phoneCtrl, 'Phone'),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton(
+                        onPressed: _savingProfile ? null : _updateProfile,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primaryColor,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14)),
+                        ),
+                        child: _savingProfile
+                            ? const CircularProgressIndicator(
+                                color: Colors.white)
+                            : const Text(
+                                'Save Profile',
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold),
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-            const SizedBox(height: 32),
-            const Text('Change Password',
-                style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
-            Form(
-              key: _passwordFormKey,
-              child: Column(
-                children: [
-                  _field(_currentPasswordCtrl, 'Current Password',
-                      obscure: true),
-                  _field(
-                    _newPasswordCtrl,
-                    'New Password',
-                    obscure: true,
-                    validator: (v) => v!.length < 6 ? 'Min 6 characters' : null,
-                  ),
-                  _field(
-                    _confirmPasswordCtrl,
-                    'Confirm Password',
-                    obscure: true,
-                    validator: (v) =>
-                        v != _newPasswordCtrl.text ? 'Mismatch' : null,
-                  ),
-                  const SizedBox(height: 12),
-                  ElevatedButton(
-                    onPressed: _changingPassword ? null : _changePassword,
-                    child: _changingPassword
-                        ? const CircularProgressIndicator()
-                        : const Text('Change Password'),
-                  ),
-                ],
+
+            const SizedBox(height: 24),
+
+            // ================= PASSWORD CARD =================
+            _sectionCard(
+              title: 'Change Password',
+              child: Form(
+                key: _passwordFormKey,
+                child: Column(
+                  children: [
+                    _field(_currentPasswordCtrl, 'Current Password',
+                        obscure: true),
+                    _field(
+                      _newPasswordCtrl,
+                      'New Password',
+                      obscure: true,
+                      validator: (v) =>
+                          v!.length < 6 ? 'Min 6 characters' : null,
+                    ),
+                    _field(
+                      _confirmPasswordCtrl,
+                      'Confirm Password',
+                      obscure: true,
+                      validator: (v) =>
+                          v != _newPasswordCtrl.text ? 'Mismatch' : null,
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton(
+                        onPressed: _changingPassword ? null : _changePassword,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primaryColor,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14)),
+                        ),
+                        child: _changingPassword
+                            ? const CircularProgressIndicator(
+                                color: Colors.white)
+                            : const Text(
+                                'Change Password',
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold),
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  // ================= HELPERS =================
+  Widget _sectionCard({required String title, required Widget child}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          child,
+        ],
       ),
     );
   }
@@ -213,7 +282,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         controller: ctrl,
         obscureText: obscure,
         validator: validator ?? (v) => v!.isEmpty ? 'Required' : null,
-        decoration: InputDecoration(labelText: label),
+        decoration: InputDecoration(
+          labelText: label,
+          filled: true,
+          fillColor: const Color(0xFFF2F4F6),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide.none,
+          ),
+        ),
       ),
     );
   }

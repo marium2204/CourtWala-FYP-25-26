@@ -15,6 +15,9 @@ import '../Owner_Panel/owner_home.dart';
 import '../Player_Panel/player_home.dart';
 import '../Authentication_screens/owner_pending_screen.dart';
 
+import '../theme/colors.dart';
+import '../theme/app_text_styles.dart';
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -59,10 +62,7 @@ class _LoginScreenState extends State<LoginScreen> {
         await TokenService.saveToken(token);
 
         if (!mounted) return;
-        _navigateByRoleAndStatus(
-          user['role'],
-          user['status'],
-        );
+        _navigateByRoleAndStatus(user['role'], user['status']);
       } else {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -108,10 +108,7 @@ class _LoginScreenState extends State<LoginScreen> {
       await TokenService.saveToken(token);
 
       if (!mounted) return;
-      _navigateByRoleAndStatus(
-        user['role'],
-        user['status'],
-      );
+      _navigateByRoleAndStatus(user['role'], user['status']);
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -146,10 +143,12 @@ class _LoginScreenState extends State<LoginScreen> {
   InputDecoration _dec(String hint, {Widget? suffix}) {
     return InputDecoration(
       filled: true,
-      fillColor: Colors.white,
+      fillColor: AppColors.white,
       hintText: hint,
+      hintStyle: AppTextStyles.subtitle,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         borderSide: BorderSide.none,
       ),
       suffixIcon: suffix,
@@ -159,64 +158,89 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFE7E5D7),
+      backgroundColor: AppColors.backgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
             children: [
               const SizedBox(height: 40),
-              const Text(
-                'Login to CourtWala',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
+              Text('LOGIN TO COURTWALA', style: AppTextStyles.heading),
               const SizedBox(height: 24),
-              TextField(
-                controller: emailOrUsernameCtrl,
-                decoration: _dec('Email or Username'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: passwordCtrl,
-                obscureText: !showPassword,
-                decoration: _dec(
-                  'Password',
-                  suffix: IconButton(
-                    icon: Icon(
-                      showPassword ? Icons.visibility_off : Icons.visibility,
+              _buildCard(
+                Column(
+                  children: [
+                    TextField(
+                      controller: emailOrUsernameCtrl,
+                      decoration: _dec('Email'),
                     ),
-                    onPressed: () =>
-                        setState(() => showPassword = !showPassword),
-                  ),
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: passwordCtrl,
+                      obscureText: !showPassword,
+                      decoration: _dec(
+                        'Password',
+                        suffix: IconButton(
+                          icon: Icon(
+                            showPassword
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                            color: AppColors.primaryColor,
+                          ),
+                          onPressed: () =>
+                              setState(() => showPassword = !showPassword),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
-                height: 48,
+                height: 52,
                 child: ElevatedButton(
                   onPressed: isLoading ? null : _loginUser,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.accentColor,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                  ),
                   child: isLoading
                       ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text('Login'),
+                      : Text('LOGIN', style: AppTextStyles.button),
                 ),
               ),
               const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
-                height: 48,
-                child: OutlinedButton(
+                height: 52,
+                child: OutlinedButton.icon(
                   onPressed: isLoading ? null : _loginWithGoogle,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: const [
-                      FaIcon(FontAwesomeIcons.google, size: 18),
-                      SizedBox(width: 12),
-                      Text('Continue with Google'),
-                    ],
+                  style: OutlinedButton.styleFrom(
+                    backgroundColor: AppColors.white,
+                    side: BorderSide(color: AppColors.borderColor),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                  ),
+                  icon: const FaIcon(
+                    FontAwesomeIcons.google,
+                    size: 18,
+                    color: Color.fromARGB(255, 8, 74, 128),
+                  ),
+                  label: const Text(
+                    'Continue with Google',
+                    style: TextStyle(
+                      color: Color.fromARGB(255, 8, 74, 128),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                    ),
                   ),
                 ),
               ),
+              const SizedBox(height: 12),
               TextButton(
                 onPressed: () => Navigator.push(
                   context,
@@ -224,7 +248,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     builder: (_) => const ForgotPasswordScreen(),
                   ),
                 ),
-                child: const Text('Forgot Password?'),
+                child: Text(
+                  'Forgot Password?',
+                  style: AppTextStyles.subtitle.copyWith(
+                    color: AppColors.primaryColor,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
               TextButton(
                 onPressed: () => Navigator.push(
@@ -233,12 +263,36 @@ class _LoginScreenState extends State<LoginScreen> {
                     builder: (_) => const RegisterScreen(),
                   ),
                 ),
-                child: const Text('Create Account'),
+                child: Text(
+                  'Dont have an account? SignUp',
+                  style: AppTextStyles.subtitle.copyWith(
+                    color: AppColors.primaryColor,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildCard(Widget child) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primaryColor.withOpacity(0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: child,
     );
   }
 }

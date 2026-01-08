@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'login_screen.dart';
 import 'register_screen.dart';
+import '../theme/colors.dart';
+import '../theme/app_text_styles.dart';
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
@@ -10,7 +12,7 @@ class WelcomeScreen extends StatelessWidget {
     final size = MediaQuery.of(context).size;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFE7E5D7), // ✅ Soft beige background
+      backgroundColor: AppColors.backgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
@@ -20,105 +22,124 @@ class WelcomeScreen extends StatelessWidget {
               vertical: size.height * 0.05,
             ),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // 🖼️ Logo first (responsive size)
+                /// =========================
+                /// Logo Section
+                /// =========================
+                SizedBox(height: size.height * 0.001),
                 Image.asset(
-                  'assets/Court.png',
-                  height: size.height * 0.35,
+                  'assets/welcome.png',
+                  height: size.height * 0.30,
                   fit: BoxFit.contain,
                 ),
+
                 SizedBox(height: size.height * 0.03),
 
-                // ✨ Welcome Heading
-                const Text(
-                  'WELCOME!',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Color(0xFF65AAC2), // Primary blue
-                    fontSize: 34, // slightly smaller for mobile screens
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1.8,
-                  ),
-                ),
-                const SizedBox(height: 8),
-
-                // Subheading
-                const Text(
-                  'Login or Signup to continue!',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Color(0xFF869A69), // Neutral olive tone
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                SizedBox(height: size.height * 0.06),
-
-                // 🌿 Create Account Button
+                /// =========================
+                /// Text Container (Visual Anchor)
+                /// =========================
                 Container(
-                  width: double.infinity,
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Color(0xFFADBA5E), Color(0xFF869A69)],
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                    ),
-                    borderRadius: BorderRadius.all(Radius.circular(30)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 26,
                   ),
+                  decoration: BoxDecoration(
+                    color: AppColors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primaryColor.withOpacity(0.08),
+                        blurRadius: 20,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        'WELCOME',
+                        textAlign: TextAlign.center,
+                        style: AppTextStyles.title,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Login or signup to continue and start booking your courts',
+                        textAlign: TextAlign.center,
+                        style: AppTextStyles.subtitle,
+                      ),
+                    ],
+                  ),
+                ),
+
+                SizedBox(height: size.height * 0.07),
+
+                /// =========================
+                /// Signup Button (Primary CTA)
+                /// =========================
+                SizedBox(
+                  width: double.infinity,
+                  height: size.height * 0.065,
                   child: ElevatedButton(
                     onPressed: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                            builder: (_) => const RegisterScreen()),
+                          builder: (_) => const RegisterScreen(),
+                        ),
                       );
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.transparent,
-                      shadowColor: Colors.transparent,
-                      minimumSize: Size(double.infinity, size.height * 0.065),
+                      backgroundColor: AppColors.accentColor,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(32),
+                      ),
+                      elevation: 5,
                     ),
-                    child: const Text(
-                      'SIGNUP',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.2,
+                    child: Text(
+                      'CREATE ACCOUNT',
+                      style: AppTextStyles.button,
+                    ),
+                  ),
+                ),
+
+                SizedBox(height: size.height * 0.025),
+
+                /// =========================
+                /// Login Button (Secondary CTA)
+                /// =========================
+                SizedBox(
+                  width: double.infinity,
+                  height: size.height * 0.065,
+                  child: OutlinedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const LoginScreen(),
+                        ),
+                      );
+                    },
+                    style: OutlinedButton.styleFrom(
+                      backgroundColor: AppColors.white,
+                      side: BorderSide(
+                        color: AppColors.primaryColor.withOpacity(0.35),
+                        width: 1.6,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(32),
+                      ),
+                    ),
+                    child: Text(
+                      'LOGIN',
+                      style: AppTextStyles.heading.copyWith(
+                        fontSize: 17,
                       ),
                     ),
                   ),
                 ),
-                SizedBox(height: size.height * 0.025),
 
-                // 🔵 Login Button
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const LoginScreen()),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    minimumSize: Size(double.infinity, size.height * 0.065),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    elevation: 4,
-                  ),
-                  child: const Text(
-                    'LOGIN',
-                    style: TextStyle(
-                      color: Color(0xFF65AAC2),
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                ),
-                SizedBox(height: size.height * 0.03),
+                SizedBox(height: size.height * 0.04),
               ],
             ),
           ),

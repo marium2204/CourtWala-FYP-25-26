@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+
 import '../theme/colors.dart';
+import '../theme/app_text_styles.dart';
 import '../services/api_service.dart';
 
 class CourtOwner {
@@ -122,92 +124,134 @@ class _ManageOwnersScreenState extends State<ManageOwnersScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.backgroundColor,
       appBar: AppBar(
         title: const Text(
           'Manage Court Owners',
           style: TextStyle(color: Colors.white),
         ),
         backgroundColor: AppColors.primaryColor,
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : owners.isEmpty
-              ? const Center(child: Text('No court owners found'))
+              ? Center(
+                  child: Text(
+                    'No court owners found',
+                    style: AppTextStyles.subtitle,
+                  ),
+                )
               : ListView.builder(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(16),
                   itemCount: owners.length,
                   itemBuilder: (_, i) {
                     final o = owners[i];
 
-                    return Card(
-                      elevation: 3,
-                      margin: const EdgeInsets.only(bottom: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 14),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppColors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primaryColor.withOpacity(0.08),
+                            blurRadius: 16,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
                       ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Name + Status
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    o.name,
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          /// =========================
+                          /// Name + Status
+                          /// =========================
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  o.name,
+                                  style: AppTextStyles.title,
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color:
+                                      _statusColor(o.status).withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  o.status,
+                                  style: TextStyle(
+                                    color: _statusColor(o.status),
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12,
                                   ),
                                 ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 10, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: _statusColor(o.status)
-                                        .withOpacity(0.15),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Text(
-                                    o.status,
-                                    style: TextStyle(
-                                      color: _statusColor(o.status),
-                                      fontWeight: FontWeight.w600,
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 8),
+
+                          /// =========================
+                          /// Info
+                          /// =========================
+                          Text(
+                            o.email,
+                            style: AppTextStyles.subtitle,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Courts owned: ${o.courts}',
+                            style:
+                                AppTextStyles.subtitle.copyWith(fontSize: 13),
+                          ),
+
+                          const SizedBox(height: 14),
+
+                          /// =========================
+                          /// Actions
+                          /// =========================
+                          Row(
+                            children: [
+                              if (o.status != 'ACTIVE')
+                                ElevatedButton(
+                                  onPressed: () => _approveOwner(o),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.green,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 8,
                                     ),
                                   ),
+                                  child: const Text('Approve'),
+                                ),
+                              if (o.status != 'REJECTED') ...[
+                                const SizedBox(width: 8),
+                                OutlinedButton(
+                                  onPressed: () => _rejectOwner(o),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.red,
+                                    side: const BorderSide(color: Colors.red),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 8,
+                                    ),
+                                  ),
+                                  child: const Text('Reject'),
                                 ),
                               ],
-                            ),
-
-                            const SizedBox(height: 6),
-                            Text(o.email),
-                            const SizedBox(height: 4),
-                            Text('Courts: ${o.courts}'),
-
-                            const SizedBox(height: 12),
-
-                            // ✅ ACTIONS (same philosophy as ManageUsersScreen)
-                            Row(
-                              children: [
-                                if (o.status != 'ACTIVE')
-                                  TextButton(
-                                    onPressed: () => _approveOwner(o),
-                                    child: const Text('Approve'),
-                                  ),
-                                if (o.status != 'REJECTED')
-                                  TextButton(
-                                    onPressed: () => _rejectOwner(o),
-                                    child: const Text(
-                                      'Reject',
-                                      style: TextStyle(color: Colors.redAccent),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ],
-                        ),
+                            ],
+                          ),
+                        ],
                       ),
                     );
                   },

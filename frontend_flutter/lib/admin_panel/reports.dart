@@ -1,8 +1,9 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+
 import '../theme/colors.dart';
+import '../theme/app_text_styles.dart';
 import '../services/api_service.dart';
-//import '../constants/api_constants.dart';
 
 class ReportItem {
   final String id;
@@ -58,10 +59,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
     _fetchReports();
   }
 
-//Uri.parse('${ApiConstants.baseUrl}/auth/login'),
   Future<void> _fetchReports() async {
     try {
-      final res = await ApiService.get('/admin/reports', widget.adminToken);
+      final res = await ApiService.get(
+        '/admin/reports',
+        widget.adminToken,
+      );
 
       if (res.statusCode == 200) {
         final decoded = jsonDecode(res.body);
@@ -87,28 +90,36 @@ class _ReportsScreenState extends State<ReportsScreen> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Resolve Report'),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: const Text(
+          'Resolve Report',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: actionCtrl,
-              decoration: const InputDecoration(labelText: 'Action taken'),
+              decoration: _dialogInput('Action taken *'),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             TextField(
               controller: notesCtrl,
-              decoration: const InputDecoration(labelText: 'Notes (optional)'),
+              decoration: _dialogInput('Notes (optional)'),
             ),
           ],
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primaryColor),
+              backgroundColor: AppColors.primaryColor,
+            ),
             onPressed: () async {
               if (actionCtrl.text.isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -146,6 +157,27 @@ class _ReportsScreenState extends State<ReportsScreen> {
     );
   }
 
+  InputDecoration _dialogInput(String hint) {
+    return InputDecoration(
+      hintText: hint,
+      filled: true,
+      fillColor: AppColors.white,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: AppColors.borderColor),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: AppColors.borderColor),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: AppColors.primaryColor, width: 1.5),
+      ),
+    );
+  }
+
   Color _statusColor(String status) {
     switch (status) {
       case 'RESOLVED':
@@ -160,7 +192,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.backgroundBeige,
+      backgroundColor: AppColors.backgroundColor,
       appBar: AppBar(
         title: const Text(
           'Reports & Complaints',
@@ -172,64 +204,123 @@ class _ReportsScreenState extends State<ReportsScreen> {
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : reports.isEmpty
-              ? const Center(child: Text('No reports found'))
+              ? Center(
+                  child: Text(
+                    'No reports found',
+                    style: AppTextStyles.subtitle,
+                  ),
+                )
               : ListView.separated(
                   padding: const EdgeInsets.all(16),
                   itemCount: reports.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  separatorBuilder: (_, __) => const SizedBox(height: 14),
                   itemBuilder: (_, i) {
                     final r = reports[i];
-                    return Card(
-                      elevation: 3,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
+
+                    return Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppColors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primaryColor.withOpacity(0.08),
+                            blurRadius: 16,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          /// =========================
+                          /// Title
+                          /// =========================
+                          Text(
+                            '${r.type} Report',
+                            style: AppTextStyles.title,
+                          ),
+
+                          const SizedBox(height: 6),
+                          Text(
+                            r.message,
+                            style: AppTextStyles.subtitle,
+                          ),
+
+                          const SizedBox(height: 12),
+
+                          /// =========================
+                          /// Meta
+                          /// =========================
+                          if (r.reportedUserId != null)
                             Text(
-                              '${r.type} Report',
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                  color: AppColors.headingBlue),
+                              'User ID: ${r.reportedUserId}',
+                              style:
+                                  AppTextStyles.subtitle.copyWith(fontSize: 13),
                             ),
-                            const SizedBox(height: 4),
-                            Text(r.message),
-                            const SizedBox(height: 6),
-                            if (r.reportedUserId != null)
-                              Text('User ID: ${r.reportedUserId}',
-                                  style: const TextStyle(color: Colors.grey)),
-                            if (r.reportedCourtId != null)
-                              Text('Court ID: ${r.reportedCourtId}',
-                                  style: const TextStyle(color: Colors.grey)),
-                            Text('Reporter: ${r.reporterId}',
-                                style: const TextStyle(color: Colors.grey)),
+                          if (r.reportedCourtId != null)
                             Text(
-                              'Created: ${r.createdAt.toLocal().toString().split('.')[0]}',
-                              style: const TextStyle(color: Colors.grey),
+                              'Court ID: ${r.reportedCourtId}',
+                              style:
+                                  AppTextStyles.subtitle.copyWith(fontSize: 13),
                             ),
-                            const SizedBox(height: 8),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Chip(
-                                  label: Text(r.status),
-                                  backgroundColor:
-                                      _statusColor(r.status).withOpacity(0.15),
+                          Text(
+                            'Reporter: ${r.reporterId}',
+                            style:
+                                AppTextStyles.subtitle.copyWith(fontSize: 13),
+                          ),
+                          Text(
+                            'Created: ${r.createdAt.toLocal().toString().split('.')[0]}',
+                            style:
+                                AppTextStyles.subtitle.copyWith(fontSize: 13),
+                          ),
+
+                          const SizedBox(height: 14),
+
+                          /// =========================
+                          /// Status & Action
+                          /// =========================
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
                                 ),
-                                if (r.status == 'PENDING')
-                                  TextButton.icon(
-                                    onPressed: () => _resolveReport(r),
-                                    icon: const Icon(Icons.check_circle,
-                                        size: 18),
-                                    label: const Text('Resolve'),
+                                decoration: BoxDecoration(
+                                  color:
+                                      _statusColor(r.status).withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  r.status,
+                                  style: TextStyle(
+                                    color: _statusColor(r.status),
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12,
                                   ),
-                              ],
-                            ),
-                          ],
-                        ),
+                                ),
+                              ),
+                              if (r.status == 'PENDING')
+                                TextButton.icon(
+                                  onPressed: () => _resolveReport(r),
+                                  icon: const Icon(
+                                    Icons.check_circle,
+                                    size: 18,
+                                    color: AppColors.primaryColor,
+                                  ),
+                                  label: const Text(
+                                    'Resolve',
+                                    style: TextStyle(
+                                      color: AppColors.primaryColor,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ],
                       ),
                     );
                   },

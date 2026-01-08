@@ -73,11 +73,11 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
     };
 
     return Scaffold(
-      backgroundColor: AppColors.backgroundBeige,
+      backgroundColor: const Color(0xFFF6F8FA),
       drawer: _drawer(),
       appBar: _appBar(title),
       body: _selectedIndex == 0 ? _homeContent() : _otherScreens(),
-      bottomNavigationBar: _bottomNav(), // ✅ FIXED
+      bottomNavigationBar: _bottomNav(),
     );
   }
 
@@ -90,29 +90,40 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          ElevatedButton.icon(
-            onPressed: () async {
-              await Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const AddEditCourtScreen()),
-              );
-              _fetchCourts();
-            },
-            icon: const Icon(Icons.add, color: Colors.white),
-            label:
-                const Text("Add Court", style: TextStyle(color: Colors.white)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryColor,
-              minimumSize: const Size(double.infinity, 50),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton.icon(
+              onPressed: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AddEditCourtScreen()),
+                );
+                _fetchCourts();
+              },
+              icon: const Icon(Icons.add, color: Colors.white),
+              label: const Text(
+                "Add Court",
+                style:
+                    TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryColor,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           Expanded(
             child: courts.isEmpty
-                ? const Center(child: Text('No courts added yet'))
+                ? const Center(
+                    child: Text(
+                      'No courts added yet',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  )
                 : ListView.builder(
                     itemCount: courts.length,
                     itemBuilder: (_, i) => _courtCard(courts[i]),
@@ -124,29 +135,61 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
   }
 
   Widget _courtCard(Map<String, dynamic> court) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: Column(
         children: [
           ListTile(
-            leading: const Icon(Icons.sports_tennis,
-                size: 40, color: AppColors.primaryColor),
+            leading: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.primaryColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.sports_tennis,
+                color: AppColors.primaryColor,
+                size: 28,
+              ),
+            ),
             title: Text(
               court['name'] ?? 'Unnamed Court',
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             subtitle: Text(
               court['sportType'] ?? '',
-              style: const TextStyle(color: AppColors.accentColor),
+              style: const TextStyle(color: Colors.grey),
             ),
-            trailing: Chip(
-              label: Text(court['status'] ?? ''),
+            trailing: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.primaryColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                court['status'] ?? '',
+                style: const TextStyle(
+                  color: AppColors.primaryColor,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
+              ),
             ),
           ),
-          const Divider(),
+          const Divider(height: 1),
           Padding(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(14),
             child: Column(
               children: [
                 _actionButton(
@@ -162,7 +205,7 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
                     _fetchCourts();
                   },
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 _outlinedButton(
                   'View Court',
                   Icons.remove_red_eye,
@@ -190,14 +233,13 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
     };
   }
 
-  // ================= FIXED BOTTOM NAV =================
   BottomNavigationBar _bottomNav() => BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
-        type: BottomNavigationBarType.fixed, // ✅ REQUIRED
-        backgroundColor: Colors.white, // ✅ REQUIRED
+        type: BottomNavigationBarType.fixed,
+        backgroundColor: Colors.white,
         selectedItemColor: AppColors.primaryColor,
-        unselectedItemColor: Colors.grey.shade600, // ✅ FIX
+        unselectedItemColor: Colors.grey.shade600,
         showUnselectedLabels: true,
         items: const [
           BottomNavigationBarItem(
@@ -221,9 +263,11 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
 
   AppBar _appBar(String title) => AppBar(
         backgroundColor: AppColors.primaryColor,
-        title: Text(title,
-            style: const TextStyle(
-                fontWeight: FontWeight.bold, color: Colors.white)),
+        title: Text(
+          title,
+          style:
+              const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+        ),
         leading: Builder(
           builder: (context) => IconButton(
             icon: const Icon(Icons.menu, color: Colors.white),
@@ -233,19 +277,24 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.smart_toy_outlined, color: Colors.white),
-            onPressed: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const ChatbotScreen())),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ChatbotScreen()),
+            ),
           ),
           IconButton(
             icon: const Icon(Icons.notifications_none, color: Colors.white),
-            onPressed: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const NotificationsScreen())),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+            ),
           ),
         ],
       );
 
   Drawer _drawer() => Drawer(
         child: ListView(
+          padding: EdgeInsets.zero,
           children: [
             const UserAccountsDrawerHeader(
               accountName: Text('Court Owner'),
@@ -273,13 +322,20 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
       );
 
   Widget _actionButton(String text, IconData icon, VoidCallback onTap) =>
-      ElevatedButton.icon(
-        onPressed: onTap,
-        icon: Icon(icon, size: 18, color: Colors.white),
-        label: Text(text, style: const TextStyle(color: Colors.white)),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primaryColor,
-          minimumSize: const Size(double.infinity, 45),
+      SizedBox(
+        width: double.infinity,
+        height: 45,
+        child: ElevatedButton.icon(
+          onPressed: onTap,
+          icon: Icon(icon, size: 18, color: Colors.white),
+          label: Text(text,
+              style: const TextStyle(
+                  color: Colors.white, fontWeight: FontWeight.w500)),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primaryColor,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
         ),
       );
 
@@ -288,14 +344,19 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
     IconData icon,
     VoidCallback onTap,
   ) =>
-      OutlinedButton.icon(
-        onPressed: onTap,
-        icon: Icon(icon, size: 18),
-        label: Text(text),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.primaryColor,
-          side: const BorderSide(color: AppColors.primaryColor),
-          minimumSize: const Size(double.infinity, 45),
+      SizedBox(
+        width: double.infinity,
+        height: 45,
+        child: OutlinedButton.icon(
+          onPressed: onTap,
+          icon: Icon(icon, size: 18),
+          label: Text(text),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.primaryColor,
+            side: const BorderSide(color: AppColors.primaryColor),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
         ),
       );
 }
