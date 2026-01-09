@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import '../theme/colors.dart';
 import '../services/api_service.dart';
 import '../services/token_service.dart';
-import '../Owner_Panel/reports.dart';
 
 class MyBookingsScreen extends StatefulWidget {
   const MyBookingsScreen({super.key});
@@ -248,30 +247,6 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                           ),
 
                           const SizedBox(height: 6),
-
-                          // Report
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton.icon(
-                              icon: const Icon(Icons.report,
-                                  color: Colors.red, size: 18),
-                              label: const Text(
-                                'Report',
-                                style: TextStyle(color: Colors.red),
-                              ),
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => ReportToAdminScreen(
-                                      reportType: 'BOOKING',
-                                      reportedBookingId: b['id'],
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
                         ],
                       ),
                     );

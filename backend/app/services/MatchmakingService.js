@@ -29,8 +29,18 @@ class MatchmakingService {
           { username: { contains: name, mode: 'insensitive' } },
         ],
       }),
-      ...(sport && { preferredSports: { has: sport } }),
-      ...(skillLevel && { skillLevel }),
+      ...(sport || skillLevel
+        ? {
+            playerSports: {
+              some: {
+                ...(sport && {
+                  sport: { name: sport },
+                }),
+                ...(skillLevel && { skillLevel }),
+              },
+            },
+          }
+        : {}),
     };
 
     const [players, total] = await Promise.all([
@@ -44,15 +54,32 @@ class MatchmakingService {
           lastName: true,
           username: true,
           profilePicture: true,
-          skillLevel: true,
-          preferredSports: true,
+          playerSports: {
+            include: {
+              sport: {
+                select: { name: true },
+              },
+            },
+          },
         },
       }),
       prisma.user.count({ where }),
     ]);
 
+    const formattedPlayers = players.map((p) => ({
+      id: p.id,
+      firstName: p.firstName,
+      lastName: p.lastName,
+      username: p.username,
+      profilePicture: p.profilePicture,
+      sports: p.playerSports.map((ps) => ({
+        sport: ps.sport.name,
+        skillLevel: ps.skillLevel,
+      })),
+    }));
+
     return {
-      players,
+      players: formattedPlayers,
       pagination: {
         total,
         page,
@@ -72,7 +99,6 @@ class MatchmakingService {
       throw new AppError('Cannot send match request to yourself', 400);
     }
 
-    // Check if receiver exists and is a player
     const receiver = await prisma.user.findUnique({
       where: { id: receiverId },
     });
@@ -81,7 +107,6 @@ class MatchmakingService {
       throw new AppError('Invalid receiver', 404);
     }
 
-    // Check if request already exists
     const existingRequest = await prisma.matchRequest.findFirst({
       where: {
         senderId,
@@ -94,7 +119,6 @@ class MatchmakingService {
       throw new AppError('Match request already sent', 409);
     }
 
-    // Create match request
     const matchRequest = await prisma.matchRequest.create({
       data: {
         senderId,
@@ -125,13 +149,12 @@ class MatchmakingService {
       },
     });
 
-    // Notify receiver
     await NotificationService.create({
       receiverId,
       senderId,
       type: 'MATCH_REQUEST',
       title: 'New Match Request',
-      message: `${matchRequest.sender.firstName} ${matchRequest.sender.lastName} wants to play with you`,
+      message: `${matchRequest.sender.firstName} wants to play ${sport}`,
       data: { matchRequestId: matchRequest.id },
     });
 
@@ -157,7 +180,6 @@ class MatchmakingService {
             firstName: true,
             lastName: true,
             profilePicture: true,
-            skillLevel: true,
           },
         },
         receiver: {
@@ -166,106 +188,43 @@ class MatchmakingService {
             firstName: true,
             lastName: true,
             profilePicture: true,
-            skillLevel: true,
           },
         },
       },
     });
   }
 
-  /**
-   * Accept match request
-   */
   static async acceptMatchRequest(requestId, receiverId) {
     const matchRequest = await prisma.matchRequest.findUnique({
       where: { id: requestId },
-      include: {
-        sender: true,
-        receiver: true,
-      },
+      include: { sender: true, receiver: true },
     });
 
-    if (!matchRequest) {
-      throw new AppError('Match request not found', 404);
+    if (!matchRequest || matchRequest.receiverId !== receiverId) {
+      throw new AppError('Invalid request', 403);
     }
 
-    if (matchRequest.receiverId !== receiverId) {
-      throw new AppError('You do not have permission to accept this request', 403);
-    }
-
-    if (matchRequest.status !== 'PENDING') {
-      throw new AppError('Match request cannot be accepted', 400);
-    }
-
-    // Update match request
-    const updatedRequest = await prisma.matchRequest.update({
+    return prisma.matchRequest.update({
       where: { id: requestId },
       data: { status: 'ACCEPTED' },
     });
-
-    // If there's a booking, update it with opponent
-    if (matchRequest.bookingId) {
-      await prisma.booking.update({
-        where: { id: matchRequest.bookingId },
-        data: { opponentId: matchRequest.senderId },
-      });
-    }
-
-    // Notify sender
-    await NotificationService.create({
-      receiverId: matchRequest.senderId,
-      senderId: receiverId,
-      type: 'MATCH_ACCEPTED',
-      title: 'Match Request Accepted',
-      message: `${matchRequest.receiver.firstName} ${matchRequest.receiver.lastName} accepted your match request`,
-      data: { matchRequestId: requestId },
-    });
-
-    return updatedRequest;
   }
 
-  /**
-   * Reject match request
-   */
   static async rejectMatchRequest(requestId, receiverId) {
     const matchRequest = await prisma.matchRequest.findUnique({
       where: { id: requestId },
-      include: {
-        sender: true,
-        receiver: true,
-      },
+      include: { sender: true, receiver: true },
     });
 
-    if (!matchRequest) {
-      throw new AppError('Match request not found', 404);
+    if (!matchRequest || matchRequest.receiverId !== receiverId) {
+      throw new AppError('Invalid request', 403);
     }
 
-    if (matchRequest.receiverId !== receiverId) {
-      throw new AppError('You do not have permission to reject this request', 403);
-    }
-
-    if (matchRequest.status !== 'PENDING') {
-      throw new AppError('Match request cannot be rejected', 400);
-    }
-
-    const updatedRequest = await prisma.matchRequest.update({
+    return prisma.matchRequest.update({
       where: { id: requestId },
       data: { status: 'REJECTED' },
     });
-
-    // Notify sender
-    await NotificationService.create({
-      receiverId: matchRequest.senderId,
-      senderId: receiverId,
-      type: 'MATCH_REJECTED',
-      title: 'Match Request Rejected',
-      message: `${matchRequest.receiver.firstName} ${matchRequest.receiver.lastName} rejected your match request`,
-      data: { matchRequestId: requestId },
-    });
-
-    return updatedRequest;
   }
 }
 
 module.exports = MatchmakingService;
-

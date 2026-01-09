@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -9,6 +6,10 @@ datasource db {
   provider = "mysql"
   url      = env("DATABASE_URL")
 }
+
+// =========================
+// ENUMS
+// =========================
 
 enum UserRole {
   PLAYER
@@ -74,6 +75,21 @@ enum ReportStatus {
   DISMISSED
 }
 
+enum AuthProvider {
+  EMAIL
+  GOOGLE
+}
+
+enum SkillLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+// =========================
+// USER
+// =========================
+
 model User {
   id                   String       @id @default(cuid())
   email                String       @unique
@@ -83,10 +99,8 @@ model User {
   lastName             String
   phone                String?
   profilePicture       String?
-  role UserRole?
+  role                 UserRole?
   status               UserStatus   @default(ACTIVE)
-  skillLevel           String?
-  preferredSports      Json?
   googleId             String?      @unique
   provider             AuthProvider @default(EMAIL)
   emailVerified        Boolean      @default(false)
@@ -95,7 +109,6 @@ model User {
   createdAt            DateTime     @default(now())
   updatedAt            DateTime     @updatedAt
 
-  // Relations
   courts                 Court[]
   bookings               Booking[]               @relation("Booking_Player")
   opponentBookings       Booking[]               @relation("Booking_Opponent")
@@ -108,16 +121,51 @@ model User {
   reportedReports        Report[]                @relation("ReportedUserReports")
   courtReviews           CourtReview[]
 
+  // Player sports & skills
+  playerSports PlayerSport[]
+
   @@index([email])
   @@index([role])
   @@index([status])
 }
 
-enum AuthProvider {
-  EMAIL
-  GOOGLE
+// =========================
+// SPORT (ADMIN MANAGED)
+// =========================
+
+model Sport {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  players PlayerSport[]
+
+  @@index([isActive])
 }
 
+// =========================
+// PLAYER ↔ SPORT ↔ SKILL
+// =========================
+
+model PlayerSport {
+  id         String     @id @default(cuid())
+  playerId   String
+  sportId    String
+  skillLevel SkillLevel
+
+  player User  @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  sport  Sport @relation(fields: [sportId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, sportId])
+  @@index([playerId])
+  @@index([sportId])
+}
+
+// =========================
+// COURT
+// =========================
 
 model Court {
   id           String      @id @default(cuid())
@@ -127,12 +175,12 @@ model Court {
   city         String
   state        String
   zipCode      String
-  location     String      // Kept for backward compatibility, will be generated from address fields
+  location     String
   sport        String
   pricePerHour Float
-  price        Float       // Kept for backward compatibility, will be same as pricePerHour
+  price        Float
   amenities    Json?
-  facilities   Json?       // Kept for backward compatibility, will be same as amenities
+  facilities   Json?
   images       Json?
   status       CourtStatus @default(PENDING_APPROVAL)
   rating       Float       @default(0)
@@ -140,14 +188,11 @@ model Court {
   ownerId      String
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
-  
 
-  // Relations
   owner    User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   bookings Booking[]
   reviews  CourtReview[]
-  slots CourtSlot[]
-
+  slots    CourtSlot[]
 
   @@index([ownerId])
   @@index([sport])
@@ -156,6 +201,10 @@ model Court {
   @@index([city])
   @@index([state])
 }
+
+// =========================
+// BOOKING
+// =========================
 
 model Booking {
   id            String        @id @default(cuid())
@@ -167,17 +216,14 @@ model Booking {
   status        BookingStatus @default(PENDING)
   needsOpponent Boolean       @default(false)
   opponentId    String?
+  slotId        String?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
-  // Slot relation
-  slotId String?
-  slot   CourtSlot? @relation(fields: [slotId], references: [id])
-
-  // Relations
-  court    Court @relation(fields: [courtId], references: [id], onDelete: Cascade)
-  player   User  @relation("Booking_Player", fields: [playerId], references: [id], onDelete: Cascade)
-  opponent User? @relation("Booking_Opponent", fields: [opponentId], references: [id])
+  court    Court     @relation(fields: [courtId], references: [id], onDelete: Cascade)
+  player   User      @relation("Booking_Player", fields: [playerId], references: [id], onDelete: Cascade)
+  opponent User?     @relation("Booking_Opponent", fields: [opponentId], references: [id])
+  slot     CourtSlot? @relation(fields: [slotId], references: [id])
 
   @@index([courtId])
   @@index([playerId])
@@ -185,19 +231,22 @@ model Booking {
   @@index([date])
 }
 
+// =========================
+// MATCH REQUEST
+// =========================
+
 model MatchRequest {
   id         String             @id @default(cuid())
   senderId   String
   receiverId String
   bookingId  String?
   sport      String
-  skillLevel String?
+  skillLevel SkillLevel?
   message    String?
   status     MatchRequestStatus @default(PENDING)
   createdAt  DateTime           @default(now())
   updatedAt  DateTime           @updatedAt
 
-  // Relations
   sender   User @relation("SenderMatches", fields: [senderId], references: [id], onDelete: Cascade)
   receiver User @relation("ReceiverMatches", fields: [receiverId], references: [id], onDelete: Cascade)
 
@@ -206,12 +255,16 @@ model MatchRequest {
   @@index([status])
 }
 
+// =========================
+// TOURNAMENT
+// =========================
+
 model Tournament {
   id                  String   @id @default(cuid())
   name                String
   description         String?
   sport               String
-  skillLevel          String?
+  skillLevel          SkillLevel?
   startDate           DateTime
   endDate             DateTime
   maxParticipants     Int
@@ -220,7 +273,6 @@ model Tournament {
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
-  // Relations
   participants TournamentParticipant[]
 
   @@index([sport])
@@ -233,14 +285,15 @@ model TournamentParticipant {
   playerId     String
   joinedAt     DateTime @default(now())
 
-  // Relations
   tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
   player     User       @relation(fields: [playerId], references: [id], onDelete: Cascade)
 
   @@unique([tournamentId, playerId])
-  @@index([tournamentId])
-  @@index([playerId])
 }
+
+// =========================
+// COURT REVIEW
+// =========================
 
 model CourtReview {
   id        String   @id @default(cuid())
@@ -251,13 +304,15 @@ model CourtReview {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Relations
   court  Court @relation(fields: [courtId], references: [id], onDelete: Cascade)
   player User  @relation(fields: [playerId], references: [id], onDelete: Cascade)
 
   @@unique([courtId, playerId])
-  @@index([courtId])
 }
+
+// =========================
+// NOTIFICATION
+// =========================
 
 model Notification {
   id         String           @id @default(cuid())
@@ -270,14 +325,16 @@ model Notification {
   isRead     Boolean          @default(false)
   createdAt  DateTime         @default(now())
 
-  // Relations
   receiver User  @relation("ReceiverNotifications", fields: [receiverId], references: [id], onDelete: Cascade)
   sender   User? @relation("SenderNotifications", fields: [senderId], references: [id], onDelete: SetNull)
 
   @@index([receiverId])
   @@index([isRead])
-  @@index([type])
 }
+
+// =========================
+// ANNOUNCEMENT
+// =========================
 
 model Announcement {
   id             String    @id @default(cuid())
@@ -293,46 +350,47 @@ model Announcement {
   @@index([isActive])
 }
 
-model Report {
-  id              String       @id @default(cuid())
-  reporterId      String
-  reportedUserId  String?
-  reportedCourtId String?
-  reportedBookingId String?
-  type            ReportType
-  message         String
-  status          ReportStatus @default(PENDING)
-  resolvedBy      String?
-  resolvedAt      DateTime?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+// =========================
+// REPORT
+// =========================
 
-  // Relations
+model Report {
+  id                String       @id @default(cuid())
+  reporterId        String
+  reportedUserId    String?
+  reportedCourtId   String?
+  reportedBookingId String?
+  type              ReportType
+  message           String
+  status            ReportStatus @default(PENDING)
+  resolvedBy        String?
+  resolvedAt        DateTime?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
   reporter     User  @relation("ReporterReports", fields: [reporterId], references: [id], onDelete: Cascade)
   reportedUser User? @relation("ReportedUserReports", fields: [reportedUserId], references: [id], onDelete: SetNull)
 
   @@index([reporterId])
   @@index([status])
-  @@index([type])
 }
+
+// =========================
+// COURT SLOT
+// =========================
 
 model CourtSlot {
   id        String   @id @default(cuid())
   courtId   String
-  startTime String   // "07:00"
-  endTime   String   // "08:00"
+  startTime String
+  endTime   String
   isActive  Boolean  @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Relations
   court    Court     @relation(fields: [courtId], references: [id], onDelete: Cascade)
-  bookings Booking[]   // ✅ REQUIRED inverse relation
+  bookings Booking[]
 
   @@unique([courtId, startTime, endTime])
-  @@index([courtId])
 }
-
-
-

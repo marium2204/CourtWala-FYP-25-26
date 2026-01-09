@@ -20,7 +20,9 @@ router.use(authorize('PLAYER'));
 // Profile routes
 router.get('/profile', ProfileController.getProfile);
 router.put('/profile', validateUpdateProfile, ProfileController.updateProfile);
+router.put('/profile/sports', ProfileController.updateSports);
 router.post('/profile/change-password', validateChangePassword, ProfileController.changePassword);
+
 
 // Booking routes
 const { validateCreateBooking } = require('../validators/BookingValidator');

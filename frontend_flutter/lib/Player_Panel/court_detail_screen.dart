@@ -6,7 +6,6 @@ import '../services/api_service.dart';
 import '../services/token_service.dart';
 import '../authentication_screens/auth_gate.dart';
 import 'booking_page.dart';
-import '../Owner_Panel/reports.dart';
 
 class CourtDetailScreen extends StatefulWidget {
   final String courtId;
@@ -184,29 +183,6 @@ class _CourtDetailScreenState extends State<CourtDetailScreen> {
                   ),
                 ),
               ),
-            ),
-          ),
-
-          // ================= REPORT =================
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: TextButton.icon(
-              icon: const Icon(Icons.report, color: Colors.red),
-              label: const Text(
-                'Report this court',
-                style: TextStyle(color: Colors.red),
-              ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => ReportToAdminScreen(
-                      reportType: 'COURT',
-                      reportedCourtId: court!['id'],
-                    ),
-                  ),
-                );
-              },
             ),
           ),
         ],

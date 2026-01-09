@@ -15,7 +15,6 @@ import 'notifications_screen.dart';
 import 'ai_chatbot_screen.dart';
 import 'my_bookings_screen.dart';
 import 'about_us_screen.dart';
-import 'contact_us_screen.dart';
 import 'tournaments_screen.dart';
 
 class PlayerHomeScreen extends StatefulWidget {
@@ -142,13 +141,13 @@ class _PlayerHomeScreenState extends State<PlayerHomeScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.contact_mail_outlined),
-              title: const Text('Contact Us'),
+              title: const Text('Profile'),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => const ContactUsScreen(),
+                    builder: (_) => const ProfileScreen(),
                   ),
                 );
               },
@@ -181,13 +180,6 @@ class _PlayerHomeScreenState extends State<PlayerHomeScreen> {
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           IconButton(
-            icon: const Icon(Icons.chat_bubble_outline),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const CommunityScreen()),
-            ),
-          ),
-          IconButton(
             icon: const Icon(Icons.smart_toy_outlined),
             onPressed: () => Navigator.push(
               context,
@@ -212,7 +204,7 @@ class _PlayerHomeScreenState extends State<PlayerHomeScreen> {
               : _selectedIndex == 3
                   ? const TournamentsScreen()
                   : _selectedIndex == 4
-                      ? const ProfileScreen()
+                      ? const CommunityScreen()
                       : _courtsContent(),
 
       // ================= BOTTOM NAV =================
@@ -232,7 +224,8 @@ class _PlayerHomeScreenState extends State<PlayerHomeScreen> {
               icon: Icon(Icons.whatshot), label: "Challenges"),
           BottomNavigationBarItem(
               icon: Icon(Icons.emoji_events), label: "Tournaments"),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.chat_bubble_outline), label: "Community"),
         ],
       ),
     );

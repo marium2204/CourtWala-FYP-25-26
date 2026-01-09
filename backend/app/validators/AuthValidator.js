@@ -1,11 +1,12 @@
 const { body, validationResult } = require('express-validator');
 const { AppError } = require('../utils/ErrorHandler');
 
-/**
- * Validation result handler
- */
+/* =========================
+   COMMON ERROR HANDLER
+========================= */
 const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req);
+
   if (!errors.isEmpty()) {
     const formattedErrors = errors.array().reduce((acc, error) => {
       acc[error.path] = error.msg;
@@ -13,89 +14,81 @@ const handleValidationErrors = (req, res, next) => {
     }, {});
     throw new AppError('Validation failed', 422, formattedErrors);
   }
+
   next();
 };
 
-/**
- * Register validation rules
- */
+/* =========================
+   REGISTER
+========================= */
 const validateRegister = [
   body('email')
     .isEmail()
-    .withMessage('Please provide a valid email address')
-    .normalizeEmail(),
+    .withMessage('Please provide a valid email address'),
+
   body('password')
     .isLength({ min: 6 })
-    .withMessage('Password must be at least 6 characters long')
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-    .withMessage('Password must contain at least one uppercase letter, one lowercase letter, and one number'),
+    .withMessage('Password must be at least 6 characters long'),
+
   body('firstName')
-    .trim()
     .notEmpty()
-    .withMessage('First name is required')
-    .isLength({ min: 2, max: 50 })
-    .withMessage('First name must be between 2 and 50 characters'),
+    .withMessage('First name is required'),
+
   body('lastName')
-    .trim()
     .notEmpty()
-    .withMessage('Last name is required')
-    .isLength({ min: 2, max: 50 })
-    .withMessage('Last name must be between 2 and 50 characters'),
-  body('username')
-    .optional()
-    .trim()
-    .isLength({ min: 3, max: 30 })
-    .withMessage('Username must be between 3 and 30 characters')
-    .matches(/^[a-zA-Z0-9_]+$/)
-    .withMessage('Username can only contain letters, numbers, and underscores'),
+    .withMessage('Last name is required'),
+
   body('phone')
     .optional()
-    .isMobilePhone()
-    .withMessage('Please provide a valid phone number'),
+    .matches(/^03\d{9}$/)
+    .withMessage('Phone must start with 03 and contain 11 digits'),
+
   body('role')
     .optional()
     .isIn(['PLAYER', 'COURT_OWNER'])
     .withMessage('Invalid role'),
+
   handleValidationErrors,
 ];
 
-/**
- * Login validation rules
- */
+/* =========================
+   LOGIN
+========================= */
 const validateLogin = [
   body('emailOrUsername')
-    .trim()
     .notEmpty()
     .withMessage('Email or username is required'),
+
   body('password')
     .notEmpty()
     .withMessage('Password is required'),
+
   handleValidationErrors,
 ];
 
-/**
- * Password reset request validation
- */
+/* =========================
+   PASSWORD RESET REQUEST
+========================= */
 const validatePasswordResetRequest = [
   body('email')
     .isEmail()
-    .withMessage('Please provide a valid email address')
-    .normalizeEmail(),
+    .withMessage('Please provide a valid email address'),
+
   handleValidationErrors,
 ];
 
-/**
- * Password reset validation
- */
+/* =========================
+   PASSWORD RESET
+========================= */
 const validatePasswordReset = [
   body('token')
     .notEmpty()
     .withMessage('Reset token is required'),
+
   body('password')
     .isLength({ min: 6 })
-    .withMessage('Password must be at least 6 characters long')
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-    .withMessage('Password must contain at least one uppercase letter, one lowercase letter, and one number'),
+    .withMessage('Password must be at least 6 characters long'),
+
   handleValidationErrors,
 ];
 
@@ -105,4 +98,3 @@ module.exports = {
   validatePasswordResetRequest,
   validatePasswordReset,
 };
-

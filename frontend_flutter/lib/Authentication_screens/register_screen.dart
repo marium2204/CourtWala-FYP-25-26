@@ -45,6 +45,35 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
+  // ✅ Pakistan phone validation (OPTIONAL field)
+  String? phoneValidator(String? value) {
+    if (value == null || value.trim().isEmpty) return null;
+
+    final regex = RegExp(r'^03\d{9}$');
+    if (!regex.hasMatch(value.trim())) {
+      return 'Phone must start with 03\nand contain 11 digits';
+    }
+    return null;
+  }
+
+  // ✅ Password validation (REQUIRED)
+  String? passwordValidator(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Password is required';
+    }
+
+    if (value.length < 6) {
+      return 'Password must be at\nleast 6 characters';
+    }
+
+    final regex = RegExp(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)');
+    if (!regex.hasMatch(value)) {
+      return 'Password must contain uppercase,\nlowercase and number';
+    }
+
+    return null;
+  }
+
   // ================= NORMAL REGISTER =================
   Future<void> registerUser() async {
     if (!_formKey.currentState!.validate()) return;
@@ -104,7 +133,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
-  // ================= GOOGLE SIGN UP =================
   Future<void> _continueWithGoogle() async {
     setState(() => isLoading = true);
 
@@ -112,18 +140,66 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final idToken = await GoogleAuthService.signInWithGoogle();
       if (idToken == null) return;
 
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => GoogleRoleScreen(idToken: idToken),
-        ),
+      // 🔑 Try Google LOGIN first
+      final res = await http.post(
+        Uri.parse('${ApiConstants.baseUrl}/auth/google'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'idToken': idToken}),
       );
-    } catch (_) {
+
+      final body = jsonDecode(res.body);
+
+      // ✅ EXISTING USER → LOGIN
+      if (res.statusCode == 200 && body['success'] == true) {
+        final token = body['data']['token'];
+
+        await TokenService.saveToken(token);
+
+        if (!mounted) return;
+
+        // ✅ USER FEEDBACK
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Account already exists. Please lOGIN'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+
+        // ⏳ Small delay so user can read message
+        await Future.delayed(const Duration(milliseconds: 1200));
+
+        if (!mounted) return;
+
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const AuthGate()),
+          (_) => false,
+        );
+        return;
+      }
+
+      // 🆕 NEW USER → ROLE SELECTION
+      if (res.statusCode == 404) {
+        if (!mounted) return;
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => GoogleRoleScreen(idToken: idToken),
+          ),
+        );
+        return;
+      }
+
+      // ❌ Any other error
+      throw body['message'] ?? 'Google sign-in failed';
+    } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Google sign-in failed')),
+        SnackBar(content: Text(e.toString())),
       );
     } finally {
-      setState(() => isLoading = false);
+      if (mounted) setState(() => isLoading = false);
     }
   }
 
@@ -181,7 +257,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   _field(firstNameCtrl, 'First Name *', true),
                   _field(lastNameCtrl, 'Last Name *', true),
                   _field(usernameCtrl, 'Username (optional)', false),
-                  _field(phoneCtrl, 'Phone (optional)', false),
+
+                  // ✅ SAME FIELD, validation added
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: TextFormField(
+                      controller: phoneCtrl,
+                      decoration: inputDecoration('Phone (optional)'),
+                      validator: phoneValidator,
+                    ),
+                  ),
+
                   DropdownButtonFormField<String>(
                     value: selectedRole,
                     decoration: inputDecoration('Role'),
@@ -193,10 +279,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     onChanged: (v) => setState(() => selectedRole = v!),
                   ),
                   _field(emailCtrl, 'Email *', true),
+
+                  // ✅ SAME PASSWORD FIELD, validation added
                   TextFormField(
                     controller: passwordCtrl,
                     obscureText: true,
                     decoration: inputDecoration('Password *'),
+                    validator: passwordValidator,
                   ),
                 ]),
                 const SizedBox(height: 24),
@@ -246,12 +335,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   icon: const FaIcon(
                     FontAwesomeIcons.google,
                     size: 18,
-                    color: Color.fromARGB(255, 8, 74, 128), // 🔵 blue icon
+                    color: Color.fromARGB(255, 8, 74, 128),
                   ),
                   label: const Text(
                     'Continue with Google',
                     style: TextStyle(
-                      color: Color.fromARGB(255, 8, 74, 128), // 🔵 blue text
+                      color: Color.fromARGB(255, 8, 74, 128),
                       fontWeight: FontWeight.w600,
                       fontSize: 15,
                     ),

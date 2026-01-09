@@ -1,7 +1,12 @@
 const BaseController = require('./BaseController');
 const AuthService = require('../services/AuthService');
-const { asyncHandler } = require('../utils/ErrorHandler');
 const { getFileUrl } = require('../utils/FileUpload');
+const ProfileService = require('../services/ProfileService');
+
+
+// Safe async handler wrapper (prevents undefined handlers)
+const asyncHandler = (fn) => (req, res, next) =>
+  Promise.resolve(fn(req, res, next)).catch(next);
 
 class AuthController extends BaseController {
   /* =========================
@@ -88,12 +93,10 @@ class AuthController extends BaseController {
      CURRENT USER
   ========================= */
   static me = asyncHandler(async (req, res) => {
-    return BaseController.success(
-      res,
-      req.user,
-      'User retrieved successfully'
-    );
-  });
+  const user = await ProfileService.getProfile(req.user.id);
+  return BaseController.success(res, user, 'User retrieved successfully');
+});
+
 }
 
 module.exports = AuthController;

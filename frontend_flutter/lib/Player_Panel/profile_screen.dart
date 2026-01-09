@@ -48,15 +48,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } catch (e) {
       debugPrint('Profile fetch error: $e');
       setState(() => _loading = false);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString()),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
     }
   }
 
@@ -93,10 +84,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final skillLevel = _profile!['skillLevel'] ?? '—';
     final role = _profile!['role'] ?? '—';
 
-    final List sports = _profile!['preferredSports'] is List
-        ? _profile!['preferredSports']
-        : [];
-    final sportsText = sports.isNotEmpty ? sports.join(', ') : '—';
+    final List sports = _profile!['sports'] is List ? _profile!['sports'] : [];
+
+    final bool profileIncomplete = sports.isEmpty;
+
+    final sportsText = sports.isEmpty
+        ? '—'
+        : sports.map((s) => '${s['sport']} (${s['skillLevel']})').join(', ');
 
     return Scaffold(
       backgroundColor: const Color(0xFFF6F8FA),
@@ -105,10 +99,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         elevation: 0,
         title: const Text(
           'My Profile',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
@@ -116,6 +107,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
+            // ================= PROFILE INCOMPLETE NOTICE (TOP) =================
+            if (profileIncomplete)
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    Icon(Icons.warning_amber_rounded, color: Colors.orange),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Please complete your profile. You don’t have any sports and skills entered which may help you get challenges from other players.',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
             // ================= HEADER CARD =================
             Container(
               width: double.infinity,
@@ -161,10 +179,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
             const SizedBox(height: 24),
 
-            // ================= INFO CARDS =================
+            // ================= INFO CARDS (UNCHANGED) =================
             _infoCard('Username', username),
             _infoCard('Role', role),
-            _infoCard('Skill Level', skillLevel),
             _infoCard('Preferred Sports', sportsText),
 
             const SizedBox(height: 28),

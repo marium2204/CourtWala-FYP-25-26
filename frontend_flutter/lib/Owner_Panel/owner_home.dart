@@ -13,7 +13,6 @@ import 'owner_profile_screen.dart';
 import '../Player_Panel/ai_chatbot_screen.dart';
 import '../Player_Panel/notifications_screen.dart';
 import '../Player_Panel/about_us_screen.dart';
-import '../Player_Panel/contact_us_screen.dart';
 import '../Player_Panel/community_screen.dart';
 
 class CourtOwnerHomeScreen extends StatefulWidget {
@@ -309,14 +308,14 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
                 MaterialPageRoute(builder: (_) => const AboutUsScreen()),
               ),
             ),
-            ListTile(
-              leading: const Icon(Icons.contact_mail_outlined),
-              title: const Text("Contact Us"),
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const ContactUsScreen()),
-              ),
-            ),
+            // ListTile(
+            //   leading: const Icon(Icons.contact_mail_outlined),
+            //   title: const Text("Contact Us"),
+            //   onTap: () => Navigator.push(
+            //     context,
+            //     MaterialPageRoute(builder: (_) => const ContactUsScreen()),
+            //   ),
+            // ),
           ],
         ),
       );

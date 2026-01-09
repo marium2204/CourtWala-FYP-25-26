@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+
 const AuthController = require('../controllers/AuthController');
 const { authenticate } = require('../middleware/AuthMiddleware');
 const {
@@ -31,13 +32,23 @@ router.post(
   AuthController.register
 );
 
-router.post('/login', validateLogin, AuthController.login);
+router.post(
+  '/login',
+  validateLogin,
+  AuthController.login
+);
 
 // 🔑 Google LOGIN (existing users)
-router.post('/google', AuthController.googleLogin);
+router.post(
+  '/google',
+  AuthController.googleLogin
+);
 
 // 🔑 Google SIGNUP (role required)
-router.post('/google/complete', AuthController.googleComplete);
+router.post(
+  '/google/complete',
+  AuthController.googleComplete
+);
 
 router.post(
   '/forgot-password',
@@ -55,6 +66,10 @@ router.post(
    PROTECTED ROUTES
 ========================= */
 
-router.get('/me', authenticate, AuthController.me);
+router.get(
+  '/me',
+  authenticate,
+  AuthController.me
+);
 
 module.exports = router;
