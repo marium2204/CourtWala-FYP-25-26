@@ -97,7 +97,7 @@ class BookingService {
     await NotificationService.create({
       receiverId: court.ownerId,
       senderId: playerId,
-      type: 'BOOKING_REQUEST',
+      type: 'BOOKING_REQUESTED',
       title: 'New Booking Request',
       message: `You have a new booking request for ${court.name}`,
       data: { bookingId: booking.id },

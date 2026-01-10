@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:courtwala/player_Panel/my_bookings_screen.dart';
 import 'package:flutter/material.dart';
 
 import '../theme/colors.dart';
@@ -126,7 +127,7 @@ class _BookingPageState extends State<BookingPage> {
 
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const PlayerHomeScreen()),
+          MaterialPageRoute(builder: (_) => const MyBookingsScreen()),
         );
 
         widget.onBookingComplete?.call(_findOpponent ? 3 : 0);

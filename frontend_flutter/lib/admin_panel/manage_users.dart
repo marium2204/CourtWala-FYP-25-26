@@ -21,12 +21,15 @@ class UserModel {
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
+    final rawRole = json['role']?.toString().toUpperCase() ?? 'PLAYER';
+
     return UserModel(
-      id: json['id'],
-      name: '${json['firstName']} ${json['lastName']}',
-      email: json['email'],
-      role: json['role'],
-      status: json['status'],
+      id: json['_id'] ?? json['id'] ?? '',
+      name: json['name'] ??
+          '${json['firstName'] ?? ''} ${json['lastName'] ?? ''}'.trim(),
+      email: json['email'] ?? '',
+      role: rawRole == 'COURT_OWNER' ? 'OWNER' : rawRole,
+      status: json['status']?.toString().toUpperCase() ?? 'ACTIVE',
     );
   }
 }
@@ -78,13 +81,17 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
   }
 
   Future<void> _updateStatus(UserModel user, String status) async {
-    await ApiService.put(
-      '/admin/users/${user.id}/status',
-      widget.adminToken,
-      {'status': status},
-    );
+    try {
+      await ApiService.put(
+        '/admin/users/${user.id}/status',
+        widget.adminToken,
+        {'status': status},
+      );
 
-    setState(() => user.status = status);
+      setState(() => user.status = status);
+    } catch (e) {
+      debugPrint('Update status error: $e');
+    }
   }
 
   List<UserModel> get filteredUsers {
@@ -132,9 +139,6 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
-                /// =========================
-                /// Role Filter
-                /// =========================
                 Padding(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -166,10 +170,6 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
                     ),
                   ),
                 ),
-
-                /// =========================
-                /// Users List
-                /// =========================
                 Expanded(
                   child: filteredUsers.isEmpty
                       ? Center(
@@ -202,22 +202,19 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  /// =========================
-                                  /// Name + Role
-                                  /// =========================
                                   Row(
                                     children: [
                                       Expanded(
                                         child: Text(
-                                          u.name,
+                                          u.name.isEmpty
+                                              ? 'Unnamed User'
+                                              : u.name,
                                           style: AppTextStyles.title,
                                         ),
                                       ),
                                       Container(
                                         padding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 6,
-                                        ),
+                                            horizontal: 12, vertical: 6),
                                         decoration: BoxDecoration(
                                           color: _roleColor(u.role)
                                               .withOpacity(0.15),
@@ -235,29 +232,14 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
                                       ),
                                     ],
                                   ),
-
                                   const SizedBox(height: 8),
-
-                                  /// =========================
-                                  /// Email
-                                  /// =========================
-                                  Text(
-                                    u.email,
-                                    style: AppTextStyles.subtitle,
-                                  ),
-
+                                  Text(u.email, style: AppTextStyles.subtitle),
                                   const SizedBox(height: 14),
-
-                                  /// =========================
-                                  /// Status + Actions
-                                  /// =========================
                                   Row(
                                     children: [
                                       Container(
                                         padding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 6,
-                                        ),
+                                            horizontal: 12, vertical: 6),
                                         decoration: BoxDecoration(
                                           color: _statusColor(u.status)
                                               .withOpacity(0.15),
@@ -291,8 +273,7 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
                                           onPressed: () =>
                                               _updateStatus(u, 'BLOCKED'),
                                           style: TextButton.styleFrom(
-                                            foregroundColor: Colors.red,
-                                          ),
+                                              foregroundColor: Colors.red),
                                           child: const Text('Block'),
                                         ),
                                     ],

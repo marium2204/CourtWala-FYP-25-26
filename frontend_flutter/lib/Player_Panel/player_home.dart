@@ -15,7 +15,6 @@ import 'notifications_screen.dart';
 import 'ai_chatbot_screen.dart';
 import 'my_bookings_screen.dart';
 import 'about_us_screen.dart';
-import 'tournaments_screen.dart';
 
 class PlayerHomeScreen extends StatefulWidget {
   const PlayerHomeScreen({super.key});
@@ -202,10 +201,8 @@ class _PlayerHomeScreenState extends State<PlayerHomeScreen> {
           : _selectedIndex == 2
               ? const ChallengesScreen()
               : _selectedIndex == 3
-                  ? const TournamentsScreen()
-                  : _selectedIndex == 4
-                      ? const CommunityScreen()
-                      : _courtsContent(),
+                  ? const CommunityScreen()
+                  : _courtsContent(),
 
       // ================= BOTTOM NAV =================
       bottomNavigationBar: BottomNavigationBar(
@@ -222,8 +219,6 @@ class _PlayerHomeScreenState extends State<PlayerHomeScreen> {
               icon: Icon(Icons.people), label: "Matchmaking"),
           BottomNavigationBarItem(
               icon: Icon(Icons.whatshot), label: "Challenges"),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.emoji_events), label: "Tournaments"),
           BottomNavigationBarItem(
               icon: Icon(Icons.chat_bubble_outline), label: "Community"),
         ],

@@ -106,7 +106,10 @@ class _MatchmakingScreenState extends State<MatchmakingScreen> {
       backgroundColor: const Color(0xFFF6F8FA),
       appBar: AppBar(
         backgroundColor: AppColors.primaryColor,
-        title: const Text('Find Players'),
+        title: const Text(
+          'Find Players',
+          style: TextStyle(color: AppColors.backgroundColor),
+        ),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())

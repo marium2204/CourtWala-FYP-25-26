@@ -47,6 +47,7 @@ enum MatchRequestStatus {
 }
 
 enum NotificationType {
+  BOOKING_REQUESTED
   BOOKING_APPROVED
   BOOKING_REJECTED
   BOOKING_CANCELLED

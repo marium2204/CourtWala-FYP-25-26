@@ -36,6 +36,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   File? profileImage;
   bool isLoading = false;
 
+  bool _obscurePassword = true; // 👁️ toggle state
+
   final ImagePicker _picker = ImagePicker();
 
   Future<void> pickImage() async {
@@ -45,7 +47,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
-  // ✅ Pakistan phone validation (OPTIONAL field)
   String? phoneValidator(String? value) {
     if (value == null || value.trim().isEmpty) return null;
 
@@ -56,7 +57,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return null;
   }
 
-  // ✅ Password validation (REQUIRED)
   String? passwordValidator(String? value) {
     if (value == null || value.isEmpty) {
       return 'Password is required';
@@ -74,7 +74,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return null;
   }
 
-  // ================= NORMAL REGISTER =================
+  String? emailValidator(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Email is required';
+    }
+
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+
+    if (!emailRegex.hasMatch(value.trim())) {
+      return 'Enter a valid email address';
+    }
+
+    return null;
+  }
+
+  // ================= REGISTER =================
   Future<void> registerUser() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -140,7 +154,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final idToken = await GoogleAuthService.signInWithGoogle();
       if (idToken == null) return;
 
-      // 🔑 Try Google LOGIN first
       final res = await http.post(
         Uri.parse('${ApiConstants.baseUrl}/auth/google'),
         headers: {'Content-Type': 'application/json'},
@@ -149,15 +162,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       final body = jsonDecode(res.body);
 
-      // ✅ EXISTING USER → LOGIN
       if (res.statusCode == 200 && body['success'] == true) {
         final token = body['data']['token'];
-
         await TokenService.saveToken(token);
 
         if (!mounted) return;
 
-        // ✅ USER FEEDBACK
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Account already exists. Please lOGIN'),
@@ -165,9 +175,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
         );
 
-        // ⏳ Small delay so user can read message
         await Future.delayed(const Duration(milliseconds: 1200));
-
         if (!mounted) return;
 
         Navigator.pushAndRemoveUntil(
@@ -178,10 +186,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
         return;
       }
 
-      // 🆕 NEW USER → ROLE SELECTION
       if (res.statusCode == 404) {
         if (!mounted) return;
-
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -191,13 +197,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
         return;
       }
 
-      // ❌ Any other error
       throw body['message'] ?? 'Google sign-in failed';
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(e.toString())));
     } finally {
       if (mounted) setState(() => isLoading = false);
     }
@@ -219,8 +223,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-
     return Scaffold(
       backgroundColor: AppColors.backgroundColor,
       body: SafeArea(
@@ -257,8 +259,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   _field(firstNameCtrl, 'First Name *', true),
                   _field(lastNameCtrl, 'Last Name *', true),
                   _field(usernameCtrl, 'Username (optional)', false),
-
-                  // ✅ SAME FIELD, validation added
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: TextFormField(
@@ -267,7 +267,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       validator: phoneValidator,
                     ),
                   ),
-
                   DropdownButtonFormField<String>(
                     value: selectedRole,
                     decoration: inputDecoration('Role'),
@@ -278,14 +277,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ],
                     onChanged: (v) => setState(() => selectedRole = v!),
                   ),
-                  _field(emailCtrl, 'Email *', true),
-
-                  // ✅ SAME PASSWORD FIELD, validation added
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: TextFormField(
+                      controller: emailCtrl,
+                      decoration: inputDecoration('Email *'),
+                      validator: emailValidator,
+                    ),
+                  ),
                   TextFormField(
                     controller: passwordCtrl,
-                    obscureText: true,
-                    decoration: inputDecoration('Password *'),
+                    obscureText: _obscurePassword,
                     validator: passwordValidator,
+                    decoration: inputDecoration('Password *').copyWith(
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility_off
+                              : Icons.visibility,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _obscurePassword = !_obscurePassword;
+                          });
+                        },
+                      ),
+                    ),
                   ),
                 ]),
                 const SizedBox(height: 24),
@@ -324,27 +341,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 const SizedBox(height: 24),
                 OutlinedButton.icon(
                   onPressed: isLoading ? null : _continueWithGoogle,
-                  style: OutlinedButton.styleFrom(
-                    backgroundColor: AppColors.white,
-                    side: BorderSide(color: AppColors.borderColor),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    minimumSize: const Size(double.infinity, 52),
-                  ),
-                  icon: const FaIcon(
-                    FontAwesomeIcons.google,
-                    size: 18,
-                    color: Color.fromARGB(255, 8, 74, 128),
-                  ),
-                  label: const Text(
-                    'Continue with Google',
-                    style: TextStyle(
-                      color: Color.fromARGB(255, 8, 74, 128),
-                      fontWeight: FontWeight.w600,
-                      fontSize: 15,
-                    ),
-                  ),
+                  icon: const FaIcon(FontAwesomeIcons.google, size: 18),
+                  label: const Text('Continue with Google'),
                 )
               ],
             ),

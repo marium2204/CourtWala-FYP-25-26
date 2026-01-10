@@ -9,21 +9,34 @@ class Court {
   final String id;
   final String name;
   final String sport;
-  String status;
+  final String address;
+  final double pricePerHour;
+  final String status;
 
   Court({
     required this.id,
     required this.name,
     required this.sport,
+    required this.address,
+    required this.pricePerHour,
     required this.status,
   });
 
   factory Court.fromJson(Map<String, dynamic> json) {
     return Court(
-      id: json['id'],
-      name: json['name'],
-      sport: json['sport'],
-      status: json['status'],
+      id: (json['_id'] ?? json['id'] ?? '').toString(),
+      name: (json['name'] ?? 'Unnamed Court').toString(),
+      sport: (json['sport'] ?? 'N/A').toString(),
+
+      // ✅ FIXED ADDRESS MAPPING
+      address: (json['address'] ?? json['location'] ?? 'Address not provided')
+          .toString(),
+
+      pricePerHour: json['pricePerHour'] is num
+          ? (json['pricePerHour'] as num).toDouble()
+          : 0.0,
+
+      status: (json['status'] ?? 'PENDING').toString(),
     );
   }
 }
@@ -49,10 +62,7 @@ class _ManageCourtsScreenState extends State<ManageCourtsScreen> {
 
   Future<void> _fetchCourts() async {
     try {
-      final res = await ApiService.get(
-        '/admin/courts',
-        widget.adminToken,
-      );
+      final res = await ApiService.get('/courts', widget.adminToken);
 
       if (res.statusCode == 200) {
         final decoded = jsonDecode(res.body);
@@ -85,12 +95,7 @@ class _ManageCourtsScreenState extends State<ManageCourtsScreen> {
       );
 
       if (res.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Court ${status.toLowerCase()} successfully'),
-          ),
-        );
-        _fetchCourts(); // refresh list
+        _fetchCourts();
       }
     } catch (e) {
       debugPrint('Update court status error: $e');
@@ -101,19 +106,15 @@ class _ManageCourtsScreenState extends State<ManageCourtsScreen> {
     switch (status) {
       case 'ACTIVE':
         return Colors.green;
-      case 'PENDING':
-      case 'PENDING_APPROVAL':
-        return Colors.orange;
       case 'REJECTED':
         return Colors.red;
       default:
-        return Colors.grey;
+        return Colors.orange;
     }
   }
 
-  bool _isPending(String status) {
-    return status == 'PENDING' || status == 'PENDING_APPROVAL';
-  }
+  bool _isPending(String status) =>
+      status == 'PENDING' || status == 'PENDING_APPROVAL';
 
   @override
   Widget build(BuildContext context) {
@@ -157,86 +158,44 @@ class _ManageCourtsScreenState extends State<ManageCourtsScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          /// =========================
-                          /// Court Info
-                          /// =========================
-                          Text(
-                            c.name,
-                            style: AppTextStyles.title,
-                          ),
+                          Text(c.name, style: AppTextStyles.title),
                           const SizedBox(height: 4),
+                          Text('Sport: ${c.sport}',
+                              style: AppTextStyles.subtitle),
+                          Text('Address: ${c.address}',
+                              style: AppTextStyles.subtitle),
                           Text(
-                            'Sport: ${c.sport}',
+                            'Price: PKR ${c.pricePerHour.toStringAsFixed(0)}/hour',
                             style: AppTextStyles.subtitle,
                           ),
-
                           const SizedBox(height: 14),
-
-                          /// =========================
-                          /// Status & Actions
-                          /// =========================
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color:
-                                      _statusColor(c.status).withOpacity(0.15),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Text(
-                                  c.status,
-                                  style: TextStyle(
-                                    color: _statusColor(c.status),
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 12,
-                                  ),
-                                ),
+                              Chip(
+                                label: Text(c.status),
+                                backgroundColor:
+                                    _statusColor(c.status).withOpacity(0.15),
+                                labelStyle:
+                                    TextStyle(color: _statusColor(c.status)),
                               ),
                               if (_isPending(c.status))
                                 Row(
                                   children: [
-                                    ElevatedButton(
-                                      onPressed: () => _updateCourtStatus(
-                                        c,
-                                        'ACTIVE',
-                                        reason: 'Court meets approval criteria',
-                                      ),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.green,
-                                        foregroundColor: Colors.white,
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 14,
-                                          vertical: 8,
-                                        ),
-                                      ),
+                                    TextButton(
+                                      onPressed: () =>
+                                          _updateCourtStatus(c, 'ACTIVE'),
                                       child: const Text('Approve'),
                                     ),
-                                    const SizedBox(width: 8),
-                                    OutlinedButton(
-                                      onPressed: () => _updateCourtStatus(
-                                        c,
-                                        'REJECTED',
-                                        reason: 'Rejected by admin',
-                                      ),
-                                      style: OutlinedButton.styleFrom(
-                                        foregroundColor: Colors.red,
-                                        side: const BorderSide(
-                                          color: Colors.red,
-                                        ),
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 14,
-                                          vertical: 8,
-                                        ),
-                                      ),
+                                    TextButton(
+                                      onPressed: () =>
+                                          _updateCourtStatus(c, 'REJECTED'),
+                                      style: TextButton.styleFrom(
+                                          foregroundColor: Colors.red),
                                       child: const Text('Reject'),
                                     ),
                                   ],
-                                ),
+                                )
                             ],
                           ),
                         ],

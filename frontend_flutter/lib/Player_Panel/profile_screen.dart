@@ -80,8 +80,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final fullName =
         '${_profile!['firstName'] ?? ''} ${_profile!['lastName'] ?? ''}'.trim();
     final email = _profile!['email'] ?? '—';
-    final username = _profile!['username'] ?? '—';
-    final skillLevel = _profile!['skillLevel'] ?? '—';
     final role = _profile!['role'] ?? '—';
 
     final List sports = _profile!['sports'] is List ? _profile!['sports'] : [];
@@ -180,7 +178,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: 24),
 
             // ================= INFO CARDS (UNCHANGED) =================
-            _infoCard('Username', username),
             _infoCard('Role', role),
             _infoCard('Preferred Sports', sportsText),
 

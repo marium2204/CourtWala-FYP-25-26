@@ -13,7 +13,6 @@ import 'manage_users.dart';
 import 'manage_bookings.dart';
 import 'manage_owners.dart';
 import 'announcements.dart';
-import 'tournaments.dart';
 
 class AdminHomeScreen extends StatefulWidget {
   const AdminHomeScreen({super.key});
@@ -299,8 +298,6 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             const Divider(),
             _nav('Announcements', Icons.announcement,
                 () => _push(AnnouncementsScreen(adminToken: adminToken!))),
-            _nav('Tournaments', Icons.emoji_events,
-                () => _push(ManageTournamentsScreen(adminToken: adminToken!))),
             const Divider(),
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.red),
