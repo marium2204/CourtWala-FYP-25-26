@@ -136,7 +136,11 @@ for (let i = 1; i <= 5; i++) {
         city: `City ${i}`,
         state: `State ${i}`,
         zipCode: `1000${i}`,
-        location: `City ${i}`,
+         // ✅ Human-readable fallback (optional now)
+        location: `Street ${i}, Block ${i}, City ${i}, State ${i} 1000${i}`,
+
+        // ✅ REQUIRED Google Maps URL (placeholder)
+        mapUrl: `https://maps.google.com/?q=City+${i}`,
         sport: sportNames[i % sportNames.length], // BADMINTON, FOOTBALL, etc
         pricePerHour: 1200 + i * 100,
         price: 1200 + i * 100,

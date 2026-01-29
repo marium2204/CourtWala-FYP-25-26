@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../theme/colors.dart';
 import '../Owner_Panel/edit_court_screen.dart';
@@ -12,29 +13,33 @@ class CourtDetails extends StatelessWidget {
     required this.court,
   });
 
-  Widget _buildImage() {
-    final image = court['image'];
+  // ================= IMAGES =================
 
-    if (image == null || image.toString().isEmpty) {
+  Widget _buildImage() {
+    final images = (court['images'] as List?)?.cast<String>() ?? [];
+
+    if (images.isEmpty) {
       return _imagePlaceholder();
     }
 
-    if (image is String && image.startsWith('/')) {
-      return Image.file(
-        File(image),
-        width: double.infinity,
-        height: 180,
-        fit: BoxFit.cover,
-      );
-    }
+    final image = images.first;
 
-    if (image is String && image.startsWith('http')) {
+    if (image.startsWith('http')) {
       return Image.network(
         image,
         width: double.infinity,
         height: 180,
         fit: BoxFit.cover,
         errorBuilder: (_, __, ___) => _imagePlaceholder(),
+      );
+    }
+
+    if (image.startsWith('/')) {
+      return Image.file(
+        File(image),
+        width: double.infinity,
+        height: 180,
+        fit: BoxFit.cover,
       );
     }
 
@@ -51,9 +56,30 @@ class CourtDetails extends StatelessWidget {
     );
   }
 
+  // ================= MAP =================
+
+  Future<void> _openInMaps(BuildContext context, String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open Google Maps')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final facilities = (court['facilities'] as List?)?.cast<String>() ?? [];
+    final mapUrl = court['mapUrl'];
+    final addressText = court['location'];
+
+    /// 🔥 MULTI-SPORT SUPPORT
+    final List<Map<String, dynamic>> sports =
+        (court['sports'] as List?)?.cast<Map<String, dynamic>>() ?? [];
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -70,7 +96,7 @@ class CourtDetails extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ================= SECTION: COURT DETAILS =================
+            // ================= COURT DETAILS =================
             const Text(
               'Court Details',
               style: TextStyle(
@@ -93,28 +119,36 @@ class CourtDetails extends StatelessWidget {
                   children: [
                     _infoLine('Court Name', court['name']),
                     _infoLine('Description', court['description']),
-                    _infoLine('Address', court['location']),
+                    _infoLine('Address', addressText),
+                    if (mapUrl != null && mapUrl.toString().isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: TextButton.icon(
+                          onPressed: () => _openInMaps(context, mapUrl),
+                          icon: const Icon(Icons.map),
+                          label: const Text('Open in Google Maps'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.primaryColor,
+                          ),
+                        ),
+                      ),
                     Row(
                       children: [
-                        Expanded(
-                          child: _infoLine('City', court['city']),
-                        ),
+                        Expanded(child: _infoLine('City', court['city'])),
                         const SizedBox(width: 12),
-                        Expanded(
-                          child: _infoLine('State', court['state']),
-                        ),
+                        Expanded(child: _infoLine('State', court['state'])),
                       ],
                     ),
                     Row(
                       children: [
                         Expanded(
-                          child: _infoLine('Zip Code', court['zip']),
+                          child: _infoLine('Zip Code', court['zipCode']),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: _infoLine(
                             'Price / hour',
-                            '${court['price']} PKR',
+                            '${court['pricePerHour']} PKR',
                           ),
                         ),
                       ],
@@ -126,9 +160,9 @@ class CourtDetails extends StatelessWidget {
 
             const SizedBox(height: 24),
 
-            // ================= SECTION: SPORT =================
+            // ================= SPORTS =================
             const Text(
-              'Sport',
+              'Sports',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -137,23 +171,29 @@ class CourtDetails extends StatelessWidget {
             ),
             const SizedBox(height: 12),
 
-            Wrap(
-              spacing: 10,
-              children: [
-                Chip(
-                  label: Text(court['sport'] ?? ''),
-                  backgroundColor: AppColors.primaryColor,
-                  labelStyle: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
+            sports.isEmpty
+                ? const Text(
+                    'No sports assigned',
+                    style: TextStyle(color: Colors.grey),
+                  )
+                : Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: sports.map((s) {
+                      return Chip(
+                        label: Text(s['name']),
+                        backgroundColor: AppColors.primaryColor,
+                        labelStyle: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      );
+                    }).toList(),
                   ),
-                ),
-              ],
-            ),
 
             const SizedBox(height: 24),
 
-            // ================= SECTION: IMAGES =================
+            // ================= IMAGES =================
             const Text(
               'Images',
               style: TextStyle(
@@ -171,7 +211,7 @@ class CourtDetails extends StatelessWidget {
 
             const SizedBox(height: 24),
 
-            // ================= SECTION: FACILITIES =================
+            // ================= FACILITIES =================
             const Text(
               'Facilities',
               style: TextStyle(
@@ -241,6 +281,8 @@ class CourtDetails extends StatelessWidget {
     );
   }
 
+  // ================= INFO LINE =================
+
   Widget _infoLine(String label, dynamic value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -255,7 +297,7 @@ class CourtDetails extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          Text(
+          SelectableText(
             value?.toString() ?? 'N/A',
             style: const TextStyle(
               fontSize: 15,

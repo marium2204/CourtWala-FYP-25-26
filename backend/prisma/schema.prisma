@@ -122,7 +122,6 @@ model User {
   reportedReports        Report[]                @relation("ReportedUserReports")
   courtReviews           CourtReview[]
 
-  // Player sports & skills
   playerSports PlayerSport[]
 
   @@index([email])
@@ -141,7 +140,8 @@ model Sport {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  players PlayerSport[]
+  players     PlayerSport[]
+  courtSports CourtSport[]
 
   @@index([isActive])
 }
@@ -177,7 +177,7 @@ model Court {
   state        String
   zipCode      String
   location     String
-  sport        String
+  mapUrl       String
   pricePerHour Float
   price        Float
   amenities    Json?
@@ -190,17 +190,34 @@ model Court {
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
-  owner    User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  bookings Booking[]
-  reviews  CourtReview[]
-  slots    CourtSlot[]
+  owner       User         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  bookings    Booking[]
+  reviews     CourtReview[]
+  slots       CourtSlot[]
+  courtSports CourtSport[]
 
   @@index([ownerId])
-  @@index([sport])
   @@index([status])
   @@index([location])
   @@index([city])
   @@index([state])
+}
+
+// =========================
+// COURT ↔ SPORT (MULTI SPORT SUPPORT)
+// =========================
+
+model CourtSport {
+  id      String @id @default(cuid())
+  courtId String
+  sportId String
+
+  court Court @relation(fields: [courtId], references: [id], onDelete: Cascade)
+  sport Sport @relation(fields: [sportId], references: [id], onDelete: Cascade)
+
+  @@unique([courtId, sportId])
+  @@index([courtId])
+  @@index([sportId])
 }
 
 // =========================
@@ -221,9 +238,9 @@ model Booking {
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
-  court    Court     @relation(fields: [courtId], references: [id], onDelete: Cascade)
-  player   User      @relation("Booking_Player", fields: [playerId], references: [id], onDelete: Cascade)
-  opponent User?     @relation("Booking_Opponent", fields: [opponentId], references: [id])
+  court    Court      @relation(fields: [courtId], references: [id], onDelete: Cascade)
+  player   User       @relation("Booking_Player", fields: [playerId], references: [id], onDelete: Cascade)
+  opponent User?      @relation("Booking_Opponent", fields: [opponentId], references: [id])
   slot     CourtSlot? @relation(fields: [slotId], references: [id])
 
   @@index([courtId])

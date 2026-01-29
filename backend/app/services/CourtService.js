@@ -2,31 +2,34 @@ const prisma = require('../../config/database');
 const { AppError } = require('../utils/ErrorHandler');
 
 class CourtService {
-  /**
-   * Normalize status value to match CourtStatus enum
-   */
+  /* =========================
+     STATUS NORMALIZATION
+  ========================= */
   static normalizeStatus(status) {
     if (!status) return undefined;
-    
+
     const statusMap = {
-      'PENDING': 'PENDING_APPROVAL',
-      'PENDING_APPROVAL': 'PENDING_APPROVAL',
-      'ACTIVE': 'ACTIVE',
-      'INACTIVE': 'INACTIVE',
-      'REJECTED': 'REJECTED',
-      'APPROVED': 'ACTIVE', // Map APPROVED to ACTIVE for backward compatibility
+      PENDING: 'PENDING_APPROVAL',
+      PENDING_APPROVAL: 'PENDING_APPROVAL',
+      ACTIVE: 'ACTIVE',
+      INACTIVE: 'INACTIVE',
+      REJECTED: 'REJECTED',
+      APPROVED: 'ACTIVE',
     };
 
     const normalized = statusMap[status.toUpperCase()];
     if (!normalized) {
-      throw new AppError(`Invalid status: ${status}. Valid values are: PENDING_APPROVAL, ACTIVE, INACTIVE, REJECTED`, 400);
+      throw new AppError(
+        `Invalid status: ${status}. Valid values are: PENDING_APPROVAL, ACTIVE, INACTIVE, REJECTED`,
+        400
+      );
     }
     return normalized;
   }
 
-  /**
-   * Get all courts with filters
-   */
+  /* =========================
+     PLAYER / PUBLIC: GET ALL COURTS
+  ========================= */
   static async getAll(filters = {}) {
     const {
       sport,
@@ -41,13 +44,19 @@ class CourtService {
     } = filters;
 
     const skip = (page - 1) * limit;
-
-    // Normalize status only if provided (if not provided, fetch all courts)
     const normalizedStatus = status ? this.normalizeStatus(status) : undefined;
 
     const where = {
       ...(normalizedStatus && { status: normalizedStatus }),
-      ...(sport && { sport }),
+      ...(sport && {
+        courtSports: {
+          some: {
+            sport: {
+              name: sport,
+            },
+          },
+        },
+      }),
       ...(location && {
         OR: [
           { location: { contains: location } },
@@ -56,18 +65,8 @@ class CourtService {
           { state: { contains: location } },
         ],
       }),
-      ...(minPrice && {
-        OR: [
-          { pricePerHour: { gte: minPrice } },
-          { price: { gte: minPrice } },
-        ],
-      }),
-      ...(maxPrice && {
-        OR: [
-          { pricePerHour: { lte: maxPrice } },
-          { price: { lte: maxPrice } },
-        ],
-      }),
+      ...(minPrice && { pricePerHour: { gte: minPrice } }),
+      ...(maxPrice && { pricePerHour: { lte: maxPrice } }),
       ...(ownerId && { ownerId }),
       ...(search && {
         OR: [
@@ -95,6 +94,11 @@ class CourtService {
               email: true,
             },
           },
+          courtSports: {
+            include: {
+              sport: { select: { id: true, name: true } },
+            },
+          },
           _count: {
             select: {
               bookings: true,
@@ -107,7 +111,10 @@ class CourtService {
     ]);
 
     return {
-      courts,
+      courts: courts.map(c => ({
+        ...c,
+        sports: c.courtSports.map(cs => cs.sport),
+      })),
       pagination: {
         total,
         page,
@@ -117,9 +124,9 @@ class CourtService {
     };
   }
 
-  /**
-   * Get court by ID
-   */
+  /* =========================
+     OWNER / PLAYER: GET COURT BY ID
+  ========================= */
   static async getById(id) {
     const court = await prisma.court.findUnique({
       where: { id },
@@ -131,6 +138,11 @@ class CourtService {
             lastName: true,
             email: true,
             phone: true,
+          },
+        },
+        courtSports: {
+          include: {
+            sport: { select: { id: true, name: true } },
           },
         },
         reviews: {
@@ -160,12 +172,69 @@ class CourtService {
       throw new AppError('Court not found', 404);
     }
 
-    return court;
+    return {
+      ...court,
+      sports: court.courtSports.map(cs => cs.sport),
+    };
+  }
+/* =========================
+   ADMIN: GET COURT BY ID
+========================= */
+static async getAdminCourtById(id) {
+  const court = await prisma.court.findUnique({
+    where: { id },
+    include: {
+      owner: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          phone: true,
+        },
+      },
+      courtSports: {
+        include: {
+          sport: { select: { id: true, name: true } },
+        },
+      },
+      slots: {
+        orderBy: { startTime: 'asc' },
+      },
+      reviews: {
+        include: {
+          player: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      },
+      _count: {
+        select: {
+          bookings: true,
+          reviews: true,
+        },
+      },
+    },
+  });
+
+  if (!court) {
+    throw new AppError('Court not found', 404);
   }
 
-  /**
-   * Create court
-   */
+  return {
+    ...court,
+    sports: court.courtSports.map(cs => cs.sport),
+  };
+}
+
+  /* =========================
+     OWNER: CREATE COURT
+  ========================= */
   static async create(data, ownerId) {
     const {
       name,
@@ -174,16 +243,24 @@ class CourtService {
       city,
       state,
       zipCode,
-      sport,
+      mapUrl,
       pricePerHour,
       amenities = [],
       images = [],
+      sports,
     } = data;
 
-    // Combine address fields into location for backward compatibility
+    if (!mapUrl || !mapUrl.trim()) {
+      throw new AppError('Google Maps location URL is required', 400);
+    }
+
+    if (!sports || !Array.isArray(sports) || sports.length === 0) {
+      throw new AppError('At least one sport is required', 400);
+    }
+
     const location = `${address}, ${city}, ${state} ${zipCode}`;
 
-    return prisma.court.create({
+    const court = await prisma.court.create({
       data: {
         name,
         description,
@@ -191,102 +268,117 @@ class CourtService {
         city,
         state,
         zipCode,
-        location, // Generated from address fields
-        sport,
-        pricePerHour: parseFloat(pricePerHour),
-        price: parseFloat(pricePerHour), // Keep for backward compatibility
+        location,
+        mapUrl,
+        pricePerHour: Number(pricePerHour),
+        price: Number(pricePerHour),
         amenities,
-        facilities: amenities, // Keep for backward compatibility
+        facilities: amenities,
         images,
         ownerId,
         status: 'PENDING_APPROVAL',
+        courtSports: {
+          create: sports.map(sportId => ({ sportId })),
+        },
+      },
+      include: {
+        courtSports: {
+          include: {
+            sport: { select: { id: true, name: true } },
+          },
+        },
       },
     });
+
+    return {
+      ...court,
+      sports: court.courtSports.map(cs => cs.sport),
+    };
   }
 
-  /**
-   * Update court
-   */
+  /* =========================
+     OWNER: UPDATE COURT
+  ========================= */
   static async update(id, data, ownerId) {
-    const court = await prisma.court.findUnique({
-      where: { id },
-    });
+    const court = await prisma.court.findUnique({ where: { id } });
 
-    if (!court) {
-      throw new AppError('Court not found', 404);
-    }
-
-    if (court.ownerId !== ownerId) {
+    if (!court) throw new AppError('Court not found', 404);
+    if (court.ownerId !== ownerId)
       throw new AppError('You do not have permission to update this court', 403);
-    }
 
+    const { sports, ...rest } = data;
     const updateData = {};
-    if (data.name) updateData.name = data.name;
-    if (data.description !== undefined) updateData.description = data.description;
-    if (data.address) updateData.address = data.address;
-    if (data.city) updateData.city = data.city;
-    if (data.state) updateData.state = data.state;
-    if (data.zipCode) updateData.zipCode = data.zipCode;
-    if (data.sport) updateData.sport = data.sport;
-    if (data.pricePerHour !== undefined) {
-      updateData.pricePerHour = parseFloat(data.pricePerHour);
-      updateData.price = parseFloat(data.pricePerHour); // Keep for backward compatibility
-    }
-    if (data.amenities) {
-      updateData.amenities = data.amenities;
-      updateData.facilities = data.amenities; // Keep for backward compatibility
-    }
-    if (data.images) updateData.images = data.images;
 
-    // Update location if any address field changed
-    if (data.address || data.city || data.state || data.zipCode) {
-      const newAddress = data.address || court.address;
-      const newCity = data.city || court.city;
-      const newState = data.state || court.state;
-      const newZipCode = data.zipCode || court.zipCode;
-      updateData.location = `${newAddress}, ${newCity}, ${newState} ${newZipCode}`;
+    if (rest.name) updateData.name = rest.name;
+    if (rest.description !== undefined) updateData.description = rest.description;
+    if (rest.address) updateData.address = rest.address;
+    if (rest.city) updateData.city = rest.city;
+    if (rest.state) updateData.state = rest.state;
+    if (rest.zipCode) updateData.zipCode = rest.zipCode;
+
+    if (rest.mapUrl !== undefined) {
+      if (!rest.mapUrl.trim()) {
+        throw new AppError('Google Maps location URL cannot be empty', 400);
+      }
+      updateData.mapUrl = rest.mapUrl;
     }
 
-    // If updating, set status back to pending if it was approved
-    if (court.status === 'ACTIVE' && Object.keys(updateData).length > 0) {
+    if (rest.pricePerHour !== undefined) {
+      updateData.pricePerHour = Number(rest.pricePerHour);
+      updateData.price = Number(rest.pricePerHour);
+    }
+
+    if (rest.amenities) {
+      updateData.amenities = rest.amenities;
+      updateData.facilities = rest.amenities;
+    }
+
+    if (rest.images) updateData.images = rest.images;
+
+    if (rest.address || rest.city || rest.state || rest.zipCode) {
+      updateData.location = `${rest.address || court.address}, ${
+        rest.city || court.city
+      }, ${rest.state || court.state} ${rest.zipCode || court.zipCode}`;
+    }
+
+    if (court.status === 'ACTIVE') {
       updateData.status = 'PENDING_APPROVAL';
     }
 
-    return prisma.court.update({
-      where: { id },
-      data: updateData,
-    });
+    await prisma.$transaction([
+      prisma.courtSport.deleteMany({ where: { courtId: id } }),
+      prisma.court.update({
+        where: { id },
+        data: {
+          ...updateData,
+          courtSports: {
+            create: (sports || []).map(sportId => ({ sportId })),
+          },
+        },
+      }),
+    ]);
+
+    return true;
   }
 
-  /**
-   * Delete court
-   */
+  /* =========================
+     OWNER: DELETE COURT
+  ========================= */
   static async delete(id, ownerId) {
-    const court = await prisma.court.findUnique({
-      where: { id },
-    });
-
-    if (!court) {
-      throw new AppError('Court not found', 404);
-    }
-
-    if (court.ownerId !== ownerId) {
+    const court = await prisma.court.findUnique({ where: { id } });
+    if (!court) throw new AppError('Court not found', 404);
+    if (court.ownerId !== ownerId)
       throw new AppError('You do not have permission to delete this court', 403);
-    }
 
-    return prisma.court.delete({
-      where: { id },
-    });
+    return prisma.court.delete({ where: { id } });
   }
 
-  /**
-   * Get owner's courts
-   */
+  /* =========================
+     OWNER: GET MY COURTS
+  ========================= */
   static async getOwnerCourts(ownerId, filters = {}) {
     const { status, limit = 20, page = 1 } = filters;
     const skip = (page - 1) * limit;
-
-    // Normalize status if provided
     const normalizedStatus = status ? this.normalizeStatus(status) : undefined;
 
     const where = {
@@ -301,6 +393,11 @@ class CourtService {
         take: limit,
         orderBy: { createdAt: 'desc' },
         include: {
+          courtSports: {
+            include: {
+              sport: { select: { id: true, name: true } },
+            },
+          },
           _count: {
             select: {
               bookings: true,
@@ -313,7 +410,10 @@ class CourtService {
     ]);
 
     return {
-      courts,
+      courts: courts.map(c => ({
+        ...c,
+        sports: c.courtSports.map(cs => cs.sport),
+      })),
       pagination: {
         total,
         page,
@@ -323,24 +423,83 @@ class CourtService {
     };
   }
 
-  /**
-   * Approve/reject court (Admin only)
-   */
+  /* =========================
+     ADMIN: UPDATE COURT STATUS
+  ========================= */
   static async updateCourtStatus(id, status) {
-    // Normalize status (e.g., APPROVED -> ACTIVE, PENDING -> PENDING_APPROVAL)
     const normalizedStatus = this.normalizeStatus(status);
-    
-    // Only allow ACTIVE, INACTIVE, REJECTED for status updates (admin actions)
     if (!['ACTIVE', 'INACTIVE', 'REJECTED'].includes(normalizedStatus)) {
-      throw new AppError(`Invalid status for update: ${status}. Valid values are: ACTIVE, INACTIVE, REJECTED`, 400);
+      throw new AppError('Invalid status update', 400);
     }
-
     return prisma.court.update({
       where: { id },
       data: { status: normalizedStatus },
     });
   }
+
+  /* =========================
+     ADMIN: GET ALL COURTS
+  ========================= */
+  static async getAllAdmin(filters = {}) {
+    const { status, sport, limit = 20, page = 1 } = filters;
+    const skip = (page - 1) * limit;
+
+    const where = {
+      ...(status && { status }),
+      ...(sport && {
+        courtSports: {
+          some: {
+            sport: {
+              name: sport,
+            },
+          },
+        },
+      }),
+    };
+
+    const [courts, total] = await Promise.all([
+      prisma.court.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          courtSports: {
+            include: {
+              sport: { select: { id: true, name: true } },
+            },
+          },
+          owner: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
+          _count: {
+            select: {
+              bookings: true,
+              reviews: true,
+            },
+          },
+        },
+      }),
+      prisma.court.count({ where }),
+    ]);
+
+    return {
+      courts: courts.map(c => ({
+        ...c,
+        sports: c.courtSports.map(cs => cs.sport),
+      })),
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
 }
 
 module.exports = CourtService;
-

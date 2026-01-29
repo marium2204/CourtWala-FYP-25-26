@@ -251,64 +251,144 @@ class CourtCard extends StatelessWidget {
   final Map<String, dynamic> court;
   const CourtCard({super.key, required this.court});
 
+  IconData _sportIcon(String sport) {
+    switch (sport.toUpperCase()) {
+      case 'BADMINTON':
+        return Icons.sports_tennis;
+      case 'CRICKET':
+        return Icons.sports_cricket;
+      case 'FOOTBALL':
+        return Icons.sports_soccer;
+      case 'PADEL':
+        return Icons.sports_tennis;
+      case 'TENNIS':
+        return Icons.sports_tennis;
+      default:
+        return Icons.sports;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    final String courtId = court['id']?.toString() ?? '';
+    final String name = court['name']?.toString() ?? 'Unnamed Court';
+    final String location = court['location']?.toString() ?? '';
+    final String price = court['price']?.toString() ?? '--';
+
+    // ✅ NORMALIZE SPORTS (OBJECTS → NAMES)
+    final List<String> sports = (court['sports'] is List)
+        ? (court['sports'] as List)
+            .map((s) => s is Map ? s['name']?.toString() ?? '' : s.toString())
+            .where((s) => s.isNotEmpty)
+            .toList()
+        : [];
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
       onTap: () {
+        if (courtId.isEmpty) return;
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => CourtDetailScreen(courtId: court['id']),
+            builder: (_) => CourtDetailScreen(courtId: courtId),
           ),
         );
       },
       child: Container(
-        margin: const EdgeInsets.only(bottom: 16),
-        padding: const EdgeInsets.all(16),
+        margin: const EdgeInsets.only(bottom: 14),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 6),
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // ICON
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
                 color: AppColors.primaryColor.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(
-                Icons.sports_tennis,
-                size: 34,
+              child: Icon(
+                _sportIcon(sports.isNotEmpty ? sports.first : ''),
+                size: 28,
                 color: AppColors.primaryColor,
               ),
             ),
-            const SizedBox(width: 14),
+
+            const SizedBox(width: 12),
+
+            // CONTENT
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    court['name'],
+                    name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.bold),
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
+
                   const SizedBox(height: 4),
+
                   Text(
-                    court['location'] ?? '',
-                    style: const TextStyle(color: Colors.grey),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    "PKR ${court['price']} / hr",
+                    location,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
+                      color: Colors.grey,
+                      fontSize: 13,
+                    ),
+                  ),
+
+                  const SizedBox(height: 6),
+
+                  // ✅ CLEAN SPORTS CHIPS
+                  if (sports.isNotEmpty)
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: sports.map((sport) {
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            sport,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.primaryColor,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+
+                  const SizedBox(height: 8),
+
+                  Text(
+                    "PKR $price / hr",
+                    style: const TextStyle(
+                      fontSize: 14,
                       fontWeight: FontWeight.bold,
                       color: AppColors.primaryColor,
                     ),

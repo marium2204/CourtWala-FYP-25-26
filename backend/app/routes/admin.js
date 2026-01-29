@@ -12,6 +12,8 @@ const TournamentService = require('../services/TournamentService');
 const BaseController = require('../controllers/BaseController');
 const { asyncHandler } = require('../utils/ErrorHandler');
 
+
+
 // Validators
 const {
   validateUpdateUserStatus,
@@ -36,9 +38,22 @@ router.put('/users/:id/status', validateUpdateUserStatus, UserController.updateS
 router.post('/owners/:id/approve', UserController.approveOwner);
 router.post('/owners/:id/reject', UserController.rejectOwner);
 
+// =========================
 // Court management routes
+// =========================
+
+// Get all courts (admin list)
 router.get('/courts', CourtController.getAll);
-router.put('/courts/:id/status', validateUpdateCourtStatus, CourtController.updateStatus);
+
+
+router.get('/courts/:id', CourtController.getById);
+
+// Approve / Reject court
+router.put(
+  '/courts/:id/status',
+  validateUpdateCourtStatus,
+  CourtController.updateStatus
+);
 
 // Report management routes
 router.get('/reports', ReportController.getAll);

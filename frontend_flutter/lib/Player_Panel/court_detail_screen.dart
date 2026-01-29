@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../theme/colors.dart';
 import '../services/api_service.dart';
@@ -53,6 +54,20 @@ class _CourtDetailScreenState extends State<CourtDetailScreen> {
     }
   }
 
+  Future<void> _openInMaps(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open Google Maps')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
@@ -67,23 +82,26 @@ class _CourtDetailScreenState extends State<CourtDetailScreen> {
       );
     }
 
+    final String addressText = court!['location'] ?? '';
+    final String? mapUrl = court!['mapUrl'];
+
+    final List<Map<String, dynamic>> sports =
+        (court!['sports'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+
     return Scaffold(
       backgroundColor: const Color(0xFFF6F8FA),
       appBar: AppBar(
         backgroundColor: AppColors.primaryColor,
         title: const Text(
           "Court Details",
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         iconTheme: const IconThemeData(color: Colors.white),
         elevation: 0,
       ),
       body: Column(
         children: [
-          // ================= COURT HERO =================
+          // ================= COURT CARD =================
           Container(
             margin: const EdgeInsets.all(16),
             padding: const EdgeInsets.all(20),
@@ -108,10 +126,63 @@ class _CourtDetailScreenState extends State<CourtDetailScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 16),
-                _detailRow(Icons.location_on, court!['location']),
-                _detailRow(Icons.sports, court!['sport']),
-                const SizedBox(height: 16),
+
+                const SizedBox(height: 14),
+                _detailRow(Icons.location_on, addressText),
+
+                if (mapUrl != null && mapUrl.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: TextButton.icon(
+                      onPressed: () => _openInMaps(mapUrl),
+                      icon: const Icon(Icons.map),
+                      label: const Text('Open in Google Maps'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.primaryColor,
+                      ),
+                    ),
+                  ),
+
+                // ================= SPORTS =================
+                if (sports.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Sports Available',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: sports.map((s) {
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          s['name'],
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primaryColor,
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+
+                const SizedBox(height: 20),
+
+                // ================= PRICE =================
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -130,7 +201,7 @@ class _CourtDetailScreenState extends State<CourtDetailScreen> {
                         ),
                       ),
                       Text(
-                        "PKR ${court!['price']}",
+                        "PKR ${court!['pricePerHour']}",
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -158,11 +229,11 @@ class _CourtDetailScreenState extends State<CourtDetailScreen> {
                     context,
                     MaterialPageRoute(
                       builder: (_) => BookingPage(
-                        courtid: court!['id'].toString(),
+                        courtid: court!['id'],
                         courtName: court!['name'],
-                        location: court!['location'],
-                        sport: court!['sport'],
-                        price: court!['price'].toString(),
+                        location: addressText,
+                        sport: sports.map((s) => s['name']).join(', '),
+                        price: court!['pricePerHour'].toString(),
                         image: 'assets/images/court_placeholder.jpg',
                       ),
                     ),

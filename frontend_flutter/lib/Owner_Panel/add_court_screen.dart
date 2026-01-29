@@ -18,6 +18,7 @@ class AddEditCourtScreen extends StatefulWidget {
 class _AddEditCourtScreenState extends State<AddEditCourtScreen> {
   final _formKey = GlobalKey<FormState>();
   bool _submitting = false;
+  bool _loadingSports = true;
 
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
@@ -26,8 +27,8 @@ class _AddEditCourtScreenState extends State<AddEditCourtScreen> {
   final _stateController = TextEditingController();
   final _zipController = TextEditingController();
   final _priceController = TextEditingController();
+  final _mapUrlController = TextEditingController();
 
-  String _selectedSport = 'Badminton';
   final ImagePicker _picker = ImagePicker();
   final List<File> _pickedImages = [];
 
@@ -40,7 +41,36 @@ class _AddEditCourtScreenState extends State<AddEditCourtScreen> {
 
   final List<Map<String, String>> _slots = [];
 
-  // ================= IMAGE PICKER =================
+  /// 🔥 SPORTS FROM BACKEND
+  List<Map<String, dynamic>> _sports = [];
+  final Set<String> _selectedSportIds = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSports();
+  }
+
+  /* ================= LOAD SPORTS ================= */
+
+  Future<void> _loadSports() async {
+    final token = await TokenService.getToken();
+    if (token == null) return;
+
+    try {
+      final res = await ApiService.get('/sports', token);
+      final body = jsonDecode(res.body);
+
+      setState(() {
+        _sports = List<Map<String, dynamic>>.from(body['data']);
+        _loadingSports = false;
+      });
+    } catch (_) {
+      setState(() => _loadingSports = false);
+    }
+  }
+
+  /* ================= IMAGE PICKER ================= */
 
   Future<void> _pickImage() async {
     final image =
@@ -50,7 +80,7 @@ class _AddEditCourtScreenState extends State<AddEditCourtScreen> {
     }
   }
 
-  // ================= SLOT PICKER =================
+  /* ================= SLOT PICKER ================= */
 
   Future<void> _addSlot() async {
     final start = await showTimePicker(
@@ -73,20 +103,39 @@ class _AddEditCourtScreenState extends State<AddEditCourtScreen> {
     });
   }
 
-  String _to24Hour(TimeOfDay t) {
-    final h = t.hour.toString().padLeft(2, '0');
-    final m = t.minute.toString().padLeft(2, '0');
-    return '$h:$m';
+  String _to24Hour(TimeOfDay t) =>
+      '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+
+  bool _isValidGoogleMapsUrl(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null || !uri.hasScheme) return false;
+
+    const allowedHosts = [
+      'www.google.com',
+      'google.com',
+      'maps.google.com',
+      'goo.gl',
+      'maps.app.goo.gl',
+    ];
+
+    return allowedHosts.any((host) => uri.host.contains(host));
   }
 
-  // ================= SUBMIT =================
+  /* ================= SUBMIT ================= */
 
   Future<void> _submitCourt() async {
     if (!_formKey.currentState!.validate()) return;
 
+    if (_selectedSportIds.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Select at least one sport')),
+      );
+      return;
+    }
+
     if (_slots.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please add at least one slot')),
+        const SnackBar(content: Text('Add at least one slot')),
       );
       return;
     }
@@ -107,8 +156,9 @@ class _AddEditCourtScreenState extends State<AddEditCourtScreen> {
           'city': _cityController.text.trim(),
           'state': _stateController.text.trim(),
           'zipCode': _zipController.text.trim(),
-          'sport': _selectedSport,
+          'mapUrl': _mapUrlController.text.trim(),
           'pricePerHour': _priceController.text.trim(),
+          'sports': jsonEncode(_selectedSportIds.toList()),
           'amenities': jsonEncode(
             _amenities.entries.where((e) => e.value).map((e) => e.key).toList(),
           ),
@@ -116,10 +166,6 @@ class _AddEditCourtScreenState extends State<AddEditCourtScreen> {
         files: _pickedImages,
         fileField: 'images',
       );
-
-      if (res.statusCode != 201 && res.statusCode != 200) {
-        throw Exception(res.body);
-      }
 
       final body = jsonDecode(res.body);
       final courtId = body['data']['id'];
@@ -131,10 +177,9 @@ class _AddEditCourtScreenState extends State<AddEditCourtScreen> {
       );
 
       if (!mounted) return;
-
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Court & slots submitted successfully'),
+          content: Text('Court submitted successfully'),
           backgroundColor: Colors.green,
         ),
       );
@@ -142,15 +187,14 @@ class _AddEditCourtScreenState extends State<AddEditCourtScreen> {
       Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
   }
 
-  // ================= UI =================
+  /* ================= UI ================= */
 
   @override
   Widget build(BuildContext context) {
@@ -172,40 +216,39 @@ class _AddEditCourtScreenState extends State<AddEditCourtScreen> {
               _field(_nameController, 'Court Name'),
               _field(_descriptionController, 'Description', maxLines: 3),
               _field(_addressController, 'Address'),
-              _rowFields(
-                _cityController,
-                'City',
-                _stateController,
-                'State',
-              ),
+              _rowFields(_cityController, 'City', _stateController, 'State'),
               _rowFields(
                 _zipController,
                 'Zip Code',
                 _priceController,
-                'Price per hour (PKR)',
+                'Price per hour',
                 keyboardType2: TextInputType.number,
               ),
+              _field(
+                _mapUrlController,
+                'Google Maps URL',
+                keyboardType: TextInputType.url,
+                validator: (v) {
+                  if (v == null || v.isEmpty) return 'Required';
+                  if (!_isValidGoogleMapsUrl(v))
+                    return 'Invalid Google Maps URL';
+                  return null;
+                },
+              ),
               const SizedBox(height: 20),
-              _section('Sport'),
-              _sportSelector(),
+              _section('Sports'),
+              _sportsSelector(),
               const SizedBox(height: 20),
               _section('Images'),
               _imagePicker(),
               const SizedBox(height: 20),
               _section('Amenities'),
               _amenitiesChips(),
-              const SizedBox(height: 24),
-              _section('Available Time Slots'),
-              const SizedBox(height: 8),
+              const SizedBox(height: 20),
+              _section('Time Slots'),
               ..._slots.map(
                 (s) => ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading:
-                      const Icon(Icons.schedule, color: AppColors.primaryColor),
-                  title: Text(
-                    '${s['startTime']} - ${s['endTime']}',
-                    style: AppTextStyles.subtitle,
-                  ),
+                  title: Text('${s['startTime']} - ${s['endTime']}'),
                   trailing: IconButton(
                     icon: const Icon(Icons.delete, color: Colors.red),
                     onPressed: () => setState(() => _slots.remove(s)),
@@ -217,7 +260,7 @@ class _AddEditCourtScreenState extends State<AddEditCourtScreen> {
                 icon: const Icon(Icons.add),
                 label: const Text('Add Slot'),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 30),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -231,10 +274,9 @@ class _AddEditCourtScreenState extends State<AddEditCourtScreen> {
                       : const Text(
                           'Submit Court',
                           style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold),
                         ),
                 ),
               ),
@@ -245,125 +287,106 @@ class _AddEditCourtScreenState extends State<AddEditCourtScreen> {
     );
   }
 
-  // ================= HELPERS =================
+  /* ================= HELPERS ================= */
 
   Widget _section(String title) => Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: Text(title, style: AppTextStyles.sectionTitle),
-      );
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Text(title, style: AppTextStyles.sectionTitle));
 
   Widget _field(
     TextEditingController c,
     String label, {
     int maxLines = 1,
     TextInputType keyboardType = TextInputType.text,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: TextFormField(
-        controller: c,
-        maxLines: maxLines,
-        keyboardType: keyboardType,
-        validator: (v) => v == null || v.isEmpty ? 'Enter $label' : null,
-        decoration: InputDecoration(
-          labelText: label,
-          filled: true,
-          fillColor: AppColors.white,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(color: AppColors.borderColor),
+    String? Function(String?)? validator,
+  }) =>
+      Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: TextFormField(
+          controller: c,
+          maxLines: maxLines,
+          keyboardType: keyboardType,
+          validator: validator ??
+              (v) => v == null || v.isEmpty ? 'Enter $label' : null,
+          decoration: InputDecoration(
+            labelText: label,
+            filled: true,
+            fillColor: AppColors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
           ),
         ),
-      ),
-    );
-  }
+      );
 
   Widget _rowFields(
     TextEditingController c1,
     String l1,
     TextEditingController c2,
     String l2, {
-    TextInputType keyboardType1 = TextInputType.text,
     TextInputType keyboardType2 = TextInputType.text,
-  }) {
-    return Row(
-      children: [
-        Expanded(child: _field(c1, l1, keyboardType: keyboardType1)),
-        const SizedBox(width: 12),
-        Expanded(child: _field(c2, l2, keyboardType: keyboardType2)),
-      ],
-    );
-  }
+  }) =>
+      Row(
+        children: [
+          Expanded(child: _field(c1, l1)),
+          const SizedBox(width: 12),
+          Expanded(child: _field(c2, l2, keyboardType: keyboardType2)),
+        ],
+      );
 
-  Widget _sportSelector() {
-    final sports = ['Badminton', 'Cricket', 'Football', 'Padel'];
+  Widget _sportsSelector() {
+    if (_loadingSports) {
+      return const CircularProgressIndicator();
+    }
+
     return Wrap(
       spacing: 10,
-      children: sports.map((s) {
-        final selected = _selectedSport == s;
-        return ChoiceChip(
-          label: Text(
-            s,
-            style: TextStyle(
-              color: selected ? Colors.white : AppColors.textPrimary,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          selected: selected,
-          selectedColor: AppColors.primaryColor,
-          backgroundColor: AppColors.white,
-          onSelected: (_) => setState(() => _selectedSport = s),
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _imagePicker() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children: _pickedImages
-              .map(
-                (f) => ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child:
-                      Image.file(f, width: 90, height: 90, fit: BoxFit.cover),
-                ),
-              )
-              .toList(),
-        ),
-        const SizedBox(height: 8),
-        TextButton.icon(
-          onPressed: _pickImage,
-          icon: const Icon(Icons.photo_library),
-          label: const Text('Add Image'),
-        ),
-      ],
-    );
-  }
-
-  Widget _amenitiesChips() {
-    return Wrap(
-      spacing: 10,
-      children: _amenities.keys.map((k) {
-        final selected = _amenities[k]!;
+      children: _sports.map((s) {
+        final selected = _selectedSportIds.contains(s['id']);
         return FilterChip(
-          label: Text(
-            k,
-            style: TextStyle(
-              color: selected ? Colors.white : AppColors.textPrimary,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
+          label: Text(s['name']),
           selected: selected,
           selectedColor: AppColors.primaryColor,
-          backgroundColor: AppColors.white,
-          onSelected: (v) => setState(() => _amenities[k] = v),
+          onSelected: (v) {
+            setState(() {
+              v
+                  ? _selectedSportIds.add(s['id'])
+                  : _selectedSportIds.remove(s['id']);
+            });
+          },
         );
       }).toList(),
     );
   }
+
+  Widget _imagePicker() => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 10,
+            children: _pickedImages
+                .map((f) =>
+                    Image.file(f, width: 80, height: 80, fit: BoxFit.cover))
+                .toList(),
+          ),
+          TextButton.icon(
+            onPressed: _pickImage,
+            icon: const Icon(Icons.photo_library),
+            label: const Text('Add Image'),
+          ),
+        ],
+      );
+
+  Widget _amenitiesChips() => Wrap(
+        spacing: 10,
+        children: _amenities.keys.map((k) {
+          final selected = _amenities[k]!;
+          return FilterChip(
+            label: Text(k),
+            selected: selected,
+            selectedColor: AppColors.primaryColor,
+            onSelected: (v) => setState(() => _amenities[k] = v),
+          );
+        }).toList(),
+      );
 }

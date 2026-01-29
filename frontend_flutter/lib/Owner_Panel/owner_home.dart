@@ -80,6 +80,61 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
     );
   }
 
+  Future<void> _confirmDeleteCourt(Map<String, dynamic> court) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Delete Court'),
+        content: const Text(
+          'This will permanently delete this court.\n\nThis action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      _deleteCourt(court['id']);
+    }
+  }
+
+  Future<void> _deleteCourt(String courtId) async {
+    try {
+      final res = await ApiService.delete(
+        '/owner/courts/$courtId',
+        token!,
+      );
+
+      if (res.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Court deleted successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        _fetchCourts(); // refresh list
+      } else {
+        throw Exception(res.body);
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to delete court'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   Widget _homeContent() {
     if (isLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -134,89 +189,142 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
   }
 
   Widget _courtCard(Map<String, dynamic> court) {
+    final List<Map<String, dynamic>> sports =
+        (court['sports'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ListTile(
-            leading: Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: AppColors.primaryColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(
-                Icons.sports_tennis,
-                color: AppColors.primaryColor,
-                size: 28,
-              ),
-            ),
-            title: Text(
-              court['name'] ?? 'Unnamed Court',
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            subtitle: Text(
-              court['sportType'] ?? '',
-              style: const TextStyle(color: Colors.grey),
-            ),
-            trailing: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppColors.primaryColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                court['status'] ?? '',
-                style: const TextStyle(
-                  color: AppColors.primaryColor,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12,
+          // ===== HEADER =====
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryColor.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(12),
                 ),
+                child: const Icon(
+                  Icons.sports_tennis,
+                  color: AppColors.primaryColor,
+                ),
+              ),
+              const SizedBox(width: 12),
+
+              // ===== NAME + SPORTS =====
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      court['name'] ?? 'Unnamed Court',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+
+                    // ✅ CLEAN SPORTS ROW
+                    if (sports.isNotEmpty)
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: sports.map((s) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.primaryColor.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              s['name'],
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.primaryColor,
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                  ],
+                ),
+              ),
+
+              // ===== STATUS =====
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  court['status'] ?? '',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primaryColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 14),
+          const Divider(height: 1),
+          const SizedBox(height: 14),
+
+          // ===== ACTIONS =====
+          _actionButton(
+            'Edit Court',
+            Icons.edit,
+            () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => EditCourtScreen(court: court),
+                ),
+              );
+              _fetchCourts();
+            },
+          ),
+          const SizedBox(height: 10),
+          _outlinedButton(
+            'View Court',
+            Icons.remove_red_eye,
+            () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => CourtDetails(court: court),
               ),
             ),
           ),
-          const Divider(height: 1),
-          Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              children: [
-                _actionButton(
-                  'Edit Court',
-                  Icons.edit,
-                  () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => EditCourtScreen(court: court),
-                      ),
-                    );
-                    _fetchCourts();
-                  },
-                ),
-                const SizedBox(height: 10),
-                _outlinedButton(
-                  'View Court',
-                  Icons.remove_red_eye,
-                  () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => CourtDetails(court: court),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+          const SizedBox(height: 10),
+          _outlinedButton(
+            'Delete Court',
+            Icons.delete_outline,
+            () => _confirmDeleteCourt(court),
           ),
         ],
       ),

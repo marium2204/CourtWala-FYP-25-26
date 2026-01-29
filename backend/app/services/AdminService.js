@@ -38,53 +38,90 @@ class AdminService {
   /* =========================
      USERS
   ========================= */
-  static async getUsers(filters = {}) {
-    const { role, status, search, limit = 20, page = 1 } = filters;
-    const skip = (page - 1) * limit;
+  /* =========================
+   USERS (ADMIN – FULL DATA)
+========================= */
+static async getUsers(filters = {}) {
+  const { role, status, search, limit = 20, page = 1 } = filters;
+  const skip = (page - 1) * limit;
 
-    const where = {
-      ...(role && { role }),
-      ...(status && { status }),
-      ...(search && {
-        OR: [
-          { email: { contains: search, mode: 'insensitive' } },
-          { firstName: { contains: search, mode: 'insensitive' } },
-          { lastName: { contains: search, mode: 'insensitive' } },
-          { username: { contains: search, mode: 'insensitive' } },
-        ],
-      }),
-    };
+  const where = {
+    ...(role && { role }),
+    ...(status && { status }),
+    ...(search && {
+      OR: [
+        { email: { contains: search, mode: 'insensitive' } },
+        { firstName: { contains: search, mode: 'insensitive' } },
+        { lastName: { contains: search, mode: 'insensitive' } },
+        { username: { contains: search, mode: 'insensitive' } },
+      ],
+    }),
+  };
 
-    const [users, total] = await Promise.all([
-      prisma.user.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { createdAt: 'desc' },
-        select: {
-          id: true,
-          email: true,
-          username: true,
-          firstName: true,
-          lastName: true,
-          role: true,
-          status: true,
-          createdAt: true,
+  const [users, total] = await Promise.all([
+    prisma.user.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        _count: {
+          select: {
+            courts: true,          // OWNER
+            bookings: true,        // PLAYER (bookings made)
+            reviews: true,         // PLAYER reviews
+          },
         },
-      }),
-      prisma.user.count({ where }),
-    ]);
+        courts: {
+          select: {
+            _count: {
+              select: {
+                bookings: true,    // OWNER (bookings received)
+              },
+            },
+          },
+        },
+      },
+    }),
+    prisma.user.count({ where }),
+  ]);
+
+  const normalizedUsers = users.map((u) => {
+    const bookingsReceived =
+      u.courts?.reduce(
+        (sum, c) => sum + (c._count?.bookings || 0),
+        0
+      ) || 0;
 
     return {
-      users,
-      pagination: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
+      id: u.id,
+      name: `${u.firstName ?? ''} ${u.lastName ?? ''}`.trim(),
+      email: u.email,
+      role: u.role === 'COURT_OWNER' ? 'OWNER' : u.role,
+      status: u.status,
+      joinedAt: u.createdAt,
+
+      stats: {
+        courtsOwned: u.role === 'COURT_OWNER' ? u._count.courts : 0,
+        bookingsMade: u.role === 'PLAYER' ? u._count.bookings : 0,
+        bookingsReceived:
+          u.role === 'COURT_OWNER' ? bookingsReceived : 0,
+        reviews: u._count.reviews,
       },
     };
-  }
+  });
+
+  return {
+    users: normalizedUsers,
+    pagination: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
+}
+
 /* =========================
    UPDATE USER STATUS
 ========================= */

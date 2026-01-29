@@ -1,46 +1,77 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../theme/colors.dart';
 import '../theme/app_text_styles.dart';
 import '../services/api_service.dart';
 
+/// =======================
+/// COURT MODEL
+/// =======================
 class Court {
   final String id;
   final String name;
-  final String sport;
+  final List<String> sports;
   final String address;
+  final String mapUrl;
   final double pricePerHour;
   final String status;
+  final List<String> amenities;
+  final List<String> images;
 
   Court({
     required this.id,
     required this.name,
-    required this.sport,
+    required this.sports,
     required this.address,
+    required this.mapUrl,
     required this.pricePerHour,
     required this.status,
+    required this.amenities,
+    required this.images,
   });
 
   factory Court.fromJson(Map<String, dynamic> json) {
     return Court(
-      id: (json['_id'] ?? json['id'] ?? '').toString(),
-      name: (json['name'] ?? 'Unnamed Court').toString(),
-      sport: (json['sport'] ?? 'N/A').toString(),
+      id: json['id'].toString(),
+      name: json['name'] ?? 'Unnamed Court',
 
-      // ✅ FIXED ADDRESS MAPPING
-      address: (json['address'] ?? json['location'] ?? 'Address not provided')
-          .toString(),
+      // ✅ FIX: normalize sports from backend
+      sports: (json['sports'] is List)
+          ? (json['sports'] as List)
+              .map((s) => s is Map ? s['name']?.toString() ?? '' : '')
+              .where((s) => s.isNotEmpty)
+              .toList()
+          : [],
 
-      pricePerHour: json['pricePerHour'] is num
+      address: [
+        json['address'],
+        json['city'],
+        json['state'],
+        json['zipCode'],
+      ].where((e) => e != null && e.toString().isNotEmpty).join(', '),
+
+      mapUrl: json['mapUrl'] ?? '',
+
+      pricePerHour: (json['pricePerHour'] is num)
           ? (json['pricePerHour'] as num).toDouble()
-          : 0.0,
+          : 0,
 
-      status: (json['status'] ?? 'PENDING').toString(),
+      status: json['status'] ?? 'PENDING_APPROVAL',
+
+      amenities: (json['amenities'] is List)
+          ? List<String>.from(json['amenities'])
+          : [],
+
+      images: (json['images'] is List) ? List<String>.from(json['images']) : [],
     );
   }
 }
 
+/// =======================
+/// SCREEN
+/// =======================
 class ManageCourtsScreen extends StatefulWidget {
   final String adminToken;
 
@@ -61,45 +92,24 @@ class _ManageCourtsScreenState extends State<ManageCourtsScreen> {
   }
 
   Future<void> _fetchCourts() async {
-    try {
-      final res = await ApiService.get('/courts', widget.adminToken);
-
-      if (res.statusCode == 200) {
-        final decoded = jsonDecode(res.body);
-        final List list = decoded['data']['courts'] ?? [];
-
-        setState(() {
-          courts = list.map((e) => Court.fromJson(e)).toList();
-          isLoading = false;
-        });
-      }
-    } catch (e) {
-      debugPrint('Fetch courts error: $e');
-      setState(() => isLoading = false);
+    final res = await ApiService.get('/admin/courts', widget.adminToken);
+    if (res.statusCode == 200) {
+      final decoded = jsonDecode(res.body);
+      final List list = decoded['data']['courts'] ?? [];
+      setState(() {
+        courts = list.map((e) => Court.fromJson(e)).toList();
+        isLoading = false;
+      });
     }
   }
 
-  Future<void> _updateCourtStatus(
-    Court court,
-    String status, {
-    String? reason,
-  }) async {
-    try {
-      final res = await ApiService.put(
-        '/admin/courts/${court.id}/status',
-        widget.adminToken,
-        {
-          'status': status,
-          if (reason != null) 'reason': reason,
-        },
-      );
-
-      if (res.statusCode == 200) {
-        _fetchCourts();
-      }
-    } catch (e) {
-      debugPrint('Update court status error: $e');
-    }
+  Future<void> _updateCourtStatus(Court c, String status) async {
+    await ApiService.put(
+      '/admin/courts/${c.id}/status',
+      widget.adminToken,
+      {'status': status},
+    );
+    _fetchCourts();
   }
 
   Color _statusColor(String status) {
@@ -116,6 +126,137 @@ class _ManageCourtsScreenState extends State<ManageCourtsScreen> {
   bool _isPending(String status) =>
       status == 'PENDING' || status == 'PENDING_APPROVAL';
 
+  /// =======================
+  /// OPEN GOOGLE MAPS
+  /// =======================
+  Future<void> _openMap(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri != null && await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  /// =======================
+  /// VIEW DETAILS DIALOG
+  /// =======================
+  Future<void> _showDetails(Court c) async {
+    final res =
+        await ApiService.get('/admin/courts/${c.id}', widget.adminToken);
+    if (res.statusCode != 200) return;
+
+    final data = jsonDecode(res.body)['data'];
+    final List slots = data['slots'] ?? [];
+
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(c.name, style: AppTextStyles.title),
+              const SizedBox(height: 10),
+
+              // MAP
+              if (c.mapUrl.isNotEmpty)
+                ElevatedButton.icon(
+                  onPressed: () => _openMap(c.mapUrl),
+                  icon: const Icon(Icons.map, color: Colors.white),
+                  label: const Text(
+                    'Open Google Maps',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryColor,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+
+              _section('Sports'),
+              c.sports.isEmpty
+                  ? const Text('No sports')
+                  : Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: c.sports.map((s) {
+                        return Chip(
+                          label: Text(
+                            s,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.primaryColor,
+                            ),
+                          ),
+                          backgroundColor:
+                              AppColors.primaryColor.withOpacity(0.1),
+                        );
+                      }).toList(),
+                    ),
+
+              _section('Amenities'),
+              c.amenities.isEmpty
+                  ? const Text('None')
+                  : Wrap(
+                      spacing: 8,
+                      children:
+                          c.amenities.map((a) => Chip(label: Text(a))).toList(),
+                    ),
+
+              _section('Slots'),
+              slots.isEmpty
+                  ? const Text('No slots')
+                  : Column(
+                      children: slots.map((s) {
+                        return ListTile(
+                          leading: const Icon(Icons.schedule),
+                          title: Text('${s['startTime']} - ${s['endTime']}'),
+                        );
+                      }).toList(),
+                    ),
+
+              _section('Images'),
+              c.images.isEmpty
+                  ? const Text('No images')
+                  : SizedBox(
+                      height: 120,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        children: c.images.map((img) {
+                          return ClipRRect(
+                            borderRadius: BorderRadius.circular(14),
+                            child: Image.network(
+                              img,
+                              width: 140,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) =>
+                                  const Icon(Icons.broken_image),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _section(String t) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        child: Text(
+          t,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
+      );
+
+  /// =======================
+  /// UI
+  /// =======================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -128,81 +269,138 @@ class _ManageCourtsScreenState extends State<ManageCourtsScreen> {
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
-          : courts.isEmpty
-              ? Center(
-                  child: Text(
-                    'No courts found',
-                    style: AppTextStyles.subtitle,
+          : ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: courts.length,
+              itemBuilder: (_, i) {
+                final c = courts[i];
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 18),
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.04),
+                        blurRadius: 14,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
                   ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: courts.length,
-                  itemBuilder: (_, i) {
-                    final c = courts[i];
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(c.name, style: AppTextStyles.title),
+                      const SizedBox(height: 4),
+                      Text(c.address, style: AppTextStyles.subtitle),
+                      const SizedBox(height: 6),
+                      Text('PKR ${c.pricePerHour}/hour',
+                          style: AppTextStyles.subtitle),
 
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 14),
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppColors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primaryColor.withOpacity(0.08),
-                            blurRadius: 16,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(c.name, style: AppTextStyles.title),
-                          const SizedBox(height: 4),
-                          Text('Sport: ${c.sport}',
-                              style: AppTextStyles.subtitle),
-                          Text('Address: ${c.address}',
-                              style: AppTextStyles.subtitle),
-                          Text(
-                            'Price: PKR ${c.pricePerHour.toStringAsFixed(0)}/hour',
-                            style: AppTextStyles.subtitle,
-                          ),
-                          const SizedBox(height: 14),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Chip(
-                                label: Text(c.status),
-                                backgroundColor:
-                                    _statusColor(c.status).withOpacity(0.15),
-                                labelStyle:
-                                    TextStyle(color: _statusColor(c.status)),
+                      // SPORTS
+                      if (c.sports.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: c.sports.map((s) {
+                            return Chip(
+                              label: Text(
+                                s,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.primaryColor,
+                                ),
                               ),
-                              if (_isPending(c.status))
-                                Row(
-                                  children: [
-                                    TextButton(
-                                      onPressed: () =>
-                                          _updateCourtStatus(c, 'ACTIVE'),
-                                      child: const Text('Approve'),
-                                    ),
-                                    TextButton(
-                                      onPressed: () =>
-                                          _updateCourtStatus(c, 'REJECTED'),
-                                      style: TextButton.styleFrom(
-                                          foregroundColor: Colors.red),
-                                      child: const Text('Reject'),
-                                    ),
-                                  ],
-                                )
-                            ],
-                          ),
-                        ],
+                              backgroundColor:
+                                  AppColors.primaryColor.withOpacity(0.1),
+                            );
+                          }).toList(),
+                        ),
+                      ],
+
+                      const SizedBox(height: 12),
+
+                      // STATUS
+                      Chip(
+                        label: Text(
+                          c.status,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        backgroundColor:
+                            _statusColor(c.status).withOpacity(0.15),
                       ),
-                    );
-                  },
-                ),
+
+                      const SizedBox(height: 12),
+
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () => _showDetails(c),
+                          icon: const Icon(Icons.visibility),
+                          label: const Text('View Full Details'),
+                          style: OutlinedButton.styleFrom(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      if (_isPending(c.status)) ...[
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                icon: const Icon(Icons.check,
+                                    color: Colors.white),
+                                label: const Text(
+                                  'Approve',
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                                onPressed: () =>
+                                    _updateCourtStatus(c, 'ACTIVE'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primaryColor,
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 14),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                icon:
+                                    const Icon(Icons.close, color: Colors.red),
+                                label: const Text(
+                                  'Reject',
+                                  style: TextStyle(color: Colors.red),
+                                ),
+                                onPressed: () =>
+                                    _updateCourtStatus(c, 'REJECTED'),
+                                style: OutlinedButton.styleFrom(
+                                  side: const BorderSide(color: Colors.red),
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 14),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                );
+              },
+            ),
     );
   }
 }
