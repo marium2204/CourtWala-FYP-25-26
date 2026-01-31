@@ -164,6 +164,7 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
         return Colors.orange;
       case 'BLOCKED':
         return Colors.red;
+
       default:
         return Colors.grey;
     }

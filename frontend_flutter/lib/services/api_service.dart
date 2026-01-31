@@ -7,11 +7,18 @@ import '../constants/api_constants.dart';
 
 class ApiService {
   // ================= BASIC HEADERS =================
-  static Map<String, String> _headers(String token) => {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      };
+  static Map<String, String> _headers(String? token) {
+    final headers = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    };
+
+    if (token != null && token.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+
+    return headers;
+  }
 
   // ================= GET =================
   static Future<http.Response> get(String endpoint, String token) async {

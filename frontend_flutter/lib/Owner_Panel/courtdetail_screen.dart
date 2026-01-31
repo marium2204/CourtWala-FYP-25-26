@@ -136,15 +136,10 @@ class CourtDetails extends StatelessWidget {
                       children: [
                         Expanded(child: _infoLine('City', court['city'])),
                         const SizedBox(width: 12),
-                        Expanded(child: _infoLine('State', court['state'])),
                       ],
                     ),
                     Row(
                       children: [
-                        Expanded(
-                          child: _infoLine('Zip Code', court['zipCode']),
-                        ),
-                        const SizedBox(width: 12),
                         Expanded(
                           child: _infoLine(
                             'Price / hour',

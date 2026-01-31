@@ -34,37 +34,20 @@ class Court {
 
   factory Court.fromJson(Map<String, dynamic> json) {
     return Court(
-      id: json['id'].toString(),
+      id: json['id'],
       name: json['name'] ?? 'Unnamed Court',
-
-      // ✅ FIX: normalize sports from backend
-      sports: (json['sports'] is List)
-          ? (json['sports'] as List)
-              .map((s) => s is Map ? s['name']?.toString() ?? '' : '')
-              .where((s) => s.isNotEmpty)
-              .toList()
-          : [],
-
+      sports: (json['sports'] as List? ?? [])
+          .map((s) => s['name'].toString())
+          .toList(),
       address: [
         json['address'],
         json['city'],
-        json['state'],
-        json['zipCode'],
       ].where((e) => e != null && e.toString().isNotEmpty).join(', '),
-
       mapUrl: json['mapUrl'] ?? '',
-
-      pricePerHour: (json['pricePerHour'] is num)
-          ? (json['pricePerHour'] as num).toDouble()
-          : 0,
-
+      pricePerHour: (json['pricePerHour'] as num?)?.toDouble() ?? 0,
       status: json['status'] ?? 'PENDING_APPROVAL',
-
-      amenities: (json['amenities'] is List)
-          ? List<String>.from(json['amenities'])
-          : [],
-
-      images: (json['images'] is List) ? List<String>.from(json['images']) : [],
+      amenities: List<String>.from(json['amenities'] ?? []),
+      images: List<String>.from(json['images'] ?? []),
     );
   }
 }
@@ -116,6 +99,8 @@ class _ManageCourtsScreenState extends State<ManageCourtsScreen> {
     switch (status) {
       case 'ACTIVE':
         return Colors.green;
+      case 'INACTIVE':
+        return Colors.grey;
       case 'REJECTED':
         return Colors.red;
       default:
@@ -123,8 +108,7 @@ class _ManageCourtsScreenState extends State<ManageCourtsScreen> {
     }
   }
 
-  bool _isPending(String status) =>
-      status == 'PENDING' || status == 'PENDING_APPROVAL';
+  bool _isPending(String status) => status == 'PENDING_APPROVAL';
 
   /// =======================
   /// OPEN GOOGLE MAPS
@@ -137,7 +121,7 @@ class _ManageCourtsScreenState extends State<ManageCourtsScreen> {
   }
 
   /// =======================
-  /// VIEW DETAILS DIALOG
+  /// VIEW FULL DETAILS
   /// =======================
   Future<void> _showDetails(Court c) async {
     final res =
@@ -158,54 +142,29 @@ class _ManageCourtsScreenState extends State<ManageCourtsScreen> {
             children: [
               Text(c.name, style: AppTextStyles.title),
               const SizedBox(height: 10),
-
-              // MAP
               if (c.mapUrl.isNotEmpty)
                 ElevatedButton.icon(
                   onPressed: () => _openMap(c.mapUrl),
                   icon: const Icon(Icons.map, color: Colors.white),
-                  label: const Text(
-                    'Open Google Maps',
-                    style: TextStyle(color: Colors.white),
-                  ),
+                  label: const Text('Open Google Maps',
+                      style: TextStyle(color: Colors.white)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryColor,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
+                        borderRadius: BorderRadius.circular(14)),
                   ),
                 ),
-
               _section('Sports'),
-              c.sports.isEmpty
-                  ? const Text('No sports')
-                  : Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: c.sports.map((s) {
-                        return Chip(
-                          label: Text(
-                            s,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.primaryColor,
-                            ),
-                          ),
-                          backgroundColor:
-                              AppColors.primaryColor.withOpacity(0.1),
-                        );
-                      }).toList(),
-                    ),
-
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: c.sports.map((s) => Chip(label: Text(s))).toList(),
+              ),
               _section('Amenities'),
-              c.amenities.isEmpty
-                  ? const Text('None')
-                  : Wrap(
-                      spacing: 8,
-                      children:
-                          c.amenities.map((a) => Chip(label: Text(a))).toList(),
-                    ),
-
+              Wrap(
+                spacing: 8,
+                children: c.amenities.map((a) => Chip(label: Text(a))).toList(),
+              ),
               _section('Slots'),
               slots.isEmpty
                   ? const Text('No slots')
@@ -217,28 +176,6 @@ class _ManageCourtsScreenState extends State<ManageCourtsScreen> {
                         );
                       }).toList(),
                     ),
-
-              _section('Images'),
-              c.images.isEmpty
-                  ? const Text('No images')
-                  : SizedBox(
-                      height: 120,
-                      child: ListView(
-                        scrollDirection: Axis.horizontal,
-                        children: c.images.map((img) {
-                          return ClipRRect(
-                            borderRadius: BorderRadius.circular(14),
-                            child: Image.network(
-                              img,
-                              width: 140,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) =>
-                                  const Icon(Icons.broken_image),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ),
             ],
           ),
         ),
@@ -248,10 +185,8 @@ class _ManageCourtsScreenState extends State<ManageCourtsScreen> {
 
   Widget _section(String t) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 14),
-        child: Text(
-          t,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-        ),
+        child: Text(t,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
       );
 
   /// =======================
@@ -274,6 +209,7 @@ class _ManageCourtsScreenState extends State<ManageCourtsScreen> {
               itemCount: courts.length,
               itemBuilder: (_, i) {
                 final c = courts[i];
+
                 return Container(
                   margin: const EdgeInsets.only(bottom: 18),
                   padding: const EdgeInsets.all(18),
@@ -298,36 +234,12 @@ class _ManageCourtsScreenState extends State<ManageCourtsScreen> {
                       Text('PKR ${c.pricePerHour}/hour',
                           style: AppTextStyles.subtitle),
 
-                      // SPORTS
-                      if (c.sports.isNotEmpty) ...[
-                        const SizedBox(height: 10),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: c.sports.map((s) {
-                            return Chip(
-                              label: Text(
-                                s,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.primaryColor,
-                                ),
-                              ),
-                              backgroundColor:
-                                  AppColors.primaryColor.withOpacity(0.1),
-                            );
-                          }).toList(),
-                        ),
-                      ],
+                      const SizedBox(height: 10),
 
-                      const SizedBox(height: 12),
-
-                      // STATUS
                       Chip(
-                        label: Text(
-                          c.status,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
+                        label: Text(c.status,
+                            style:
+                                const TextStyle(fontWeight: FontWeight.bold)),
                         backgroundColor:
                             _statusColor(c.status).withOpacity(0.15),
                       ),
@@ -340,62 +252,54 @@ class _ManageCourtsScreenState extends State<ManageCourtsScreen> {
                           onPressed: () => _showDetails(c),
                           icon: const Icon(Icons.visibility),
                           label: const Text('View Full Details'),
-                          style: OutlinedButton.styleFrom(
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                          ),
                         ),
                       ),
 
+                      const SizedBox(height: 12),
+
+                      // =======================
+                      // STATUS ACTIONS (ADDED)
+                      // =======================
                       if (_isPending(c.status)) ...[
-                        const SizedBox(height: 12),
                         Row(
                           children: [
                             Expanded(
-                              child: ElevatedButton.icon(
-                                icon: const Icon(Icons.check,
-                                    color: Colors.white),
-                                label: const Text(
-                                  'Approve',
-                                  style: TextStyle(color: Colors.white),
-                                ),
+                              child: ElevatedButton(
                                 onPressed: () =>
                                     _updateCourtStatus(c, 'ACTIVE'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.primaryColor,
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 14),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                ),
+                                child: const Text('Approve'),
                               ),
                             ),
                             const SizedBox(width: 10),
                             Expanded(
-                              child: OutlinedButton.icon(
-                                icon:
-                                    const Icon(Icons.close, color: Colors.red),
-                                label: const Text(
-                                  'Reject',
-                                  style: TextStyle(color: Colors.red),
-                                ),
+                              child: OutlinedButton(
                                 onPressed: () =>
                                     _updateCourtStatus(c, 'REJECTED'),
-                                style: OutlinedButton.styleFrom(
-                                  side: const BorderSide(color: Colors.red),
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 14),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                ),
+                                child: const Text('Reject',
+                                    style: TextStyle(color: Colors.red)),
                               ),
                             ),
                           ],
                         ),
                       ],
+
+                      if (c.status == 'ACTIVE')
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton(
+                            onPressed: () => _updateCourtStatus(c, 'INACTIVE'),
+                            child: const Text('Inactivate'),
+                          ),
+                        ),
+
+                      if (c.status == 'INACTIVE' || c.status == 'REJECTED')
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: () => _updateCourtStatus(c, 'ACTIVE'),
+                            child: const Text('Activate'),
+                          ),
+                        ),
                     ],
                   ),
                 );

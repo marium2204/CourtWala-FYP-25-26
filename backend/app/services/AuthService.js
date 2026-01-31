@@ -7,11 +7,16 @@ const { AppError } = require('../utils/ErrorHandler');
 const admin = require('../../config/firebase');
 
 class AuthService {
-  static generateToken(userId) {
-    return jwt.sign({ userId }, config.jwt.secret, {
-      expiresIn: config.jwt.expiresIn,
-    });
-  }
+  static generateToken(user) {
+  return jwt.sign(
+    {
+      id: user.id,        // ✅ Flutter expects this
+      role: user.role,    // ✅ Flutter expects this
+    },
+    config.jwt.secret,
+    { expiresIn: config.jwt.expiresIn }
+  );
+}
 
   /* =========================
      REGISTER (EMAIL)
@@ -58,7 +63,7 @@ class AuthService {
       },
     });
 
-    return { user, token: this.generateToken(user.id) };
+    return { user, token: this.generateToken(user) };
   }
 
   /* =========================
@@ -83,7 +88,7 @@ class AuthService {
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) throw new AppError('Invalid credentials', 401);
 
-    return { user, token: this.generateToken(user.id) };
+    return { user, token: this.generateToken(user) };
   }
 
   /* =========================
@@ -107,7 +112,7 @@ class AuthService {
         400
       );
 
-    return { user, token: this.generateToken(user.id) };
+    return { user, token: this.generateToken(user) };
   }
 
   /* =========================
@@ -149,7 +154,7 @@ class AuthService {
       });
     }
 
-    return { user, token: this.generateToken(user.id) };
+    return { user, token: this.generateToken(user) };
   }
 }
 

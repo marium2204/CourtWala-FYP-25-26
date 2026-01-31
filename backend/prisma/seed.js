@@ -1,38 +1,34 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
-
 const bcrypt = require('bcryptjs');
 
 async function main() {
   console.log('🌱 Seeding full fake database...\n');
+  console.log(Object.keys(prisma));
 
   // =========================
-  // CLEAN DATABASE
+  // CLEAN DATABASE (ORDER MATTERS)
   // =========================
   await prisma.notification.deleteMany();
   await prisma.matchRequest.deleteMany();
   await prisma.booking.deleteMany();
   await prisma.courtSlot.deleteMany();
-  await prisma.court.deleteMany();
-  await prisma.playerSport.deleteMany();
+  await prisma.courtSport.deleteMany();
+  await prisma.courtReview.deleteMany();
   await prisma.tournamentParticipant.deleteMany();
   await prisma.tournament.deleteMany();
   await prisma.report.deleteMany();
+  await prisma.playerSport.deleteMany();
+  await prisma.court.deleteMany();
   await prisma.user.deleteMany();
   await prisma.sport.deleteMany();
 
   // =========================
   // SPORTS (MASTER DATA)
   // =========================
-  const sportNames = [
-    'BADMINTON',
-    'FOOTBALL',
-    'PADEL',
-    'CRICKET',
-    'TENNIS',
-  ];
-
+  const sportNames = ['BADMINTON', 'FOOTBALL', 'PADEL', 'CRICKET', 'TENNIS'];
   const sports = {};
+
   for (const name of sportNames) {
     sports[name] = await prisma.sport.create({ data: { name } });
   }
@@ -44,7 +40,6 @@ async function main() {
   // =========================
   const password = await bcrypt.hash('password', 10);
 
-  // Admin
   await prisma.user.create({
     data: {
       email: 'admin@demo.com',
@@ -54,10 +49,10 @@ async function main() {
       role: 'ADMIN',
       status: 'ACTIVE',
       provider: 'EMAIL',
+      emailVerified: true,
     },
   });
 
-  // Owners
   const owners = [];
   for (let i = 1; i <= 5; i++) {
     owners.push(
@@ -70,12 +65,12 @@ async function main() {
           role: 'COURT_OWNER',
           status: 'ACTIVE',
           provider: 'EMAIL',
+          emailVerified: true,
         },
       })
     );
   }
 
-  // Players
   const players = [];
   for (let i = 1; i <= 5; i++) {
     players.push(
@@ -89,6 +84,7 @@ async function main() {
           role: 'PLAYER',
           status: 'ACTIVE',
           provider: 'EMAIL',
+          emailVerified: true,
         },
       })
     );
@@ -99,8 +95,6 @@ async function main() {
   // =========================
   // PLAYER SPORTS
   // =========================
-  const skills = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED'];
-
   await prisma.playerSport.createMany({
     data: [
       { playerId: players[0].id, sportId: sports.BADMINTON.id, skillLevel: 'ADVANCED' },
@@ -122,39 +116,41 @@ async function main() {
 
   console.log('✅ Player sports created');
 
- // =========================
-// COURTS
-// =========================
-const courts = [];
-for (let i = 1; i <= 5; i++) {
-  courts.push(
-    await prisma.court.create({
+  // =========================
+  // COURTS + COURT SPORTS
+  // =========================
+  const courts = [];
+
+  for (let i = 1; i <= 5; i++) {
+    const court = await prisma.court.create({
       data: {
         name: `Elite Court ${i}`,
         description: `Premium sports court number ${i}`,
         address: `Street ${i}, Block ${i}`,
         city: `City ${i}`,
-        state: `State ${i}`,
-        zipCode: `1000${i}`,
-         // ✅ Human-readable fallback (optional now)
         location: `Street ${i}, Block ${i}, City ${i}, State ${i} 1000${i}`,
-
-        // ✅ REQUIRED Google Maps URL (placeholder)
         mapUrl: `https://maps.google.com/?q=City+${i}`,
-        sport: sportNames[i % sportNames.length], // BADMINTON, FOOTBALL, etc
         pricePerHour: 1200 + i * 100,
         price: 1200 + i * 100,
         ownerId: owners[i - 1].id,
         status: 'ACTIVE',
       },
-    })
-  );
-}
+    });
 
-console.log('✅ Courts created');
+    await prisma.courtSport.create({
+      data: {
+        courtId: court.id,
+        sportId: sports[sportNames[i % sportNames.length]].id,
+      },
+    });
+
+    courts.push(court);
+  }
+
+  console.log('✅ Courts created');
 
   // =========================
-  // COURT SLOTS
+  // COURT SLOTS (MUST BE BEFORE BOOKINGS)
   // =========================
   for (const court of courts) {
     for (let h = 9; h <= 13; h++) {
@@ -170,31 +166,38 @@ console.log('✅ Courts created');
 
   console.log('✅ Court slots created');
 
- // =========================
-// BOOKINGS
-// =========================
-const bookings = [];
-for (let i = 0; i < 5; i++) {
-  const slot = await prisma.courtSlot.findFirst({
-    where: { courtId: courts[i].id },
-  });
+  // =========================
+  // BOOKINGS (NULL-SAFE)
+  // =========================
+  const bookings = [];
 
-  bookings.push(
-    await prisma.booking.create({
-      data: {
-        playerId: players[i].id,
-        courtId: courts[i].id,
-        date: new Date(Date.now() + i * 86400000),
-        startTime: slot.startTime,
-        endTime: slot.endTime,
-        slotId: slot.id,
-        status: 'CONFIRMED',
-      },
-    })
-  );
-}
+  for (let i = 0; i < 5; i++) {
+    const slot = await prisma.courtSlot.findFirst({
+      where: { courtId: courts[i].id },
+      orderBy: { startTime: 'asc' },
+    });
 
-console.log('✅ Bookings created');
+    if (!slot) {
+      console.warn(`⚠️ No slot found for court ${courts[i].id}, skipping booking`);
+      continue;
+    }
+
+    bookings.push(
+      await prisma.booking.create({
+        data: {
+          playerId: players[i].id,
+          courtId: courts[i].id,
+          date: new Date(Date.now() + i * 86400000),
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+          slotId: slot.id,
+          status: 'CONFIRMED',
+        },
+      })
+    );
+  }
+
+  console.log('✅ Bookings created');
 
   // =========================
   // MATCH REQUESTS
@@ -218,6 +221,7 @@ console.log('✅ Bookings created');
   // TOURNAMENTS
   // =========================
   const tournaments = [];
+
   for (let i = 1; i <= 5; i++) {
     tournaments.push(
       await prisma.tournament.create({
@@ -227,7 +231,6 @@ console.log('✅ Bookings created');
           startDate: new Date(Date.now() + i * 86400000),
           endDate: new Date(Date.now() + (i + 2) * 86400000),
           maxParticipants: 16,
-
         },
       })
     );
@@ -273,14 +276,13 @@ console.log('✅ Bookings created');
   // =========================
   for (let i = 0; i < 5; i++) {
     await prisma.report.create({
-  data: {
-    reporterId: players[i].id,
-    reportedUserId: players[(i + 1) % 5].id,
-    type: 'USER',
-    message: 'Player did not arrive on time.',
-  },
-});
-
+      data: {
+        reporterId: players[i].id,
+        reportedUserId: players[(i + 1) % 5].id,
+        type: 'USER',
+        message: 'Player did not arrive on time.',
+      },
+    });
   }
 
   console.log('\n🎉 FULL DATABASE SEEDED SUCCESSFULLY');

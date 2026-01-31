@@ -9,6 +9,7 @@ import '../services/token_service.dart';
 class BookingPage extends StatefulWidget {
   final String courtid;
   final String courtName;
+  final String description;
   final String location;
   final String sport;
   final String price;
@@ -19,6 +20,7 @@ class BookingPage extends StatefulWidget {
     super.key,
     required this.courtid,
     required this.courtName,
+    required this.description,
     required this.location,
     required this.sport,
     required this.price,

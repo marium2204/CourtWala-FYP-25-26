@@ -144,7 +144,6 @@ class BookingService {
               id: true,
               name: true,
               location: true,
-              sport: true,
               pricePerHour: true, // ✅ FIX THAT SOLVES "PKR null"
             },
           },
@@ -193,7 +192,6 @@ class BookingService {
     id: true,
     name: true,
     location: true,
-    sport: true,
     pricePerHour: true,
     owner: {
       select: {

@@ -21,6 +21,13 @@ class _AuthGateState extends State<AuthGate> {
 
   Future<void> _routeUser() async {
     final token = await TokenService.getToken();
+    final userId = await TokenService.getUserId();
+    final role = await TokenService.getRole();
+    ;
+    // ✅ DEBUG PRINTS
+    print('JWT token: $token');
+    print('User ID from token: $userId');
+    print('User role from token: $role');
 
     if (!mounted) return;
 

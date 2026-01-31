@@ -69,7 +69,7 @@ static async getUsers(filters = {}) {
           select: {
             courts: true,          // OWNER
             bookings: true,        // PLAYER (bookings made)
-            reviews: true,         // PLAYER reviews
+            courtReviews: true,         // PLAYER reviews
           },
         },
         courts: {
@@ -87,29 +87,31 @@ static async getUsers(filters = {}) {
   ]);
 
   const normalizedUsers = users.map((u) => {
-    const bookingsReceived =
-      u.courts?.reduce(
-        (sum, c) => sum + (c._count?.bookings || 0),
-        0
-      ) || 0;
+  const bookingsReceived =
+    u.courts?.reduce(
+      (sum, c) => sum + (c._count?.bookings || 0),
+      0
+    ) || 0;
 
-    return {
-      id: u.id,
-      name: `${u.firstName ?? ''} ${u.lastName ?? ''}`.trim(),
-      email: u.email,
-      role: u.role === 'COURT_OWNER' ? 'OWNER' : u.role,
-      status: u.status,
-      joinedAt: u.createdAt,
+  return {
+    id: u.id,
 
-      stats: {
-        courtsOwned: u.role === 'COURT_OWNER' ? u._count.courts : 0,
-        bookingsMade: u.role === 'PLAYER' ? u._count.bookings : 0,
-        bookingsReceived:
-          u.role === 'COURT_OWNER' ? bookingsReceived : 0,
-        reviews: u._count.reviews,
-      },
-    };
-  });
+    // ✅ Flutter expects these
+    firstName: u.firstName,
+    lastName: u.lastName,
+    email: u.email,
+    role: u.role,              // KEEP original enum
+    status: u.status,
+    createdAt: u.createdAt,    // 🔑 IMPORTANT
+
+    stats: {
+      courtsOwned: u.role === 'COURT_OWNER' ? u._count.courts : 0,
+      bookingsMade: u.role === 'PLAYER' ? u._count.bookings : 0,
+      bookingsReceived:
+        u.role === 'COURT_OWNER' ? bookingsReceived : 0,
+    },
+  };
+});
 
   return {
     users: normalizedUsers,

@@ -81,7 +81,7 @@ class _CourtDetailScreenState extends State<CourtDetailScreen> {
         body: Center(child: Text('Court not found')),
       );
     }
-
+    final String description = court!['description'] ?? '';
     final String addressText = court!['location'] ?? '';
     final String? mapUrl = court!['mapUrl'];
 
@@ -126,7 +126,15 @@ class _CourtDetailScreenState extends State<CourtDetailScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-
+                const SizedBox(height: 6),
+                if (description.isNotEmpty)
+                  Text(
+                    description,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      color: Colors.black87,
+                    ),
+                  ),
                 const SizedBox(height: 14),
                 _detailRow(Icons.location_on, addressText),
 
@@ -231,6 +239,7 @@ class _CourtDetailScreenState extends State<CourtDetailScreen> {
                       builder: (_) => BookingPage(
                         courtid: court!['id'],
                         courtName: court!['name'],
+                        description: description,
                         location: addressText,
                         sport: sports.map((s) => s['name']).join(', '),
                         price: court!['pricePerHour'].toString(),

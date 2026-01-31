@@ -241,8 +241,7 @@ static async getAdminCourtById(id) {
       description,
       address,
       city,
-      state,
-      zipCode,
+
       mapUrl,
       pricePerHour,
       amenities = [],
@@ -258,7 +257,7 @@ static async getAdminCourtById(id) {
       throw new AppError('At least one sport is required', 400);
     }
 
-    const location = `${address}, ${city}, ${state} ${zipCode}`;
+    const location = `${address}, ${city}`;
 
     const court = await prisma.court.create({
       data: {
@@ -266,8 +265,6 @@ static async getAdminCourtById(id) {
         description,
         address,
         city,
-        state,
-        zipCode,
         location,
         mapUrl,
         pricePerHour: Number(pricePerHour),
@@ -313,8 +310,6 @@ static async getAdminCourtById(id) {
     if (rest.description !== undefined) updateData.description = rest.description;
     if (rest.address) updateData.address = rest.address;
     if (rest.city) updateData.city = rest.city;
-    if (rest.state) updateData.state = rest.state;
-    if (rest.zipCode) updateData.zipCode = rest.zipCode;
 
     if (rest.mapUrl !== undefined) {
       if (!rest.mapUrl.trim()) {
@@ -335,10 +330,10 @@ static async getAdminCourtById(id) {
 
     if (rest.images) updateData.images = rest.images;
 
-    if (rest.address || rest.city || rest.state || rest.zipCode) {
+    if (rest.address || rest.city) {
       updateData.location = `${rest.address || court.address}, ${
         rest.city || court.city
-      }, ${rest.state || court.state} ${rest.zipCode || court.zipCode}`;
+      }`;
     }
 
     if (court.status === 'ACTIVE') {
@@ -386,28 +381,34 @@ static async getAdminCourtById(id) {
       ...(normalizedStatus && { status: normalizedStatus }),
     };
 
-    const [courts, total] = await Promise.all([
-      prisma.court.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          courtSports: {
-            include: {
-              sport: { select: { id: true, name: true } },
-            },
-          },
+   const [users, total] = await Promise.all([
+  prisma.user.findMany({
+    where,
+    skip,
+    take: limit,
+    orderBy: { createdAt: 'desc' },
+    include: {
+      _count: {
+        select: {
+          courts: true,
+          bookings: true,
+          courtReviews: true, // ✅ FIX
+        },
+      },
+      courts: {
+        select: {
           _count: {
             select: {
               bookings: true,
-              reviews: true,
             },
           },
         },
-      }),
-      prisma.court.count({ where }),
-    ]);
+      },
+    },
+  }),
+  prisma.user.count({ where }),
+]);
+
 
     return {
       courts: courts.map(c => ({

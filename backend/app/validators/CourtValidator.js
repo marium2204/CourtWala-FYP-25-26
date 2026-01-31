@@ -123,19 +123,6 @@ const validateUpdateCourt = [
     .isLength({ min: 2, max: 100 })
     .withMessage('City must be between 2 and 100 characters'),
 
-  body('state')
-    .optional()
-    .trim()
-    .notEmpty().withMessage('State cannot be empty')
-    .isLength({ min: 2, max: 50 })
-    .withMessage('State must be between 2 and 50 characters'),
-
-  body('zipCode')
-    .optional()
-    .trim()
-    .notEmpty().withMessage('Zip code cannot be empty')
-    .matches(/^\d{5}(-\d{4})?$/)
-    .withMessage('Zip code must be a valid format'),
 
   // 🔥 MULTI-SPORT UPDATE
   body('sports')

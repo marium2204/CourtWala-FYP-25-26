@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
-  url      = env("DATABASE_URL")
+  provider          = "mysql"
+  url               = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
 // =========================
@@ -56,12 +57,15 @@ enum NotificationType {
   MATCH_REJECTED
   COURT_APPROVED
   COURT_REJECTED
+  COURT_INACTIVATED   
+  COURT_PENDING      
   OWNER_APPROVED
   OWNER_REJECTED
   ADMIN_ANNOUNCEMENT
   TOURNAMENT_JOINED
   REPORT_RESOLVED
 }
+
 
 enum ReportType {
   USER
@@ -174,8 +178,6 @@ model Court {
   description  String?
   address      String
   city         String
-  state        String
-  zipCode      String
   location     String
   mapUrl       String
   pricePerHour Float
@@ -200,7 +202,6 @@ model Court {
   @@index([status])
   @@index([location])
   @@index([city])
-  @@index([state])
 }
 
 // =========================

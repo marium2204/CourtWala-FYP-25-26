@@ -24,8 +24,6 @@ class _AddEditCourtScreenState extends State<AddEditCourtScreen> {
   final _descriptionController = TextEditingController();
   final _addressController = TextEditingController();
   final _cityController = TextEditingController();
-  final _stateController = TextEditingController();
-  final _zipController = TextEditingController();
   final _priceController = TextEditingController();
   final _mapUrlController = TextEditingController();
 
@@ -154,8 +152,6 @@ class _AddEditCourtScreenState extends State<AddEditCourtScreen> {
           'description': _descriptionController.text.trim(),
           'address': _addressController.text.trim(),
           'city': _cityController.text.trim(),
-          'state': _stateController.text.trim(),
-          'zipCode': _zipController.text.trim(),
           'mapUrl': _mapUrlController.text.trim(),
           'pricePerHour': _priceController.text.trim(),
           'sports': jsonEncode(_selectedSportIds.toList()),
@@ -216,13 +212,10 @@ class _AddEditCourtScreenState extends State<AddEditCourtScreen> {
               _field(_nameController, 'Court Name'),
               _field(_descriptionController, 'Description', maxLines: 3),
               _field(_addressController, 'Address'),
-              _rowFields(_cityController, 'City', _stateController, 'State'),
-              _rowFields(
-                _zipController,
-                'Zip Code',
+              _field(
                 _priceController,
                 'Price per hour',
-                keyboardType2: TextInputType.number,
+                keyboardType: TextInputType.number,
               ),
               _field(
                 _mapUrlController,

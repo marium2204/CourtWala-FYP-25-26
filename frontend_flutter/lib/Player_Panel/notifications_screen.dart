@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../theme/colors.dart';
 import '../services/api_service.dart';
@@ -74,13 +75,48 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     await _fetchNotifications();
   }
 
+  // ================= TIME =================
+  String _formatTime(String isoDate) {
+    final localDate = DateTime.parse(isoDate).toLocal();
+    return DateFormat('hh:mm a').format(localDate);
+  }
+
+  // ================= HEADING =================
+  String _notificationHeading(String type) {
+    switch (type) {
+      case 'BOOKING_REQUESTED':
+      case 'BOOKING_APPROVED':
+      case 'BOOKING_REJECTED':
+      case 'BOOKING_CANCELLED':
+        return 'BOOKING UPDATE';
+      case 'MATCH_REQUEST':
+      case 'MATCH_ACCEPTED':
+      case 'MATCH_REJECTED':
+        return 'MATCH UPDATE';
+      case 'COURT_APPROVED':
+      case 'COURT_REJECTED':
+        return 'COURT STATUS';
+      case 'OWNER_APPROVED':
+      case 'OWNER_REJECTED':
+        return 'OWNER STATUS';
+      case 'ADMIN_ANNOUNCEMENT':
+        return 'ADMIN ANNOUNCEMENT';
+      case 'TOURNAMENT_JOINED':
+        return 'TOURNAMENT';
+      case 'REPORT_RESOLVED':
+        return 'REPORT UPDATE';
+      default:
+        return 'NOTIFICATION';
+    }
+  }
+
   // ================= GROUP BY DATE =================
   Map<String, List<Map<String, dynamic>>> _grouped() {
     final Map<String, List<Map<String, dynamic>>> grouped = {};
     final now = DateTime.now();
 
     for (final n in notifications) {
-      final date = DateTime.parse(n['createdAt']);
+      final date = DateTime.parse(n['createdAt']).toLocal();
       String key;
 
       if (date.year == now.year &&
@@ -125,7 +161,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             ),
           )
         ],
-        elevation: 0,
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -162,7 +197,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   // ================= TILE =================
   Widget _notificationTile(Map<String, dynamic> n) {
-    final isUnread = !(n['isRead'] as bool);
+    final bool isUnread = !(n['isRead'] as bool);
+
+    final Color bgColor = isUnread
+        ? AppColors.primaryColor.withOpacity(0.08)
+        : Colors.grey.shade200;
+
+    final Color textColor = isUnread ? Colors.black : Colors.grey.shade700;
+    final Color subTextColor = isUnread ? Colors.black87 : Colors.grey;
+    final Color iconColor = isUnread ? AppColors.primaryColor : Colors.grey;
 
     return GestureDetector(
       onTap: isUnread ? () => _markAsRead(n['id']) : null,
@@ -170,48 +213,32 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: isUnread
-              ? AppColors.primaryColor.withOpacity(0.06)
-              : Colors.white,
+          color: bgColor,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Stack(
-              children: [
-                Icon(
-                  Icons.notifications_outlined,
-                  size: 30,
-                  color: isUnread ? AppColors.primaryColor : Colors.grey,
-                ),
-                if (isUnread)
-                  Positioned(
-                    right: 0,
-                    top: 0,
-                    child: Container(
-                      width: 8,
-                      height: 8,
-                      decoration: const BoxDecoration(
-                        color: Colors.orange,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ),
-              ],
+            Icon(
+              Icons.notifications_outlined,
+              size: 30,
+              color: iconColor,
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Text(
+                    _notificationHeading(n['type']),
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.8,
+                      color: isUnread ? AppColors.primaryColor : Colors.grey,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
                   Row(
                     children: [
                       Expanded(
@@ -221,34 +248,23 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                             fontSize: 15,
                             fontWeight:
                                 isUnread ? FontWeight.bold : FontWeight.w500,
+                            color: textColor,
                           ),
                         ),
                       ),
-                      if (isUnread)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.orange,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Text(
-                            "NEW",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                      Text(
+                        _formatTime(n['createdAt']),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: subTextColor,
                         ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 6),
                   Text(
                     n['message'],
-                    style: const TextStyle(
-                      color: Colors.black87,
-                    ),
+                    style: TextStyle(color: subTextColor),
                   ),
                 ],
               ),

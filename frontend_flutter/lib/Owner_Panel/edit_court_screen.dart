@@ -22,8 +22,6 @@ class _EditCourtScreenState extends State<EditCourtScreen> {
   late TextEditingController _nameCtrl;
   late TextEditingController _addressCtrl;
   late TextEditingController _cityCtrl;
-  late TextEditingController _stateCtrl;
-  late TextEditingController _zipCtrl;
   late TextEditingController _priceCtrl;
   late TextEditingController _mapUrlCtrl;
 
@@ -46,8 +44,6 @@ class _EditCourtScreenState extends State<EditCourtScreen> {
     _nameCtrl = TextEditingController(text: widget.court['name'] ?? '');
     _addressCtrl = TextEditingController(text: widget.court['address'] ?? '');
     _cityCtrl = TextEditingController(text: widget.court['city'] ?? '');
-    _stateCtrl = TextEditingController(text: widget.court['state'] ?? '');
-    _zipCtrl = TextEditingController(text: widget.court['zipCode'] ?? '');
     _priceCtrl =
         TextEditingController(text: widget.court['pricePerHour']?.toString());
     _mapUrlCtrl = TextEditingController(text: widget.court['mapUrl'] ?? '');
@@ -171,8 +167,6 @@ class _EditCourtScreenState extends State<EditCourtScreen> {
         'name': _nameCtrl.text.trim(),
         'address': _addressCtrl.text.trim(),
         'city': _cityCtrl.text.trim(),
-        'state': _stateCtrl.text.trim(),
-        'zipCode': _zipCtrl.text.trim(),
         'mapUrl': _mapUrlCtrl.text.trim(),
         'pricePerHour': _priceCtrl.text.trim(),
         'sports': jsonEncode(_selectedSportIds.toList()),
@@ -226,8 +220,6 @@ class _EditCourtScreenState extends State<EditCourtScreen> {
                           _field(_nameCtrl, 'Court Name'),
                           _field(_addressCtrl, 'Address'),
                           _field(_cityCtrl, 'City'),
-                          _field(_stateCtrl, 'State'),
-                          _field(_zipCtrl, 'Zip Code'),
                           _field(
                             _mapUrlCtrl,
                             'Google Maps URL',

@@ -9,15 +9,28 @@ const { AppError } = require('../utils/ErrorHandler');
  */
 const authenticate = async (req, res, next) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
+    const authHeader = req.headers.authorization;
 
-    if (!token) {
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       throw new AppError('Authentication token required', 401);
     }
 
+    const token = authHeader.split(' ')[1];
+
+    // 🚫 Catch "null" or empty tokens
+    if (!token || token === 'null') {
+      throw new AppError('Invalid authentication token', 401);
+    }
+
     const decoded = jwt.verify(token, config.jwt.secret);
+
+    // 🚫 Token payload corrupted
+    if (!decoded?.id) {
+      throw new AppError('Invalid token payload', 401);
+    }
+
     const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
+      where: { id: decoded.id }, // ✅ FIXED
       select: {
         id: true,
         email: true,
@@ -41,8 +54,11 @@ const authenticate = async (req, res, next) => {
     req.user = user;
     next();
   } catch (error) {
-    if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
-      return ResponseHandler.unauthorized(res, error.message);
+    if (
+      error.name === 'JsonWebTokenError' ||
+      error.name === 'TokenExpiredError'
+    ) {
+      return ResponseHandler.unauthorized(res, 'Invalid or expired token');
     }
     next(error);
   }
@@ -75,7 +91,10 @@ const isOwner = (resourceOwnerId) => {
     }
 
     if (req.user.id !== resourceOwnerId) {
-      return ResponseHandler.forbidden(res, 'You do not have permission to access this resource');
+      return ResponseHandler.forbidden(
+        res,
+        'You do not have permission to access this resource'
+      );
     }
 
     next();
@@ -87,4 +106,3 @@ module.exports = {
   authorize,
   isOwner,
 };
-
