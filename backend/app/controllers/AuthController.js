@@ -1,6 +1,5 @@
 const BaseController = require('./BaseController');
 const AuthService = require('../services/AuthService');
-const { getFileUrl } = require('../utils/FileUpload');
 const ProfileService = require('../services/ProfileService');
 
 

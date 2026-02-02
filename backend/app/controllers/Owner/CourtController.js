@@ -2,7 +2,6 @@ const BaseController = require('../BaseController');
 const CourtService = require('../../services/CourtService');
 const NotificationService = require('../../services/NotificationService');
 const { asyncHandler } = require('../../utils/ErrorHandler');
-const { getFileUrl } = require('../../utils/FileUpload');
 
 class OwnerCourtController extends BaseController {
   /**
