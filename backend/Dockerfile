@@ -11,7 +11,8 @@ RUN apk add --no-cache openssl libc6-compat bash
 # Install Node dependencies
 # -----------------------------
 COPY backend/package*.json ./
-RUN npm ci
+RUN npm install
+
 
 # -----------------------------
 # Prisma
