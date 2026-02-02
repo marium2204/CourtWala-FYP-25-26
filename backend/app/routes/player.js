@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate, authorize } = require('../middleware/AuthMiddleware');
-const { uploadSingle } = require('../utils/FileUpload');
+
 
 
 // Controllers
@@ -23,7 +23,6 @@ router.use(authorize('PLAYER'));
 router.get('/profile', ProfileController.getProfile);
 router.put(
   '/profile',
-  uploadSingle('profilePicture'), // 🔥 THIS WAS MISSING
   validateUpdateProfile,
   ProfileController.updateProfile
 );

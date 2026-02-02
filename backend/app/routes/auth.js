@@ -9,17 +9,7 @@ const {
   validatePasswordResetRequest,
   validatePasswordReset,
 } = require('../validators/AuthValidator');
-const { uploadSingle } = require('../utils/FileUpload');
 
-// Multer error handler wrapper
-const handleFileUpload = (uploadMiddleware) => {
-  return (req, res, next) => {
-    uploadMiddleware(req, res, (err) => {
-      if (err) return next(err);
-      next();
-    });
-  };
-};
 
 /* =========================
    PUBLIC ROUTES
@@ -27,7 +17,6 @@ const handleFileUpload = (uploadMiddleware) => {
 
 router.post(
   '/register',
-  handleFileUpload(uploadSingle('profilePicture')),
   validateRegister,
   AuthController.register
 );
