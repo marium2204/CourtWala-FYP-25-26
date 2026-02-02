@@ -1,5 +1,6 @@
 // lib/Player_Panel/profile_screen.dart
 import 'dart:convert';
+import 'dart:io'; // ✅ ADDED
 import 'package:flutter/material.dart';
 
 import '../services/api_service.dart';
@@ -11,6 +12,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import '../constants/api_constants.dart';
 
+// ✅ ADDED
+import '../services/image_upload_service.dart';
+
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -21,8 +25,13 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _loading = true;
   Map<String, dynamic>? _profile;
+
   final ImagePicker _picker = ImagePicker();
   bool _uploadingImage = false;
+
+  // ✅ ADDED (DO NOT REMOVE OLD VARIABLES)
+  File? _newProfileImage;
+  bool _savingImage = false;
 
   @override
   void initState() {
@@ -56,41 +65,51 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  Future<void> _updateProfileImage() async {
-    final picked = await _picker.pickImage(source: ImageSource.gallery);
+  // ================= PICK IMAGE (NO UPLOAD) =================
+  Future<void> _pickProfileImage() async {
+    final picked = await ImageUploadService.pickImage(ImageSource.gallery);
     if (picked == null) return;
 
-    setState(() => _uploadingImage = true);
+    setState(() {
+      _newProfileImage = picked;
+    });
+  }
+
+  // ================= SAVE IMAGE (UPLOAD + API UPDATE) =================
+  Future<void> _saveProfileImage() async {
+    if (_newProfileImage == null) return;
+
+    setState(() => _savingImage = true);
 
     try {
       final token = await TokenService.getToken();
       if (token == null) return;
 
-      final uri = Uri.parse('${ApiConstants.baseUrl}/player/profile');
-      final request = http.MultipartRequest('PUT', uri);
-      request.headers['Authorization'] = 'Bearer $token';
-
-      request.files.add(
-        await http.MultipartFile.fromPath(
-          'profilePicture',
-          picked.path,
-        ),
+      // 🔼 Upload to Cloudinary
+      final imageUrl = await ImageUploadService.uploadToCloudinary(
+        _newProfileImage!,
+        folder: 'courtwala/profiles',
       );
 
-      final res = await request.send();
-      final body = jsonDecode(await res.stream.bytesToString());
+      // 🔁 Update backend with URL
+      final res = await ApiService.put(
+        '/player/profile',
+        token,
+        {'profilePicture': imageUrl},
+      );
 
-      if (res.statusCode == 200 && body['success'] == true) {
-        _fetchProfile(); // 🔁 refresh only
+      if (res.statusCode == 200) {
+        _newProfileImage = null;
+        _fetchProfile();
       } else {
-        throw body['message'] ?? 'Image update failed';
+        throw Exception('Image update failed');
       }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(e.toString())));
     } finally {
-      if (mounted) setState(() => _uploadingImage = false);
+      if (mounted) setState(() => _savingImage = false);
     }
   }
 
@@ -133,6 +152,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ? '—'
         : sports.map((s) => '${s['sport']} (${s['skillLevel']})').join(', ');
 
+    // ✅ IMAGE PRIORITY: new image → saved image → fallback
+    final ImageProvider? profileImageProvider = _newProfileImage != null
+        ? FileImage(_newProfileImage!)
+        : (_profile!['profilePicture'] != null
+            ? NetworkImage(_profile!['profilePicture'])
+            : null);
+
     return Scaffold(
       backgroundColor: const Color(0xFFF6F8FA),
       appBar: AppBar(
@@ -148,7 +174,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // ================= PROFILE INCOMPLETE NOTICE (TOP) =================
+            // ================= PROFILE INCOMPLETE NOTICE =================
             if (profileIncomplete)
               Container(
                 width: double.infinity,
@@ -166,9 +192,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Expanded(
                       child: Text(
                         'Please complete your profile. You don’t have any sports and skills entered which may help you get challenges from other players.',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                        ),
+                        style: TextStyle(fontWeight: FontWeight.w600),
                       ),
                     ),
                   ],
@@ -193,17 +217,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Column(
                 children: [
                   GestureDetector(
-                    onTap: _uploadingImage ? null : _updateProfileImage,
+                    onTap: _pickProfileImage, // ✅ CHANGED (NO AUTO UPLOAD)
                     child: Stack(
                       children: [
                         CircleAvatar(
                           radius: 42,
                           backgroundColor:
                               AppColors.primaryColor.withOpacity(0.15),
-                          backgroundImage: _profile!['profilePicture'] != null
-                              ? NetworkImage(_profile!['profilePicture'])
-                              : null,
-                          child: _profile!['profilePicture'] == null
+                          backgroundImage: profileImageProvider,
+                          child: profileImageProvider == null
                               ? const Icon(
                                   Icons.person,
                                   size: 42,
@@ -217,25 +239,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           child: CircleAvatar(
                             radius: 14,
                             backgroundColor: AppColors.primaryColor,
-                            child: _uploadingImage
-                                ? const SizedBox(
-                                    width: 12,
-                                    height: 12,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : const Icon(
-                                    Icons.edit,
-                                    size: 14,
-                                    color: Colors.white,
-                                  ),
+                            child: const Icon(
+                              Icons.edit,
+                              size: 14,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ),
+
+                  // ✅ SAVE BUTTON (ONLY WHEN IMAGE CHANGED)
+                  if (_newProfileImage != null) ...[
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 44,
+                      child: ElevatedButton(
+                        onPressed: _savingImage ? null : _saveProfileImage,
+                        child: _savingImage
+                            ? const CircularProgressIndicator(
+                                color: Colors.white)
+                            : const Text('Save Image'),
+                      ),
+                    ),
+                  ],
+
                   const SizedBox(height: 12),
                   Text(
                     fullName.isEmpty ? '—' : fullName,
@@ -255,7 +285,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
             const SizedBox(height: 24),
 
-            // ================= INFO CARDS (UNCHANGED) =================
+            // ================= INFO CARDS =================
             _infoCard('Role', role),
             _infoCard('Preferred Sports', sportsText),
 

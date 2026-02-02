@@ -3,8 +3,7 @@ const prisma = new PrismaClient();
 const bcrypt = require('bcryptjs');
 
 async function main() {
-  console.log('🌱 Seeding full fake database...\n');
-  console.log(Object.keys(prisma));
+  console.log('🌱 Seeding CourtWala Production-like Database...\n');
 
   // =========================
   // CLEAN DATABASE (ORDER MATTERS)
@@ -17,6 +16,7 @@ async function main() {
   await prisma.courtReview.deleteMany();
   await prisma.tournamentParticipant.deleteMany();
   await prisma.tournament.deleteMany();
+  await prisma.announcement.deleteMany();
   await prisma.report.deleteMany();
   await prisma.playerSport.deleteMany();
   await prisma.court.deleteMany();
@@ -26,7 +26,7 @@ async function main() {
   // =========================
   // SPORTS (MASTER DATA)
   // =========================
-  const sportNames = ['BADMINTON', 'FOOTBALL', 'PADEL', 'CRICKET', 'TENNIS'];
+  const sportNames = ['BADMINTON', 'FOOTBALL', 'CRICKET', 'TENNIS', 'PADEL'];
   const sports = {};
 
   for (const name of sportNames) {
@@ -36,34 +36,47 @@ async function main() {
   console.log('✅ Sports created');
 
   // =========================
-  // USERS
+  // ADMIN (STRONG CREDENTIALS)
   // =========================
-  const password = await bcrypt.hash('password', 10);
+  const adminPassword = await bcrypt.hash('Adm!n@CourtWala#2026', 12);
 
-  await prisma.user.create({
+  const admin = await prisma.user.create({
     data: {
-      email: 'admin@demo.com',
-      password,
-      firstName: 'Admin',
-      lastName: 'User',
+      email: 'admin@courtwala.pk',
+      password: adminPassword,
+      firstName: 'System',
+      lastName: 'Administrator',
       role: 'ADMIN',
-      status: 'ACTIVE',
       provider: 'EMAIL',
       emailVerified: true,
     },
   });
 
+  console.log('✅ Admin created');
+
+  // =========================
+  // COURT OWNERS (KARACHI)
+  // =========================
+  const ownerNames = [
+    ['Ahmed', 'Khan'],
+    ['Usman', 'Malik'],
+    ['Faisal', 'Shaikh'],
+    ['Bilal', 'Raza'],
+    ['Hassan', 'Ali'],
+  ];
+
   const owners = [];
-  for (let i = 1; i <= 5; i++) {
+  const ownerPassword = await bcrypt.hash('Owner@123!', 10);
+
+  for (let i = 0; i < ownerNames.length; i++) {
     owners.push(
       await prisma.user.create({
         data: {
-          email: `owner${i}@demo.com`,
-          password,
-          firstName: 'Court',
-          lastName: `Owner ${i}`,
+          email: `owner${i + 1}@courtwala.pk`,
+          password: ownerPassword,
+          firstName: ownerNames[i][0],
+          lastName: ownerNames[i][1],
           role: 'COURT_OWNER',
-          status: 'ACTIVE',
           provider: 'EMAIL',
           emailVerified: true,
         },
@@ -71,18 +84,32 @@ async function main() {
     );
   }
 
+  console.log('✅ Court owners created');
+
+  // =========================
+  // PLAYERS (PAKISTANI USERS)
+  // =========================
+  const playerNames = [
+    ['Ali', 'Hussain'],
+    ['Farah', 'Haris'],
+    ['Ayesha', 'Siddiqui'],
+    ['Hamza', 'Javed'],
+    ['Zainab', 'Iqbal'],
+  ];
+
   const players = [];
-  for (let i = 1; i <= 5; i++) {
+  const playerPassword = await bcrypt.hash('Player@123', 10);
+
+  for (let i = 0; i < playerNames.length; i++) {
     players.push(
       await prisma.user.create({
         data: {
-          email: `player${i}@demo.com`,
-          password,
-          firstName: 'Player',
-          lastName: `${i}`,
-          username: `player${i}`,
+          email: `player${i + 1}@demo.pk`,
+          password: playerPassword,
+          firstName: playerNames[i][0],
+          lastName: playerNames[i][1],
+          username: `player${i + 1}`,
           role: 'PLAYER',
-          status: 'ACTIVE',
           provider: 'EMAIL',
           emailVerified: true,
         },
@@ -90,7 +117,7 @@ async function main() {
     );
   }
 
-  console.log('✅ Users created');
+  console.log('✅ Players created');
 
   // =========================
   // PLAYER SPORTS
@@ -98,41 +125,65 @@ async function main() {
   await prisma.playerSport.createMany({
     data: [
       { playerId: players[0].id, sportId: sports.BADMINTON.id, skillLevel: 'ADVANCED' },
-      { playerId: players[0].id, sportId: sports.PADEL.id, skillLevel: 'BEGINNER' },
-
-      { playerId: players[1].id, sportId: sports.FOOTBALL.id, skillLevel: 'ADVANCED' },
-      { playerId: players[1].id, sportId: sports.CRICKET.id, skillLevel: 'INTERMEDIATE' },
-
-      { playerId: players[2].id, sportId: sports.BADMINTON.id, skillLevel: 'INTERMEDIATE' },
-      { playerId: players[2].id, sportId: sports.TENNIS.id, skillLevel: 'BEGINNER' },
-
-      { playerId: players[3].id, sportId: sports.PADEL.id, skillLevel: 'ADVANCED' },
-      { playerId: players[3].id, sportId: sports.BADMINTON.id, skillLevel: 'BEGINNER' },
-
-      { playerId: players[4].id, sportId: sports.CRICKET.id, skillLevel: 'ADVANCED' },
-      { playerId: players[4].id, sportId: sports.FOOTBALL.id, skillLevel: 'INTERMEDIATE' },
+      { playerId: players[1].id, sportId: sports.BADMINTON.id, skillLevel: 'BEGINNER' },
+      { playerId: players[2].id, sportId: sports.CRICKET.id, skillLevel: 'INTERMEDIATE' },
+      { playerId: players[3].id, sportId: sports.FOOTBALL.id, skillLevel: 'ADVANCED' },
+      { playerId: players[4].id, sportId: sports.TENNIS.id, skillLevel: 'BEGINNER' },
     ],
   });
 
   console.log('✅ Player sports created');
 
   // =========================
-  // COURTS + COURT SPORTS
+  // COURTS (REAL KARACHI)
   // =========================
+  const courtData = [
+    {
+      name: 'PAF Sports Complex',
+      address: 'Shahrah-e-Faisal',
+      city: 'Karachi',
+      mapUrl: 'https://maps.google.com/?q=PAF+Sports+Complex+Karachi',
+    },
+    {
+      name: 'KMC Sports Complex',
+      address: 'Gulshan-e-Iqbal',
+      city: 'Karachi',
+      mapUrl: 'https://maps.google.com/?q=KMC+Sports+Complex+Karachi',
+    },
+    {
+      name: 'National Coaching Centre',
+      address: 'Korangi',
+      city: 'Karachi',
+      mapUrl: 'https://maps.google.com/?q=National+Coaching+Centre+Karachi',
+    },
+    {
+      name: 'Roshan Khan Squash Academy',
+      address: 'North Nazimabad',
+      city: 'Karachi',
+      mapUrl: 'https://maps.google.com/?q=Roshan+Khan+Squash+Academy',
+    },
+    {
+      name: 'Karachi Gymkhana',
+      address: 'Club Road',
+      city: 'Karachi',
+      mapUrl: 'https://maps.google.com/?q=Karachi+Gymkhana',
+    },
+  ];
+
   const courts = [];
 
-  for (let i = 1; i <= 5; i++) {
+  for (let i = 0; i < courtData.length; i++) {
     const court = await prisma.court.create({
       data: {
-        name: `Elite Court ${i}`,
-        description: `Premium sports court number ${i}`,
-        address: `Street ${i}, Block ${i}`,
-        city: `City ${i}`,
-        location: `Street ${i}, Block ${i}, City ${i}, State ${i} 1000${i}`,
-        mapUrl: `https://maps.google.com/?q=City+${i}`,
-        pricePerHour: 1200 + i * 100,
-        price: 1200 + i * 100,
-        ownerId: owners[i - 1].id,
+        name: courtData[i].name,
+        description: 'Premium sports facility in Karachi',
+        address: courtData[i].address,
+        city: courtData[i].city,
+        location: `${courtData[i].address}, ${courtData[i].city}`,
+        mapUrl: courtData[i].mapUrl,
+        pricePerHour: 1500 + i * 200,
+        price: 1500 + i * 200,
+        ownerId: owners[i].id,
         status: 'ACTIVE',
       },
     });
@@ -140,7 +191,7 @@ async function main() {
     await prisma.courtSport.create({
       data: {
         courtId: court.id,
-        sportId: sports[sportNames[i % sportNames.length]].id,
+        sportId: sports[sportNames[i]].id,
       },
     });
 
@@ -150,7 +201,7 @@ async function main() {
   console.log('✅ Courts created');
 
   // =========================
-  // COURT SLOTS (MUST BE BEFORE BOOKINGS)
+  // COURT SLOTS
   // =========================
   for (const court of courts) {
     for (let h = 9; h <= 13; h++) {
@@ -167,34 +218,24 @@ async function main() {
   console.log('✅ Court slots created');
 
   // =========================
-  // BOOKINGS (NULL-SAFE)
+  // BOOKINGS
   // =========================
-  const bookings = [];
-
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < players.length; i++) {
     const slot = await prisma.courtSlot.findFirst({
       where: { courtId: courts[i].id },
-      orderBy: { startTime: 'asc' },
     });
 
-    if (!slot) {
-      console.warn(`⚠️ No slot found for court ${courts[i].id}, skipping booking`);
-      continue;
-    }
-
-    bookings.push(
-      await prisma.booking.create({
-        data: {
-          playerId: players[i].id,
-          courtId: courts[i].id,
-          date: new Date(Date.now() + i * 86400000),
-          startTime: slot.startTime,
-          endTime: slot.endTime,
-          slotId: slot.id,
-          status: 'CONFIRMED',
-        },
-      })
-    );
+    await prisma.booking.create({
+      data: {
+        playerId: players[i].id,
+        courtId: courts[i].id,
+        date: new Date(Date.now() + i * 86400000),
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        slotId: slot.id,
+        status: 'CONFIRMED',
+      },
+    });
   }
 
   console.log('✅ Bookings created');
@@ -202,11 +243,11 @@ async function main() {
   // =========================
   // MATCH REQUESTS
   // =========================
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < players.length - 1; i++) {
     await prisma.matchRequest.create({
       data: {
         senderId: players[i].id,
-        receiverId: players[(i + 1) % 5].id,
+        receiverId: players[i + 1].id,
         sport: 'BADMINTON',
         skillLevel: 'INTERMEDIATE',
         message: 'Let’s play this weekend!',
@@ -218,74 +259,30 @@ async function main() {
   console.log('✅ Match requests created');
 
   // =========================
-  // TOURNAMENTS
+  // ADMIN ANNOUNCEMENT + NOTIFICATION
   // =========================
-  const tournaments = [];
+  const announcement = await prisma.announcement.create({
+    data: {
+      title: 'Welcome to CourtWala',
+      message: 'Book verified courts across Karachi with ease.',
+      createdBy: admin.id,
+    },
+  });
 
-  for (let i = 1; i <= 5; i++) {
-    tournaments.push(
-      await prisma.tournament.create({
-        data: {
-          name: `Open Tournament ${i}`,
-          sport: sportNames[i % sportNames.length],
-          startDate: new Date(Date.now() + i * 86400000),
-          endDate: new Date(Date.now() + (i + 2) * 86400000),
-          maxParticipants: 16,
-        },
-      })
-    );
-  }
-
-  console.log('✅ Tournaments created');
-
-  // =========================
-  // TOURNAMENT PARTICIPANTS
-  // =========================
-  for (const tournament of tournaments) {
-    for (const player of players) {
-      await prisma.tournamentParticipant.create({
-        data: {
-          tournamentId: tournament.id,
-          playerId: player.id,
-        },
-      });
-    }
-  }
-
-  console.log('✅ Tournament participants created');
-
-  // =========================
-  // NOTIFICATIONS
-  // =========================
-  for (let i = 0; i < 5; i++) {
+  for (const user of players) {
     await prisma.notification.create({
       data: {
-        senderId: players[i].id,
-        receiverId: players[(i + 1) % 5].id,
-        type: 'MATCH_REQUEST',
-        title: 'New Match Request',
-        message: 'You have been challenged!',
+        receiverId: user.id,
+        type: 'ADMIN_ANNOUNCEMENT',
+        title: announcement.title,
+        message: announcement.message,
       },
     });
   }
 
-  console.log('✅ Notifications created');
+  console.log('✅ Admin announcement created');
 
-  // =========================
-  // REPORTS
-  // =========================
-  for (let i = 0; i < 5; i++) {
-    await prisma.report.create({
-      data: {
-        reporterId: players[i].id,
-        reportedUserId: players[(i + 1) % 5].id,
-        type: 'USER',
-        message: 'Player did not arrive on time.',
-      },
-    });
-  }
-
-  console.log('\n🎉 FULL DATABASE SEEDED SUCCESSFULLY');
+  console.log('\n🎉 DATABASE SEEDED SUCCESSFULLY');
 }
 
 main()
