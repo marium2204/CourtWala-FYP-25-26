@@ -30,7 +30,11 @@ class _EditCourtScreenState extends State<EditCourtScreen> {
   bool loadingSports = true;
 
   final ImagePicker _picker = ImagePicker();
+
+  /// NEW IMAGES (FILES)
   final List<File> newImages = [];
+
+  /// EXISTING IMAGES (URLS)
   late List<String> existingImages;
 
   final List<Map<String, dynamic>> _slots = [];
@@ -109,64 +113,67 @@ class _EditCourtScreenState extends State<EditCourtScreen> {
   Widget _networkImage(String path) {
     final url = path.startsWith('http') ? path : '$_imageBaseUrl$path';
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
-      child: Image.network(
-        url,
-        width: 80,
-        height: 80,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => Container(
-          width: 80,
-          height: 80,
-          color: Colors.grey.shade300,
-          child: const Icon(Icons.broken_image),
+    return Stack(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.network(
+            url,
+            width: 80,
+            height: 80,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => Container(
+              width: 80,
+              height: 80,
+              color: Colors.grey.shade300,
+              child: const Icon(Icons.broken_image),
+            ),
+          ),
         ),
-      ),
+        Positioned(
+          top: 2,
+          right: 2,
+          child: GestureDetector(
+            onTap: () => setState(() => existingImages.remove(path)),
+            child: const CircleAvatar(
+              radius: 10,
+              backgroundColor: Colors.red,
+              child: Icon(Icons.close, size: 12, color: Colors.white),
+            ),
+          ),
+        ),
+      ],
     );
   }
+
+  Widget _fileImage(File f) => Stack(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.file(
+              f,
+              width: 80,
+              height: 80,
+              fit: BoxFit.cover,
+            ),
+          ),
+          Positioned(
+            top: 2,
+            right: 2,
+            child: GestureDetector(
+              onTap: () => setState(() => newImages.remove(f)),
+              child: const CircleAvatar(
+                radius: 10,
+                backgroundColor: Colors.red,
+                child: Icon(Icons.close, size: 12, color: Colors.white),
+              ),
+            ),
+          ),
+        ],
+      );
 
   String _to24(TimeOfDay t) =>
       '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
-
-  Future<void> _addSlot() async {
-    final start =
-        await showTimePicker(context: context, initialTime: TimeOfDay.now());
-    if (start == null) return;
-
-    final end = await showTimePicker(
-      context: context,
-      initialTime: start.replacing(hour: start.hour + 1),
-    );
-    if (end == null) return;
-
-    final token = await TokenService.getToken();
-    if (token == null) return;
-
-    await ApiService.post(
-      '/owner/courts/${widget.court['id']}/slots',
-      token,
-      {
-        'slots': [
-          {'startTime': _to24(start), 'endTime': _to24(end)}
-        ]
-      },
-    );
-
-    _fetchSlots();
-  }
-
-  Future<void> _deleteSlot(String slotId) async {
-    final token = await TokenService.getToken();
-    if (token == null) return;
-
-    await ApiService.delete(
-      '/owner/courts/${widget.court['id']}/slots/$slotId',
-      token,
-    );
-
-    _fetchSlots();
-  }
 
   Future<void> _updateCourt() async {
     if (!_formKey.currentState!.validate()) return;
@@ -190,6 +197,7 @@ class _EditCourtScreenState extends State<EditCourtScreen> {
         'mapUrl': _mapUrlCtrl.text.trim(),
         'pricePerHour': _priceCtrl.text.trim(),
         'sports': jsonEncode(_selectedSportIds.toList()),
+        'existingImages': jsonEncode(existingImages), // ✅ KEY FIX
       };
 
       await ApiService.multipartPut(
@@ -224,22 +232,6 @@ class _EditCourtScreenState extends State<EditCourtScreen> {
                 child: Column(
                   children: [
                     _sectionCard(
-                      title: 'Court Information',
-                      child: Column(
-                        children: [
-                          _field(_nameCtrl, 'Court Name'),
-                          _field(_addressCtrl, 'Address'),
-                          _field(_cityCtrl, 'City'),
-                          _field(_mapUrlCtrl, 'Google Maps URL',
-                              keyboard: TextInputType.url),
-                          _sportsSelector(),
-                          _field(_priceCtrl, 'Price per hour',
-                              keyboard: TextInputType.number),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    _sectionCard(
                       title: 'Images',
                       trailing: IconButton(
                         icon: const Icon(Icons.add_photo_alternate),
@@ -249,40 +241,9 @@ class _EditCourtScreenState extends State<EditCourtScreen> {
                         spacing: 10,
                         children: [
                           ...existingImages.map(_networkImage),
-                          ...newImages.map((f) => ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: Image.file(
-                                  f,
-                                  width: 80,
-                                  height: 80,
-                                  fit: BoxFit.cover,
-                                ),
-                              )),
+                          ...newImages.map(_fileImage),
                         ],
                       ),
-                    ),
-                    const SizedBox(height: 20),
-                    _sectionCard(
-                      title: 'Time Slots',
-                      trailing: IconButton(
-                        icon: const Icon(Icons.add_circle_outline),
-                        onPressed: _addSlot,
-                      ),
-                      child: loadingSlots
-                          ? const CircularProgressIndicator()
-                          : Column(
-                              children: _slots.map((s) {
-                                return ListTile(
-                                  title: Text(
-                                      '${s['startTime']} - ${s['endTime']}'),
-                                  trailing: IconButton(
-                                    icon: const Icon(Icons.delete,
-                                        color: Colors.red),
-                                    onPressed: () => _deleteSlot(s['id']),
-                                  ),
-                                );
-                              }).toList(),
-                            ),
                     ),
                     const SizedBox(height: 30),
                     SizedBox(
@@ -330,50 +291,4 @@ class _EditCourtScreenState extends State<EditCourtScreen> {
           ],
         ),
       );
-
-  Widget _field(
-    TextEditingController c,
-    String label, {
-    TextInputType keyboard = TextInputType.text,
-  }) =>
-      Padding(
-        padding: const EdgeInsets.only(bottom: 14),
-        child: TextFormField(
-          controller: c,
-          keyboardType: keyboard,
-          validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-          decoration: InputDecoration(
-            labelText: label,
-            filled: true,
-            fillColor: const Color(0xFFF2F4F6),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
-            ),
-          ),
-        ),
-      );
-
-  Widget _sportsSelector() {
-    if (loadingSports) return const CircularProgressIndicator();
-
-    return Wrap(
-      spacing: 10,
-      children: _sports.map((s) {
-        final selected = _selectedSportIds.contains(s['id']);
-        return FilterChip(
-          label: Text(s['name']),
-          selected: selected,
-          selectedColor: AppColors.primaryColor,
-          onSelected: (v) {
-            setState(() {
-              v
-                  ? _selectedSportIds.add(s['id'])
-                  : _selectedSportIds.remove(s['id']);
-            });
-          },
-        );
-      }).toList(),
-    );
-  }
 }

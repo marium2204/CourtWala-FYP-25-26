@@ -10,8 +10,7 @@ import 'google_role_screen.dart';
 import '../constants/api_constants.dart';
 import '../services/token_service.dart';
 import '../services/google_auth_service.dart';
-import '../services/image_upload_service.dart'; // ✅ ADDED
-import 'login_screen.dart';
+import '../services/image_upload_service.dart';
 import 'auth_gate.dart';
 import '../theme/colors.dart';
 import '../theme/app_text_styles.dart';
@@ -35,14 +34,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   String selectedRole = 'PLAYER';
   File? profileImage;
-  String? profileImageUrl; // ✅ ADDED
+  String? profileImageUrl;
   bool isLoading = false;
 
   bool _obscurePassword = true;
 
   final ImagePicker _picker = ImagePicker();
 
-  // ================= IMAGE PICK (UNCHANGED UI) =================
+  // ================= IMAGE PICK =================
   Future<void> pickImage() async {
     final picked = await _picker.pickImage(source: ImageSource.gallery);
     if (picked != null) {
@@ -82,18 +81,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return null;
   }
 
-  // ================= REGISTER (IMAGE FIX ONLY) =================
+  // ================= REGISTER =================
   Future<void> registerUser() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => isLoading = true);
 
     try {
-      // 🔽 CLOUDINARY IMAGE UPLOAD (ADDED)
+      // 🔹 Upload image first (SAFE)
       if (profileImage != null) {
         profileImageUrl = await ImageUploadService.uploadToCloudinary(
           profileImage!,
-          folder: "courtwala/profiles",
+          folder: 'courtwala/profiles',
         );
       }
 
@@ -109,8 +108,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           if (usernameCtrl.text.trim().isNotEmpty)
             'username': usernameCtrl.text.trim(),
           if (phoneCtrl.text.trim().isNotEmpty) 'phone': phoneCtrl.text.trim(),
-          if (profileImageUrl != null)
-            'profilePicture': profileImageUrl, // ✅ URL SENT
+          if (profileImageUrl != null) 'profilePicture': profileImageUrl,
         }),
       );
 
@@ -119,26 +117,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (res.statusCode == 201 && body['success'] == true) {
         await TokenService.saveToken(body['data']['token']);
 
+        if (!mounted) return;
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (_) => const AuthGate()),
           (_) => false,
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(body['message'] ?? 'Registration failed')),
-        );
+        throw body['message'] ?? 'Registration failed';
       }
-    } catch (_) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Server error. Please try again.')),
-      );
+    } catch (e) {
+      debugPrint('REGISTER ERROR: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(e.toString())));
     } finally {
-      setState(() => isLoading = false);
+      if (mounted) setState(() => isLoading = false);
     }
   }
 
-  // ================= GOOGLE (UNCHANGED) =================
+  // ================= GOOGLE =================
   Future<void> _continueWithGoogle() async {
     setState(() => isLoading = true);
 
@@ -155,27 +153,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final body = jsonDecode(res.body);
 
       if (res.statusCode == 200 && body['success'] == true) {
-        final token = body['data']['token'];
-        await TokenService.saveToken(token);
+        await TokenService.saveToken(body['data']['token']);
 
         if (!mounted) return;
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Account already exists. Please LOGIN'),
-            duration: Duration(seconds: 2),
-          ),
-        );
-
-        await Future.delayed(const Duration(milliseconds: 1200));
-        if (!mounted) return;
-
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (_) => const AuthGate()),
           (_) => false,
         );
-        return;
       }
 
       if (res.statusCode == 404) {
@@ -276,11 +261,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     validator: passwordValidator,
                     decoration: inputDecoration('Password *').copyWith(
                       suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscurePassword
-                              ? Icons.visibility_off
-                              : Icons.visibility,
-                        ),
+                        icon: Icon(_obscurePassword
+                            ? Icons.visibility_off
+                            : Icons.visibility),
                         onPressed: () => setState(
                             () => _obscurePassword = !_obscurePassword),
                       ),
@@ -304,22 +287,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         : Text('REGISTER', style: AppTextStyles.button),
                   ),
                 ),
-                const SizedBox(height: 18),
-                TextButton(
-                  onPressed: () => Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (_) => const LoginScreen()),
-                  ),
-                  child: Text(
-                    'Already have an account? Login',
-                    style: AppTextStyles.subtitle.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primaryColor,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                _courtOwnerInfo(),
                 const SizedBox(height: 24),
                 OutlinedButton.icon(
                   onPressed: isLoading ? null : _continueWithGoogle,
@@ -382,9 +349,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
           Text('• Property papers / rent agreement'),
           Text('• Authorization letter'),
           Text('• Court images (3–5)'),
-          SizedBox(height: 8),
-          Text('Approval usually takes up to 24 hours.',
-              style: TextStyle(fontWeight: FontWeight.w600)),
         ],
       ),
     );

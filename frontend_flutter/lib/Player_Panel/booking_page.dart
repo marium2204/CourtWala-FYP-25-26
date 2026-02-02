@@ -13,7 +13,7 @@ class BookingPage extends StatefulWidget {
   final String location;
   final String sport;
   final String price;
-  final String image;
+  final String? image; // ✅ nullable (Cloudinary URL)
   final Function(int)? onBookingComplete;
 
   const BookingPage({
@@ -24,7 +24,7 @@ class BookingPage extends StatefulWidget {
     required this.location,
     required this.sport,
     required this.price,
-    required this.image,
+    this.image,
     this.onBookingComplete,
   });
 
@@ -67,11 +67,14 @@ class _BookingPageState extends State<BookingPage> {
     setState(() => _loadingSlots = true);
 
     try {
+      final token = await TokenService.getToken();
+      if (token == null) return;
+
       final date = _selectedDate!.toIso8601String().split('T').first;
 
       final res = await ApiService.get(
         '/courts/${widget.courtid}/slots?date=$date',
-        '',
+        token, // ✅ FIXED (auth was missing before)
       );
 
       if (res.statusCode == 200) {
@@ -79,7 +82,7 @@ class _BookingPageState extends State<BookingPage> {
         setState(() {
           _slots
             ..clear()
-            ..addAll(List<Map<String, dynamic>>.from(body['slots']));
+            ..addAll(List<Map<String, dynamic>>.from(body['slots'] ?? []));
         });
       }
     } catch (e) {
@@ -110,7 +113,7 @@ class _BookingPageState extends State<BookingPage> {
       final date = _selectedDate!.toIso8601String().split('T').first;
 
       final res = await ApiService.post(
-        '/Player/bookings',
+        '/player/bookings',
         token,
         {
           'courtId': widget.courtid,
@@ -183,39 +186,35 @@ class _BookingPageState extends State<BookingPage> {
                 ),
               ],
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  widget.courtName,
-                  style: const TextStyle(
-                      fontSize: 20, fontWeight: FontWeight.bold),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(
+                widget.courtName,
+                style:
+                    const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 6),
+              Text("📍 ${widget.location}",
+                  style: const TextStyle(color: Colors.grey)),
+              Text("🏅 ${widget.sport}",
+                  style: const TextStyle(color: Colors.grey)),
+              const SizedBox(height: 10),
+              Text(
+                "PKR ${widget.price} / hr",
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primaryColor,
                 ),
-                const SizedBox(height: 6),
-                Text("📍 ${widget.location}",
-                    style: const TextStyle(color: Colors.grey)),
-                Text("🏅 ${widget.sport}",
-                    style: const TextStyle(color: Colors.grey)),
-                const SizedBox(height: 10),
-                Text(
-                  "PKR ${widget.price} / hr",
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primaryColor,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ]),
           ),
 
           const SizedBox(height: 24),
 
           // ================= DATE =================
-          const Text(
-            "Select Date",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
+          const Text("Select Date",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           GestureDetector(
             onTap: _pickDate,
@@ -229,11 +228,9 @@ class _BookingPageState extends State<BookingPage> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    _selectedDate == null
-                        ? "Choose a date"
-                        : "${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}",
-                  ),
+                  Text(_selectedDate == null
+                      ? "Choose a date"
+                      : "${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}"),
                   const Icon(Icons.calendar_today,
                       color: AppColors.primaryColor),
                 ],
@@ -244,19 +241,15 @@ class _BookingPageState extends State<BookingPage> {
           const SizedBox(height: 24),
 
           // ================= SLOTS =================
-          const Text(
-            "Select Time Slot",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
+          const Text("Select Time Slot",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
 
           if (_loadingSlots)
             const Center(child: CircularProgressIndicator())
           else if (_slots.isEmpty)
-            const Text(
-              "No slots available for this date",
-              style: TextStyle(color: Colors.grey),
-            )
+            const Text("No slots available",
+                style: TextStyle(color: Colors.grey))
           else
             Wrap(
               spacing: 10,
@@ -277,8 +270,6 @@ class _BookingPageState extends State<BookingPage> {
                         : isAvailable
                             ? Colors.black
                             : Colors.white,
-                    fontWeight:
-                        isSelected ? FontWeight.bold : FontWeight.normal,
                   ),
                   onSelected: isAvailable
                       ? (_) => setState(() => _selectedSlot = slot)
@@ -290,30 +281,13 @@ class _BookingPageState extends State<BookingPage> {
           const SizedBox(height: 24),
 
           // ================= FIND OPPONENT =================
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: SwitchListTile(
-              value: _findOpponent,
-              onChanged: (v) => setState(() => _findOpponent = v),
-              title: const Text(
-                "Find an opponent",
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              subtitle: const Text(
-                "We'll help match you with another player",
-              ),
-              activeColor: AppColors.primaryColor,
-            ),
+          SwitchListTile(
+            value: _findOpponent,
+            onChanged: (v) => setState(() => _findOpponent = v),
+            title: const Text("Find an opponent",
+                style: TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: const Text("We'll help match you with another player"),
+            activeColor: AppColors.primaryColor,
           ),
 
           const SizedBox(height: 32),
@@ -334,10 +308,9 @@ class _BookingPageState extends State<BookingPage> {
                   : const Text(
                       "Confirm Booking",
                       style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold),
                     ),
             ),
           ),

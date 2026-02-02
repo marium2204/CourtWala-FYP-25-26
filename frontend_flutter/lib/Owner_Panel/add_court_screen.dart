@@ -7,6 +7,7 @@ import '../theme/colors.dart';
 import '../theme/app_text_styles.dart';
 import '../services/api_service.dart';
 import '../services/token_service.dart';
+import '../services/image_upload_service.dart'; // ✅ ADDED
 
 class AddEditCourtScreen extends StatefulWidget {
   const AddEditCourtScreen({super.key});
@@ -29,6 +30,7 @@ class _AddEditCourtScreenState extends State<AddEditCourtScreen> {
 
   final ImagePicker _picker = ImagePicker();
   final List<File> _pickedImages = [];
+  final List<String> _uploadedImageUrls = []; // ✅ ADDED
 
   final Map<String, bool> _amenities = {
     'Parking': false,
@@ -139,7 +141,18 @@ class _AddEditCourtScreenState extends State<AddEditCourtScreen> {
     setState(() => _submitting = true);
 
     try {
-      final res = await ApiService.multipartPost(
+      // ================= UPLOAD IMAGES TO CLOUDINARY =================
+      _uploadedImageUrls.clear();
+      for (final file in _pickedImages) {
+        final url = await ImageUploadService.uploadToCloudinary(
+          file,
+          folder: 'courtwala/courts',
+        );
+        if (url != null) _uploadedImageUrls.add(url);
+      }
+
+      // ================= CREATE COURT =================
+      final res = await ApiService.post(
         '/owner/courts',
         token,
         {
@@ -149,13 +162,13 @@ class _AddEditCourtScreenState extends State<AddEditCourtScreen> {
           'city': _cityController.text.trim(),
           'mapUrl': _mapUrlController.text.trim(),
           'pricePerHour': _priceController.text.trim(),
-          'sports': jsonEncode(_selectedSportIds.toList()),
-          'amenities': jsonEncode(
-            _amenities.entries.where((e) => e.value).map((e) => e.key).toList(),
-          ),
+          'sports': _selectedSportIds.toList(),
+          'amenities': _amenities.entries
+              .where((e) => e.value)
+              .map((e) => e.key)
+              .toList(),
+          'images': _uploadedImageUrls, // ✅ URLS SENT
         },
-        files: _pickedImages,
-        fileField: 'images',
       );
 
       if (res.statusCode != 201 && res.statusCode != 200) {

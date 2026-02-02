@@ -133,6 +133,15 @@ class _CourtOwnerBookingsScreenState extends State<CourtOwnerBookingsScreen>
         final b = list[i];
         final status = b['status'];
 
+        final List images = b['court'] != null && b['court']['images'] is List
+            ? b['court']['images']
+            : [];
+
+        final String? imageUrl =
+            images.isNotEmpty && images.first.toString().isNotEmpty
+                ? images.first
+                : null;
+
         return Container(
           margin: const EdgeInsets.only(bottom: 16),
           padding: const EdgeInsets.all(16),
@@ -150,6 +159,21 @@ class _CourtOwnerBookingsScreenState extends State<CourtOwnerBookingsScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // ✅ COURT IMAGE (ADDED)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: imageUrl != null
+                    ? Image.network(
+                        imageUrl,
+                        height: 140,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _imagePlaceholder(),
+                      )
+                    : _imagePlaceholder(),
+              ),
+              const SizedBox(height: 12),
+
               _statusBadge(status),
               const SizedBox(height: 10),
               Text(
@@ -174,6 +198,14 @@ class _CourtOwnerBookingsScreenState extends State<CourtOwnerBookingsScreen>
       },
     );
   }
+
+  Widget _imagePlaceholder() => Container(
+        height: 140,
+        color: Colors.grey.shade200,
+        child: const Center(
+          child: Icon(Icons.image_not_supported, size: 40),
+        ),
+      );
 
   Widget _infoRow(String label, String value) {
     return Padding(

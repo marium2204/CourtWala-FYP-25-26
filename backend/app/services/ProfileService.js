@@ -49,16 +49,15 @@ class ProfileService {
   // =========================
   // UPDATE BASIC PROFILE
   // =========================
-  static async updateProfile(userId, data, file) {
+  static async updateProfile(userId, data) {
   const updateData = {
     firstName: data.firstName,
     lastName: data.lastName,
     phone: data.phone,
   };
 
-  // ✅ HANDLE UPLOADED IMAGE
-  if (file) {
-    updateData.profilePicture = file.filename;
+  if (data.profilePicture) {
+    updateData.profilePicture = data.profilePicture;
   }
 
   return prisma.user.update({
@@ -73,6 +72,8 @@ class ProfileService {
     },
   });
 }
+
+
 
   // =========================
   // UPDATE SPORTS & SKILLS

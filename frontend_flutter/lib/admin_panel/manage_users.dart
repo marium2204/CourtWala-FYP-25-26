@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../theme/colors.dart';
 import '../theme/app_text_styles.dart';
 import '../services/api_service.dart';
+import '../constants/api_constants.dart';
 
 /* =========================
    USER MODEL (SAFE + NORMALIZED)
@@ -20,6 +21,8 @@ class UserModel {
   final int bookingsMade;
   final int bookingsReceived;
 
+  final String? profilePicture; // ✅ ADDED
+
   UserModel({
     required this.id,
     required this.name,
@@ -30,16 +33,15 @@ class UserModel {
     required this.courtsOwned,
     required this.bookingsMade,
     required this.bookingsReceived,
+    this.profilePicture,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     final stats = json['stats'] ?? {};
 
-    // ✅ Normalize role ONCE
     final rawRole = json['role']?.toString() ?? 'PLAYER';
     final normalizedRole = rawRole == 'COURT_OWNER' ? 'OWNER' : rawRole;
 
-    // ✅ Safe date parse
     DateTime joined;
     try {
       joined = json['createdAt'] != null
@@ -65,6 +67,7 @@ class UserModel {
       courtsOwned: stats['courtsOwned'] ?? 0,
       bookingsMade: stats['bookingsMade'] ?? 0,
       bookingsReceived: stats['bookingsReceived'] ?? 0,
+      profilePicture: json['profilePicture'], // ✅ ADDED
     );
   }
 }
@@ -88,21 +91,17 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
 
   final roles = ['ALL', 'PLAYER', 'OWNER', 'ADMIN'];
 
+  String get _imageBaseUrl => ApiConstants.baseUrl.replaceFirst('/api', '');
+
   @override
   void initState() {
     super.initState();
     _fetchUsers();
   }
 
-  /* =========================
-     FETCH USERS
-  ========================= */
   Future<void> _fetchUsers() async {
     try {
-      final res = await ApiService.get(
-        '/admin/users',
-        widget.adminToken,
-      );
+      final res = await ApiService.get('/admin/users', widget.adminToken);
 
       if (res.statusCode == 200) {
         final decoded = jsonDecode(res.body);
@@ -114,8 +113,6 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
               .toList();
           isLoading = false;
         });
-      } else {
-        throw Exception(res.body);
       }
     } catch (e) {
       debugPrint('Fetch users error: $e');
@@ -123,9 +120,6 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
     }
   }
 
-  /* =========================
-     UPDATE STATUS
-  ========================= */
   Future<void> _updateStatus(UserModel user, String status) async {
     await ApiService.put(
       '/admin/users/${user.id}/status',
@@ -135,9 +129,6 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
     setState(() => user.status = status);
   }
 
-  /* =========================
-     FILTERING (FIXED)
-  ========================= */
   List<UserModel> get filteredUsers {
     if (selectedRole == 'ALL') return allUsers;
     return allUsers.where((u) => u.role == selectedRole).toList();
@@ -164,10 +155,21 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
         return Colors.orange;
       case 'BLOCKED':
         return Colors.red;
-
       default:
         return Colors.grey;
     }
+  }
+
+  /* =========================
+     PROFILE IMAGE HELPERS
+  ========================= */
+  ImageProvider? _profileImage(UserModel u) {
+    if (u.role == 'ADMIN') return null;
+    if (u.profilePicture == null || u.profilePicture!.isEmpty) return null;
+
+    final raw = u.profilePicture!;
+    final url = raw.startsWith('http') ? raw : '$_imageBaseUrl$raw';
+    return NetworkImage(url);
   }
 
   /* =========================
@@ -207,9 +209,6 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
     );
   }
 
-  /* =========================
-     ROLE FILTER
-  ========================= */
   Widget _roleFilter() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -244,6 +243,8 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
      USER CARD
   ========================= */
   Widget _userCard(UserModel u) {
+    final imageProvider = _profileImage(u);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(16),
@@ -261,9 +262,24 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // NAME + ROLE
+          // HEADER
           Row(
             children: [
+              CircleAvatar(
+                radius: 22,
+                backgroundColor: AppColors.primaryColor.withOpacity(0.15),
+                backgroundImage: imageProvider,
+                child: imageProvider == null
+                    ? Text(
+                        u.name.isNotEmpty ? u.name[0].toUpperCase() : '?',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primaryColor,
+                        ),
+                      )
+                    : null,
+              ),
+              const SizedBox(width: 12),
               Expanded(
                 child: Text(u.name, style: AppTextStyles.title),
               ),
@@ -276,7 +292,6 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
 
           const SizedBox(height: 12),
 
-          // STATS (NO REVIEWS)
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
@@ -328,10 +343,8 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
   Widget _stat(String label, int value) {
     return Column(
       children: [
-        Text(
-          value.toString(),
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-        ),
+        Text(value.toString(),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         const SizedBox(height: 4),
         Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
       ],

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../theme/colors.dart';
 import '../theme/app_text_styles.dart';
 import '../services/api_service.dart';
+import '../constants/api_constants.dart';
 
 class CourtOwner {
   final String id;
@@ -11,6 +12,7 @@ class CourtOwner {
   final String email;
   String status;
   final int courts;
+  final String? profilePicture; // ✅ ADDED
 
   CourtOwner({
     required this.id,
@@ -18,15 +20,17 @@ class CourtOwner {
     required this.email,
     required this.status,
     required this.courts,
+    this.profilePicture,
   });
 
   factory CourtOwner.fromJson(Map<String, dynamic> json) {
     return CourtOwner(
       id: json['id'],
-      name: '${json['firstName']} ${json['lastName']}',
-      email: json['email'],
+      name: '${json['firstName'] ?? ''} ${json['lastName'] ?? ''}'.trim(),
+      email: json['email'] ?? '',
       status: json['status'].toString().toUpperCase(),
       courts: json['courtsCount'] ?? 0,
+      profilePicture: json['profilePicture'], // ✅ ADDED
     );
   }
 }
@@ -44,13 +48,14 @@ class _ManageOwnersScreenState extends State<ManageOwnersScreen> {
   List<CourtOwner> owners = [];
   bool isLoading = true;
 
+  String get _imageBaseUrl => ApiConstants.baseUrl.replaceFirst('/api', '');
+
   @override
   void initState() {
     super.initState();
     _fetchOwners();
   }
 
-  /// GET /admin/users?role=COURT_OWNER
   Future<void> _fetchOwners() async {
     try {
       final res = await ApiService.get(
@@ -66,8 +71,6 @@ class _ManageOwnersScreenState extends State<ManageOwnersScreen> {
           owners = list.map((e) => CourtOwner.fromJson(e)).toList();
           isLoading = false;
         });
-      } else {
-        throw Exception(res.body);
       }
     } catch (e) {
       debugPrint('Fetch owners error: $e');
@@ -75,36 +78,30 @@ class _ManageOwnersScreenState extends State<ManageOwnersScreen> {
     }
   }
 
-  /// PUT /admin/users/:id/status
   Future<void> _updateStatus(CourtOwner owner, String status) async {
     await ApiService.put(
       '/admin/users/${owner.id}/status',
       widget.adminToken,
       {'status': status},
     );
-
     setState(() => owner.status = status);
   }
 
-  /// POST /admin/owners/:id/approve
   Future<void> _approveOwner(CourtOwner owner) async {
     await ApiService.post(
       '/admin/owners/${owner.id}/approve',
       widget.adminToken,
       {},
     );
-
     setState(() => owner.status = 'ACTIVE');
   }
 
-  /// POST /admin/owners/:id/reject
   Future<void> _rejectOwner(CourtOwner owner) async {
     await ApiService.post(
       '/admin/owners/${owner.id}/reject',
       widget.adminToken,
       {'reason': 'Rejected by admin'},
     );
-
     setState(() => owner.status = 'REJECTED');
   }
 
@@ -119,6 +116,14 @@ class _ManageOwnersScreenState extends State<ManageOwnersScreen> {
       default:
         return Colors.grey;
     }
+  }
+
+  ImageProvider? _ownerImage(CourtOwner o) {
+    if (o.profilePicture == null || o.profilePicture!.isEmpty) return null;
+
+    final raw = o.profilePicture!;
+    final url = raw.startsWith('http') ? raw : '$_imageBaseUrl$raw';
+    return NetworkImage(url);
   }
 
   @override
@@ -147,6 +152,7 @@ class _ManageOwnersScreenState extends State<ManageOwnersScreen> {
                   itemCount: owners.length,
                   itemBuilder: (_, i) {
                     final o = owners[i];
+                    final imageProvider = _ownerImage(o);
 
                     return Container(
                       margin: const EdgeInsets.only(bottom: 14),
@@ -165,11 +171,27 @@ class _ManageOwnersScreenState extends State<ManageOwnersScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          /// =========================
-                          /// Name + Status
-                          /// =========================
+                          /// HEADER
                           Row(
                             children: [
+                              CircleAvatar(
+                                radius: 22,
+                                backgroundColor:
+                                    AppColors.primaryColor.withOpacity(0.15),
+                                backgroundImage: imageProvider,
+                                child: imageProvider == null
+                                    ? Text(
+                                        o.name.isNotEmpty
+                                            ? o.name[0].toUpperCase()
+                                            : '?',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: AppColors.primaryColor,
+                                        ),
+                                      )
+                                    : null,
+                              ),
+                              const SizedBox(width: 12),
                               Expanded(
                                 child: Text(
                                   o.name,
@@ -200,13 +222,7 @@ class _ManageOwnersScreenState extends State<ManageOwnersScreen> {
 
                           const SizedBox(height: 8),
 
-                          /// =========================
-                          /// Info
-                          /// =========================
-                          Text(
-                            o.email,
-                            style: AppTextStyles.subtitle,
-                          ),
+                          Text(o.email, style: AppTextStyles.subtitle),
                           const SizedBox(height: 4),
                           Text(
                             'Courts owned: ${o.courts}',
@@ -216,9 +232,6 @@ class _ManageOwnersScreenState extends State<ManageOwnersScreen> {
 
                           const SizedBox(height: 14),
 
-                          /// =========================
-                          /// Actions
-                          /// =========================
                           Row(
                             children: [
                               if (o.status != 'ACTIVE')
@@ -227,10 +240,6 @@ class _ManageOwnersScreenState extends State<ManageOwnersScreen> {
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.green,
                                     foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 8,
-                                    ),
                                   ),
                                   child: const Text('Approve'),
                                 ),
@@ -241,10 +250,6 @@ class _ManageOwnersScreenState extends State<ManageOwnersScreen> {
                                   style: OutlinedButton.styleFrom(
                                     foregroundColor: Colors.red,
                                     side: const BorderSide(color: Colors.red),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 8,
-                                    ),
                                   ),
                                   child: const Text('Reject'),
                                 ),

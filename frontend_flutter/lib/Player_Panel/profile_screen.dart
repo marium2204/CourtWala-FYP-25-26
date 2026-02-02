@@ -9,8 +9,6 @@ import '../theme/colors.dart';
 import 'edit_profile_screen.dart';
 import '../authentication_screens/auth_gate.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:http/http.dart' as http;
-import '../constants/api_constants.dart';
 
 // ✅ ADDED
 import '../services/image_upload_service.dart';
@@ -25,9 +23,6 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _loading = true;
   Map<String, dynamic>? _profile;
-
-  final ImagePicker _picker = ImagePicker();
-  bool _uploadingImage = false;
 
   // ✅ ADDED (DO NOT REMOVE OLD VARIABLES)
   File? _newProfileImage;
@@ -153,11 +148,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         : sports.map((s) => '${s['sport']} (${s['skillLevel']})').join(', ');
 
     // ✅ IMAGE PRIORITY: new image → saved image → fallback
+    final String? profilePictureUrl = _profile!['profilePicture'] as String?;
+
     final ImageProvider? profileImageProvider = _newProfileImage != null
-        ? FileImage(_newProfileImage!)
-        : (_profile!['profilePicture'] != null
-            ? NetworkImage(_profile!['profilePicture'])
-            : null);
+        ? FileImage(_newProfileImage!) as ImageProvider
+        : (profilePictureUrl != null && profilePictureUrl.isNotEmpty)
+            ? NetworkImage(profilePictureUrl) as ImageProvider
+            : null;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF6F8FA),

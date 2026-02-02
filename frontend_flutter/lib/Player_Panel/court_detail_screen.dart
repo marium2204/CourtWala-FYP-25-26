@@ -68,6 +68,52 @@ class _CourtDetailScreenState extends State<CourtDetailScreen> {
     }
   }
 
+  // ================= COURT IMAGES (CLOUDINARY SAFE) =================
+  Widget _courtImages(List images) {
+    if (images.isEmpty) {
+      return Container(
+        height: 220,
+        decoration: BoxDecoration(
+          color: Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: const Center(
+          child: Icon(Icons.image_not_supported, size: 48),
+        ),
+      );
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: SizedBox(
+        height: 220,
+        child: PageView.builder(
+          itemCount: images.length,
+          itemBuilder: (_, index) {
+            final img = images[index];
+
+            if (img is! String || img.isEmpty) {
+              return Container(
+                color: Colors.grey.shade300,
+                child: const Icon(Icons.broken_image, size: 40),
+              );
+            }
+
+            return Image.network(
+              img,
+              width: double.infinity,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                color: Colors.grey.shade300,
+                child: const Icon(Icons.broken_image, size: 40),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
@@ -81,12 +127,18 @@ class _CourtDetailScreenState extends State<CourtDetailScreen> {
         body: Center(child: Text('Court not found')),
       );
     }
+
     final String description = court!['description'] ?? '';
     final String addressText = court!['location'] ?? '';
     final String? mapUrl = court!['mapUrl'];
 
     final List<Map<String, dynamic>> sports =
         (court!['sports'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+
+    final List images = court!['images'] is List ? court!['images'] : [];
+
+    final String? firstImage =
+        images.isNotEmpty && images.first is String ? images.first : null;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF6F8FA),
@@ -119,6 +171,9 @@ class _CourtDetailScreenState extends State<CourtDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                _courtImages(images),
+                const SizedBox(height: 16),
+
                 Text(
                   court!['name'],
                   style: const TextStyle(
@@ -127,14 +182,13 @@ class _CourtDetailScreenState extends State<CourtDetailScreen> {
                   ),
                 ),
                 const SizedBox(height: 6),
+
                 if (description.isNotEmpty)
                   Text(
                     description,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      color: Colors.black87,
-                    ),
+                    style: const TextStyle(fontSize: 15),
                   ),
+
                 const SizedBox(height: 14),
                 _detailRow(Icons.location_on, addressText),
 
@@ -151,15 +205,12 @@ class _CourtDetailScreenState extends State<CourtDetailScreen> {
                     ),
                   ),
 
-                // ================= SPORTS =================
                 if (sports.isNotEmpty) ...[
                   const SizedBox(height: 16),
                   const Text(
                     'Sports Available',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style:
+                        TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 8),
                   Wrap(
@@ -168,9 +219,7 @@ class _CourtDetailScreenState extends State<CourtDetailScreen> {
                     children: sports.map((s) {
                       return Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 6,
-                        ),
+                            horizontal: 14, vertical: 6),
                         decoration: BoxDecoration(
                           color: AppColors.primaryColor.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(20),
@@ -190,7 +239,6 @@ class _CourtDetailScreenState extends State<CourtDetailScreen> {
 
                 const SizedBox(height: 20),
 
-                // ================= PRICE =================
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -204,9 +252,7 @@ class _CourtDetailScreenState extends State<CourtDetailScreen> {
                       const Text(
                         "Price per hour",
                         style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                        ),
+                            fontSize: 15, fontWeight: FontWeight.w600),
                       ),
                       Text(
                         "PKR ${court!['pricePerHour']}",
@@ -225,7 +271,6 @@ class _CourtDetailScreenState extends State<CourtDetailScreen> {
 
           const Spacer(),
 
-          // ================= BOOK BUTTON =================
           Padding(
             padding: const EdgeInsets.all(16),
             child: SizedBox(
@@ -243,7 +288,7 @@ class _CourtDetailScreenState extends State<CourtDetailScreen> {
                         location: addressText,
                         sport: sports.map((s) => s['name']).join(', '),
                         price: court!['pricePerHour'].toString(),
-                        image: 'assets/images/court_placeholder.jpg',
+                        image: firstImage, // ✅ CLOUDINARY URL OR NULL
                       ),
                     ),
                   );
@@ -257,10 +302,9 @@ class _CourtDetailScreenState extends State<CourtDetailScreen> {
                 child: const Text(
                   "Book This Court",
                   style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold),
                 ),
               ),
             ),
@@ -278,10 +322,7 @@ class _CourtDetailScreenState extends State<CourtDetailScreen> {
           Icon(icon, color: AppColors.primaryColor),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(
-              text,
-              style: const TextStyle(fontSize: 16),
-            ),
+            child: Text(text, style: const TextStyle(fontSize: 16)),
           ),
         ],
       ),

@@ -27,6 +27,7 @@ class _MatchmakingScreenState extends State<MatchmakingScreen> {
     _fetchPlayers();
   }
 
+  // ================= FETCH PLAYERS =================
   Future<void> _fetchPlayers() async {
     final token = await TokenService.getToken();
     if (token == null) return;
@@ -48,6 +49,7 @@ class _MatchmakingScreenState extends State<MatchmakingScreen> {
     }
   }
 
+  // ================= CHALLENGE DIALOG =================
   void _openChallengeDialog(Map<String, dynamic> player) {
     showDialog(
       context: context,
@@ -86,6 +88,7 @@ class _MatchmakingScreenState extends State<MatchmakingScreen> {
     );
   }
 
+  // ================= SEND REQUEST =================
   Future<void> _sendMatchRequest(String receiverId) async {
     final token = await TokenService.getToken();
 
@@ -100,6 +103,7 @@ class _MatchmakingScreenState extends State<MatchmakingScreen> {
     );
   }
 
+  // ================= UI =================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -120,16 +124,96 @@ class _MatchmakingScreenState extends State<MatchmakingScreen> {
                   itemCount: _players.length,
                   itemBuilder: (_, i) {
                     final p = _players[i];
+
                     final sportsText = (p['sports'] as List)
                         .map((s) => '${s['sport']} (${s['skillLevel']})')
                         .join(', ');
 
-                    return ListTile(
-                      title: Text('${p['firstName']} ${p['lastName']}'),
-                      subtitle: Text(sportsText),
-                      trailing: ElevatedButton(
-                        onPressed: () => _openChallengeDialog(p),
-                        child: const Text('Challenge'),
+                    final String? profilePic = p['profilePicture'];
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.04),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          // ================= PROFILE IMAGE =================
+                          CircleAvatar(
+                            radius: 26,
+                            backgroundColor:
+                                AppColors.primaryColor.withOpacity(0.15),
+                            backgroundImage:
+                                (profilePic != null && profilePic.isNotEmpty)
+                                    ? NetworkImage(profilePic)
+                                    : null,
+                            child: (profilePic == null || profilePic.isEmpty)
+                                ? Text(
+                                    p['firstName'] != null
+                                        ? p['firstName'][0].toUpperCase()
+                                        : '?',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.primaryColor,
+                                    ),
+                                  )
+                                : null,
+                          ),
+
+                          const SizedBox(width: 12),
+
+                          // ================= INFO =================
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${p['firstName']} ${p['lastName']}',
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  sportsText,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(width: 8),
+
+                          // ================= ACTION =================
+                          ElevatedButton(
+                            onPressed: () => _openChallengeDialog(p),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primaryColor,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: const Text(
+                              'Challenge',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ),
+                        ],
                       ),
                     );
                   },

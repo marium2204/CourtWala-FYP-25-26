@@ -40,7 +40,6 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
     token = await TokenService.getToken();
 
     if (token == null) {
-      // 🔴 IMPORTANT FIX: stop loader if token missing
       setState(() => isLoading = false);
       return;
     }
@@ -161,6 +160,12 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
     final List<Map<String, dynamic>> sports =
         (court['sports'] as List?)?.cast<Map<String, dynamic>>() ?? [];
 
+    final List images = court['images'] is List ? court['images'] : [];
+    final String? imageUrl =
+        images.isNotEmpty && images.first.toString().isNotEmpty
+            ? images.first
+            : null;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(14),
@@ -178,6 +183,21 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ✅ COURT IMAGE (ADDED)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: imageUrl != null
+                ? Image.network(
+                    imageUrl,
+                    height: 140,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => _imagePlaceholder(),
+                  )
+                : _imagePlaceholder(),
+          ),
+          const SizedBox(height: 12),
+
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -283,6 +303,14 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
       ),
     );
   }
+
+  Widget _imagePlaceholder() => Container(
+        height: 140,
+        color: Colors.grey.shade200,
+        child: const Center(
+          child: Icon(Icons.image_not_supported, size: 40),
+        ),
+      );
 
   // ================= OTHER SCREENS =================
   Widget _otherScreens() {

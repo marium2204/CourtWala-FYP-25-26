@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../theme/colors.dart';
 import '../theme/app_text_styles.dart';
 import '../services/api_service.dart';
+import '../constants/api_constants.dart';
 
 /// =======================
 /// COURT MODEL
@@ -68,6 +69,8 @@ class _ManageCourtsScreenState extends State<ManageCourtsScreen> {
   List<Court> courts = [];
   bool isLoading = true;
 
+  String get _imageBaseUrl => ApiConstants.baseUrl.replaceFirst('/api', '');
+
   @override
   void initState() {
     super.initState();
@@ -111,6 +114,43 @@ class _ManageCourtsScreenState extends State<ManageCourtsScreen> {
   bool _isPending(String status) => status == 'PENDING_APPROVAL';
 
   /// =======================
+  /// IMAGE HELPERS
+  /// =======================
+  String _resolveImage(String raw) {
+    if (raw.startsWith('http')) return raw;
+    return '$_imageBaseUrl$raw';
+  }
+
+  Widget _courtThumbnail(Court c) {
+    if (c.images.isEmpty) {
+      return _imagePlaceholder(80);
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: Image.network(
+        _resolveImage(c.images.first),
+        width: 80,
+        height: 80,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _imagePlaceholder(80),
+      ),
+    );
+  }
+
+  Widget _imagePlaceholder(double size) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: Colors.grey.shade200,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: const Icon(Icons.image_not_supported),
+    );
+  }
+
+  /// =======================
   /// OPEN GOOGLE MAPS
   /// =======================
   Future<void> _openMap(String url) async {
@@ -141,7 +181,30 @@ class _ManageCourtsScreenState extends State<ManageCourtsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(c.name, style: AppTextStyles.title),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
+
+              // ================= IMAGES =================
+              if (c.images.isNotEmpty) ...[
+                SizedBox(
+                  height: 160,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: c.images.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 10),
+                    itemBuilder: (_, i) => ClipRRect(
+                      borderRadius: BorderRadius.circular(14),
+                      child: Image.network(
+                        _resolveImage(c.images[i]),
+                        width: 200,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _imagePlaceholder(200),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+
               if (c.mapUrl.isNotEmpty)
                 ElevatedButton.icon(
                   onPressed: () => _openMap(c.mapUrl),
@@ -154,17 +217,19 @@ class _ManageCourtsScreenState extends State<ManageCourtsScreen> {
                         borderRadius: BorderRadius.circular(14)),
                   ),
                 ),
+
               _section('Sports'),
               Wrap(
                 spacing: 8,
-                runSpacing: 8,
                 children: c.sports.map((s) => Chip(label: Text(s))).toList(),
               ),
+
               _section('Amenities'),
               Wrap(
                 spacing: 8,
                 children: c.amenities.map((a) => Chip(label: Text(a))).toList(),
               ),
+
               _section('Slots'),
               slots.isEmpty
                   ? const Text('No slots')
@@ -224,82 +289,36 @@ class _ManageCourtsScreenState extends State<ManageCourtsScreen> {
                       ),
                     ],
                   ),
-                  child: Column(
+                  child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(c.name, style: AppTextStyles.title),
-                      const SizedBox(height: 4),
-                      Text(c.address, style: AppTextStyles.subtitle),
-                      const SizedBox(height: 6),
-                      Text('PKR ${c.pricePerHour}/hour',
-                          style: AppTextStyles.subtitle),
-
-                      const SizedBox(height: 10),
-
-                      Chip(
-                        label: Text(c.status,
-                            style:
-                                const TextStyle(fontWeight: FontWeight.bold)),
-                        backgroundColor:
-                            _statusColor(c.status).withOpacity(0.15),
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: () => _showDetails(c),
-                          icon: const Icon(Icons.visibility),
-                          label: const Text('View Full Details'),
-                        ),
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      // =======================
-                      // STATUS ACTIONS (ADDED)
-                      // =======================
-                      if (_isPending(c.status)) ...[
-                        Row(
+                      _courtThumbnail(c),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(
-                              child: ElevatedButton(
-                                onPressed: () =>
-                                    _updateCourtStatus(c, 'ACTIVE'),
-                                child: const Text('Approve'),
-                              ),
+                            Text(c.name, style: AppTextStyles.title),
+                            Text(c.address, style: AppTextStyles.subtitle),
+                            Text('PKR ${c.pricePerHour}/hour',
+                                style: AppTextStyles.subtitle),
+                            const SizedBox(height: 8),
+                            Chip(
+                              label: Text(c.status,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold)),
+                              backgroundColor:
+                                  _statusColor(c.status).withOpacity(0.15),
                             ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: OutlinedButton(
-                                onPressed: () =>
-                                    _updateCourtStatus(c, 'REJECTED'),
-                                child: const Text('Reject',
-                                    style: TextStyle(color: Colors.red)),
-                              ),
+                            const SizedBox(height: 10),
+                            OutlinedButton.icon(
+                              onPressed: () => _showDetails(c),
+                              icon: const Icon(Icons.visibility),
+                              label: const Text('View Full Details'),
                             ),
                           ],
                         ),
-                      ],
-
-                      if (c.status == 'ACTIVE')
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton(
-                            onPressed: () => _updateCourtStatus(c, 'INACTIVE'),
-                            child: const Text('Inactivate'),
-                          ),
-                        ),
-
-                      if (c.status == 'INACTIVE' || c.status == 'REJECTED')
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: () => _updateCourtStatus(c, 'ACTIVE'),
-                            child: const Text('Activate'),
-                          ),
-                        ),
+                      ),
                     ],
                   ),
                 );

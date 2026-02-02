@@ -296,65 +296,88 @@ static async getAdminCourtById(id) {
   /* =========================
      OWNER: UPDATE COURT
   ========================= */
-  static async update(id, data, ownerId) {
-    const court = await prisma.court.findUnique({ where: { id } });
+static async update(id, data, ownerId) {
+  const court = await prisma.court.findUnique({ where: { id } });
 
-    if (!court) throw new AppError('Court not found', 404);
-    if (court.ownerId !== ownerId)
-      throw new AppError('You do not have permission to update this court', 403);
+  if (!court) throw new AppError('Court not found', 404);
+  if (court.ownerId !== ownerId)
+    throw new AppError('You do not have permission to update this court', 403);
 
-    const { sports, ...rest } = data;
-    const updateData = {};
+  const { sports, ...rest } = data;
+  const updateData = {};
 
-    if (rest.name) updateData.name = rest.name;
-    if (rest.description !== undefined) updateData.description = rest.description;
-    if (rest.address) updateData.address = rest.address;
-    if (rest.city) updateData.city = rest.city;
+  if (rest.name) updateData.name = rest.name;
+  if (rest.description !== undefined)
+    updateData.description = rest.description;
+  if (rest.address) updateData.address = rest.address;
+  if (rest.city) updateData.city = rest.city;
 
-    if (rest.mapUrl !== undefined) {
-      if (!rest.mapUrl.trim()) {
-        throw new AppError('Google Maps location URL cannot be empty', 400);
-      }
-      updateData.mapUrl = rest.mapUrl;
+  if (rest.mapUrl !== undefined) {
+    if (!rest.mapUrl.trim()) {
+      throw new AppError('Google Maps location URL cannot be empty', 400);
     }
-
-    if (rest.pricePerHour !== undefined) {
-      updateData.pricePerHour = Number(rest.pricePerHour);
-      updateData.price = Number(rest.pricePerHour);
-    }
-
-    if (rest.amenities) {
-      updateData.amenities = rest.amenities;
-      updateData.facilities = rest.amenities;
-    }
-
-    if (rest.images) updateData.images = rest.images;
-
-    if (rest.address || rest.city) {
-      updateData.location = `${rest.address || court.address}, ${
-        rest.city || court.city
-      }`;
-    }
-
-    if (court.status === 'ACTIVE') {
-      updateData.status = 'PENDING_APPROVAL';
-    }
-
-    await prisma.$transaction([
-      prisma.courtSport.deleteMany({ where: { courtId: id } }),
-      prisma.court.update({
-        where: { id },
-        data: {
-          ...updateData,
-          courtSports: {
-            create: (sports || []).map(sportId => ({ sportId })),
-          },
-        },
-      }),
-    ]);
-
-    return true;
+    updateData.mapUrl = rest.mapUrl;
   }
+
+  if (rest.pricePerHour !== undefined) {
+    updateData.pricePerHour = Number(rest.pricePerHour);
+    updateData.price = Number(rest.pricePerHour);
+  }
+
+  if (rest.amenities) {
+    updateData.amenities = rest.amenities;
+    updateData.facilities = rest.amenities;
+  }
+
+  // =========================
+  // ✅ CLOUDINARY IMAGE LOGIC
+  // =========================
+  let finalImages = [];
+
+  if (rest.existingImages) {
+    if (Array.isArray(rest.existingImages)) {
+      finalImages = rest.existingImages;
+    } else if (typeof rest.existingImages === 'string') {
+      try {
+        finalImages = JSON.parse(rest.existingImages);
+      } catch {
+        throw new AppError('Invalid existingImages format', 400);
+      }
+    }
+  }
+
+  if (rest.images && Array.isArray(rest.images)) {
+    finalImages = [...finalImages, ...rest.images];
+  }
+
+  updateData.images = finalImages;
+
+  if (rest.address || rest.city) {
+    updateData.location = `${rest.address || court.address}, ${
+      rest.city || court.city
+    }`;
+  }
+
+  if (court.status === 'ACTIVE') {
+    updateData.status = 'PENDING_APPROVAL';
+  }
+
+  await prisma.$transaction([
+    prisma.courtSport.deleteMany({ where: { courtId: id } }),
+    prisma.court.update({
+      where: { id },
+      data: {
+        ...updateData,
+        courtSports: {
+          create: (sports || []).map(sportId => ({ sportId })),
+        },
+      },
+    }),
+  ]);
+
+  return true;
+}
+
 
   /* =========================
      OWNER: DELETE COURT
