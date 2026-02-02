@@ -371,58 +371,55 @@ static async getAdminCourtById(id) {
   /* =========================
      OWNER: GET MY COURTS
   ========================= */
-  static async getOwnerCourts(ownerId, filters = {}) {
-    const { status, limit = 20, page = 1 } = filters;
-    const skip = (page - 1) * limit;
-    const normalizedStatus = status ? this.normalizeStatus(status) : undefined;
+  /* =========================
+   OWNER: GET MY COURTS (FIXED)
+========================= */
+static async getOwnerCourts(ownerId, filters = {}) {
+  const { status, limit = 20, page = 1 } = filters;
+  const skip = (page - 1) * limit;
+  const normalizedStatus = status ? this.normalizeStatus(status) : undefined;
 
-    const where = {
-      ownerId,
-      ...(normalizedStatus && { status: normalizedStatus }),
-    };
+  const where = {
+    ownerId,
+    ...(normalizedStatus && { status: normalizedStatus }),
+  };
 
-   const [users, total] = await Promise.all([
-  prisma.user.findMany({
-    where,
-    skip,
-    take: limit,
-    orderBy: { createdAt: 'desc' },
-    include: {
-      _count: {
-        select: {
-          courts: true,
-          bookings: true,
-          courtReviews: true, // ✅ FIX
+  const [courts, total] = await Promise.all([
+    prisma.court.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        courtSports: {
+          include: {
+            sport: { select: { id: true, name: true } },
+          },
         },
-      },
-      courts: {
-        select: {
-          _count: {
-            select: {
-              bookings: true,
-            },
+        _count: {
+          select: {
+            bookings: true,
+            reviews: true,
           },
         },
       },
+    }),
+    prisma.court.count({ where }),
+  ]);
+
+  return {
+    courts: courts.map(c => ({
+      ...c,
+      sports: c.courtSports.map(cs => cs.sport),
+    })),
+    pagination: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
     },
-  }),
-  prisma.user.count({ where }),
-]);
-
-
-    return {
-      courts: courts.map(c => ({
-        ...c,
-        sports: c.courtSports.map(cs => cs.sport),
-      })),
-      pagination: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
-    };
-  }
+  };
+}
 
   /* =========================
      ADMIN: UPDATE COURT STATUS

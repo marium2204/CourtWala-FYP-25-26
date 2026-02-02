@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate, authorize } = require('../middleware/AuthMiddleware');
+const { uploadSingle } = require('../utils/FileUpload');
+
 
 // Controllers
 const BookingController = require('../controllers/Player/BookingController');
@@ -19,7 +21,13 @@ router.use(authorize('PLAYER'));
 
 // Profile routes
 router.get('/profile', ProfileController.getProfile);
-router.put('/profile', validateUpdateProfile, ProfileController.updateProfile);
+router.put(
+  '/profile',
+  uploadSingle('profilePicture'), // 🔥 THIS WAS MISSING
+  validateUpdateProfile,
+  ProfileController.updateProfile
+);
+
 router.put('/profile/sports', ProfileController.updateSports);
 router.post('/profile/change-password', validateChangePassword, ProfileController.changePassword);
 

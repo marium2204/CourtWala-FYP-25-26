@@ -35,17 +35,6 @@ const validateCreateCourt = [
     .isLength({ min: 2, max: 100 })
     .withMessage('City must be between 2 and 100 characters'),
 
-  body('state')
-    .trim()
-    .notEmpty().withMessage('State is required')
-    .isLength({ min: 2, max: 50 })
-    .withMessage('State must be between 2 and 50 characters'),
-
-  body('zipCode')
-    .trim()
-    .notEmpty().withMessage('Zip code is required')
-    .matches(/^\d{5}(-\d{4})?$/)
-    .withMessage('Zip code must be a valid format (e.g., 10001 or 10001-1234)'),
 
   // 🔥 MULTI-SPORT (REPLACES `sport`)
   body('sports')

@@ -12,9 +12,15 @@ class ProfileController extends BaseController {
   });
 
   static updateProfile = asyncHandler(async (req, res) => {
-    const profile = await ProfileService.updateProfile(req.user.id, req.body);
-    return BaseController.success(res, profile, 'Profile updated successfully');
-  });
+  const profile = await ProfileService.updateProfile(
+    req.user.id,
+    req.body,
+    req.file // 🔥 PASS FILE TO SERVICE
+  );
+
+  return BaseController.success(res, profile, 'Profile updated successfully');
+});
+
 
   static updateSports = asyncHandler(async (req, res) => {
     const result = await ProfileService.updateSports(

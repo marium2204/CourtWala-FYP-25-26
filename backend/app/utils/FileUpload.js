@@ -3,8 +3,10 @@ const path = require('path');
 const fs = require('fs');
 const config = require('../../config/app');
 
+// ✅ SINGLE uploads directory (ABSOLUTE PATH)
+const uploadDir = path.join(__dirname, '../../uploads');
+
 // Ensure upload directory exists
-const uploadDir = path.join(__dirname, '../../', config.upload.uploadPath);
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
@@ -16,7 +18,10 @@ const storage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+    cb(
+      null,
+      `${file.fieldname}-${uniqueSuffix}${path.extname(file.originalname)}`
+    );
   },
 });
 
@@ -53,11 +58,12 @@ const uploadMultiple = (fieldName = 'images', maxCount = 10) => {
 };
 
 /**
- * Get file URL
+ * Build public file URL
+ * DB should store ONLY filename
  */
 const getFileUrl = (filename) => {
   if (!filename) return null;
-  return `${config.app.url}/${config.upload.uploadPath}/${filename}`;
+  return `${config.app.url}/uploads/${filename}`;
 };
 
 module.exports = {
@@ -65,4 +71,3 @@ module.exports = {
   uploadMultiple,
   getFileUrl,
 };
-

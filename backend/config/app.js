@@ -15,7 +15,15 @@ module.exports = {
   },
   upload: {
     maxFileSize: parseInt(process.env.MAX_FILE_SIZE) || 5 * 1024 * 1024, // 5MB
-    allowedImageTypes: ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'],
+    allowedImageTypes: [
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
+  'image/heic',
+  'image/heif',
+],
+
     uploadPath: process.env.UPLOAD_PATH || 'uploads',
   },
   email: {

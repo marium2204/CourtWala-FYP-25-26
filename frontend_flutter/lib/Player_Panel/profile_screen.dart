@@ -7,6 +7,9 @@ import '../services/token_service.dart';
 import '../theme/colors.dart';
 import 'edit_profile_screen.dart';
 import '../authentication_screens/auth_gate.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
+import '../constants/api_constants.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -18,6 +21,8 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _loading = true;
   Map<String, dynamic>? _profile;
+  final ImagePicker _picker = ImagePicker();
+  bool _uploadingImage = false;
 
   @override
   void initState() {
@@ -48,6 +53,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } catch (e) {
       debugPrint('Profile fetch error: $e');
       setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _updateProfileImage() async {
+    final picked = await _picker.pickImage(source: ImageSource.gallery);
+    if (picked == null) return;
+
+    setState(() => _uploadingImage = true);
+
+    try {
+      final token = await TokenService.getToken();
+      if (token == null) return;
+
+      final uri = Uri.parse('${ApiConstants.baseUrl}/player/profile');
+      final request = http.MultipartRequest('PUT', uri);
+      request.headers['Authorization'] = 'Bearer $token';
+
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'profilePicture',
+          picked.path,
+        ),
+      );
+
+      final res = await request.send();
+      final body = jsonDecode(await res.stream.bytesToString());
+
+      if (res.statusCode == 200 && body['success'] == true) {
+        _fetchProfile(); // 🔁 refresh only
+      } else {
+        throw body['message'] ?? 'Image update failed';
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(e.toString())));
+    } finally {
+      if (mounted) setState(() => _uploadingImage = false);
     }
   }
 
@@ -149,13 +192,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               child: Column(
                 children: [
-                  CircleAvatar(
-                    radius: 42,
-                    backgroundColor: AppColors.primaryColor.withOpacity(0.15),
-                    child: const Icon(
-                      Icons.person,
-                      size: 42,
-                      color: AppColors.primaryColor,
+                  GestureDetector(
+                    onTap: _uploadingImage ? null : _updateProfileImage,
+                    child: Stack(
+                      children: [
+                        CircleAvatar(
+                          radius: 42,
+                          backgroundColor:
+                              AppColors.primaryColor.withOpacity(0.15),
+                          backgroundImage: _profile!['profilePicture'] != null
+                              ? NetworkImage(_profile!['profilePicture'])
+                              : null,
+                          child: _profile!['profilePicture'] == null
+                              ? const Icon(
+                                  Icons.person,
+                                  size: 42,
+                                  color: AppColors.primaryColor,
+                                )
+                              : null,
+                        ),
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: CircleAvatar(
+                            radius: 14,
+                            backgroundColor: AppColors.primaryColor,
+                            child: _uploadingImage
+                                ? const SizedBox(
+                                    width: 12,
+                                    height: 12,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Icon(
+                                    Icons.edit,
+                                    size: 14,
+                                    color: Colors.white,
+                                  ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 12),

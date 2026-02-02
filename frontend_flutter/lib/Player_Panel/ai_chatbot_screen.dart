@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import '../services/token_service.dart';
 import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
 
@@ -25,6 +25,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     {
       'text': 'Hi! I am CourtWala AI 🤖\nHow can I help you?',
       'isUser': false,
+      'type': 'AI',
       'time': DateTime.now(),
     },
   ];
@@ -48,6 +49,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
       _messages.add({
         'text': text,
         'isUser': true,
+        'type': 'USER',
         'time': DateTime.now(),
       });
       _botTyping = true;
@@ -57,15 +59,35 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     _scrollToBottom();
 
     try {
+      final isMyBookings = text.toLowerCase().contains('my booking');
+      final token = await TokenService.getToken();
+
+      if (isMyBookings && token == null) {
+        await _typeBotMessage('Please log in to view your bookings.', 'AI');
+        return;
+      }
+
+      final uri = isMyBookings
+          ? Uri.parse('${ApiConstants.baseUrl}/chat/my-bookings')
+          : Uri.parse('${ApiConstants.baseUrl}/chat');
+
+      final headers = {
+        'Content-Type': 'application/json',
+        if (isMyBookings) 'Authorization': 'Bearer $token',
+      };
+
       final res = await http.post(
-        Uri.parse('${ApiConstants.baseUrl}/chat'),
-        headers: {'Content-Type': 'application/json'},
+        uri,
+        headers: headers,
         body: jsonEncode({'message': text}),
       );
 
       if (res.statusCode == 200) {
-        final reply = jsonDecode(res.body)['reply'] ?? 'No response';
-        await _typeBotMessage(reply);
+        final body = jsonDecode(res.body);
+        await _typeBotMessage(
+          body['reply'] ?? 'No response',
+          body['type'] ?? 'AI',
+        );
       } else {
         _addError();
       }
@@ -77,19 +99,20 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   }
 
   // ================= BOT TYPING EFFECT =================
-  Future<void> _typeBotMessage(String text) async {
+  Future<void> _typeBotMessage(String text, String type) async {
     final index = _messages.length;
 
     setState(() {
       _messages.add({
         'text': '',
         'isUser': false,
+        'type': type,
         'time': DateTime.now(),
       });
     });
 
     for (int i = 0; i < text.length; i++) {
-      await Future.delayed(const Duration(milliseconds: 25));
+      await Future.delayed(const Duration(milliseconds: 18));
       setState(() {
         _messages[index]['text'] += text[i];
       });
@@ -101,6 +124,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     _messages.add({
       'text': '⚠️ AI service unavailable.',
       'isUser': false,
+      'type': 'AI',
       'time': DateTime.now(),
     });
   }
@@ -120,33 +144,27 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   // ================= UI =================
   @override
   Widget build(BuildContext context) {
-    final bg = _isDarkMode ? const Color(0xFF121212) : const Color(0xFFF6F8FA);
-    final userBubble =
-        _isDarkMode ? AppColors.primaryColor : AppColors.primaryColor;
-    final botBubble = _isDarkMode ? const Color(0xFF1E1E1E) : Colors.white;
+    final bg = _isDarkMode ? const Color(0xFF0F1115) : const Color(0xFFF6F8FA);
+    final userBubble = AppColors.primaryColor;
+    final botBubble = _isDarkMode ? const Color(0xFF262A33) : Colors.white;
     final textColor = _isDarkMode ? Colors.white : Colors.black87;
 
     return Scaffold(
       backgroundColor: bg,
       appBar: AppBar(
         backgroundColor: _isDarkMode ? Colors.black : AppColors.primaryColor,
+        iconTheme: const IconThemeData(color: Colors.white),
         title: const Text(
           'CourtWala AI',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
-        iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           IconButton(
             icon: Icon(
               _isDarkMode ? Icons.light_mode : Icons.dark_mode,
               color: Colors.white,
             ),
-            onPressed: () {
-              setState(() => _isDarkMode = !_isDarkMode);
-            },
+            onPressed: () => setState(() => _isDarkMode = !_isDarkMode),
           ),
         ],
       ),
@@ -172,74 +190,24 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                 }
 
                 final msg = _messages[i];
-                final isUser = msg['isUser'] == true;
                 final time = _safeDateTime(msg['time']);
+
+                if (msg['type'] == 'DATA') {
+                  return _dataCard(msg['text'], time);
+                }
+
+                final isUser = msg['isUser'] == true;
 
                 return Align(
                   alignment:
                       isUser ? Alignment.centerRight : Alignment.centerLeft,
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(vertical: 6),
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: isUser ? userBubble : botBubble,
-                      borderRadius: BorderRadius.circular(18),
-                      boxShadow: [
-                        if (!isUser)
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.04),
-                            blurRadius: 6,
-                            offset: const Offset(0, 3),
-                          ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: isUser
-                          ? CrossAxisAlignment.end
-                          : CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          msg['text'],
-                          style: TextStyle(
-                            color: isUser ? Colors.white : textColor,
-                            height: 1.4,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              DateFormat('hh:mm a').format(time),
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.grey.shade400,
-                              ),
-                            ),
-                            if (!isUser) ...[
-                              const SizedBox(width: 8),
-                              GestureDetector(
-                                onTap: () {
-                                  Clipboard.setData(
-                                    ClipboardData(text: msg['text']),
-                                  );
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Copied to clipboard'),
-                                    ),
-                                  );
-                                },
-                                child: const Icon(
-                                  Icons.copy,
-                                  size: 14,
-                                  color: Colors.grey,
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ],
-                    ),
+                  child: _chatBubble(
+                    msg['text'],
+                    time,
+                    isUser,
+                    userBubble,
+                    botBubble,
+                    textColor,
                   ),
                 );
               },
@@ -251,6 +219,91 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     );
   }
 
+  // ================= DATA CARD =================
+  Widget _dataCard(String text, DateTime time) {
+    final isDark = _isDarkMode;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 10),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1F2933) : Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.15),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            text,
+            style: TextStyle(
+              height: 1.5,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            DateFormat('hh:mm a').format(time),
+            style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ================= CHAT BUBBLE =================
+  Widget _chatBubble(
+    String text,
+    DateTime time,
+    bool isUser,
+    Color userBubble,
+    Color botBubble,
+    Color textColor,
+  ) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isUser ? userBubble : botBubble,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: isUser
+            ? []
+            : [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.25),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+      ),
+      child: Column(
+        crossAxisAlignment:
+            isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        children: [
+          Text(
+            text,
+            style: TextStyle(
+              color: isUser ? Colors.white : textColor,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            DateFormat('hh:mm a').format(time),
+            style: TextStyle(fontSize: 10, color: Colors.grey.shade400),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ================= INPUT BOX =================
   Widget _inputBox(Color textColor) {
     return Padding(
       padding: const EdgeInsets.all(12),
@@ -262,12 +315,31 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
               style: TextStyle(color: textColor),
               decoration: InputDecoration(
                 hintText: 'Ask CourtWala AI...',
-                hintStyle: TextStyle(color: textColor.withOpacity(0.6)),
+                hintStyle: TextStyle(
+                  color: _isDarkMode ? Colors.grey.shade400 : Colors.grey,
+                ),
                 filled: true,
-                fillColor: _isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+                fillColor: _isDarkMode ? const Color(0xFF1A1E27) : Colors.white,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(30),
-                  borderSide: BorderSide.none,
+                  borderSide: BorderSide(
+                    color:
+                        _isDarkMode ? Colors.grey.shade700 : Colors.transparent,
+                  ),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(30),
+                  borderSide: BorderSide(
+                    color:
+                        _isDarkMode ? Colors.grey.shade700 : Colors.transparent,
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(30),
+                  borderSide: BorderSide(
+                    color: AppColors.primaryColor,
+                    width: 1.2,
+                  ),
                 ),
               ),
             ),

@@ -95,7 +95,7 @@ class _CourtOwnerProfileScreenState extends State<CourtOwnerProfileScreen> {
     final totalBookings = dashboard!['totalBookings'] ?? 0;
     final pendingBookings = dashboard!['pendingBookings'] ?? 0;
     final confirmedBookings = dashboard!['confirmedBookings'] ?? 0;
-
+final profileImage = owner!['profilePicture'];
     return Scaffold(
       backgroundColor: const Color(0xFFF6F8FA),
       body: SingleChildScrollView(
@@ -117,18 +117,26 @@ class _CourtOwnerProfileScreenState extends State<CourtOwnerProfileScreen> {
             ),
             child: Row(
               children: [
-                CircleAvatar(
-                  radius: 36,
-                  backgroundColor: AppColors.primaryColor,
-                  child: Text(
-                    name.isNotEmpty ? name[0].toUpperCase() : '?',
-                    style: const TextStyle(
-                      fontSize: 26,
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
+                
+
+CircleAvatar(
+  radius: 36,
+  backgroundColor: AppColors.primaryColor.withOpacity(0.15),
+  backgroundImage: profileImage != null && profileImage.toString().isNotEmpty
+      ? NetworkImage(profileImage)
+      : null,
+  child: profileImage == null || profileImage.toString().isEmpty
+      ? Text(
+          name.isNotEmpty ? name[0].toUpperCase() : '?',
+          style: const TextStyle(
+            fontSize: 26,
+            color: AppColors.primaryColor,
+            fontWeight: FontWeight.bold,
+          ),
+        )
+      : null,
+),
+
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(

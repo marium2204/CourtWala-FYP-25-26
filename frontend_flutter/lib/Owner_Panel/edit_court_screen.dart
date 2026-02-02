@@ -6,10 +6,10 @@ import 'package:image_picker/image_picker.dart';
 import '../theme/colors.dart';
 import '../services/api_service.dart';
 import '../services/token_service.dart';
+import '../constants/api_constants.dart';
 
 class EditCourtScreen extends StatefulWidget {
   final Map<String, dynamic> court;
-
   const EditCourtScreen({super.key, required this.court});
 
   @override
@@ -31,11 +31,13 @@ class _EditCourtScreenState extends State<EditCourtScreen> {
 
   final ImagePicker _picker = ImagePicker();
   final List<File> newImages = [];
-  final List<Map<String, dynamic>> _slots = [];
+  late List<String> existingImages;
 
-  /// 🔥 SPORTS
+  final List<Map<String, dynamic>> _slots = [];
   List<Map<String, dynamic>> _sports = [];
   final Set<String> _selectedSportIds = {};
+
+  String get _imageBaseUrl => ApiConstants.baseUrl.replaceFirst('/api', '');
 
   @override
   void initState() {
@@ -48,7 +50,8 @@ class _EditCourtScreenState extends State<EditCourtScreen> {
         TextEditingController(text: widget.court['pricePerHour']?.toString());
     _mapUrlCtrl = TextEditingController(text: widget.court['mapUrl'] ?? '');
 
-    /// preload existing sports
+    existingImages = (widget.court['images'] as List?)?.cast<String>() ?? [];
+
     if (widget.court['sports'] != null) {
       for (final s in widget.court['sports']) {
         _selectedSportIds.add(s['id']);
@@ -59,8 +62,6 @@ class _EditCourtScreenState extends State<EditCourtScreen> {
     _loadSports();
   }
 
-  /* ================= SPORTS ================= */
-
   Future<void> _loadSports() async {
     final token = await TokenService.getToken();
     if (token == null) return;
@@ -68,7 +69,6 @@ class _EditCourtScreenState extends State<EditCourtScreen> {
     try {
       final res = await ApiService.get('/sports', token);
       final body = jsonDecode(res.body);
-
       setState(() {
         _sports = List<Map<String, dynamic>>.from(body['data']);
         loadingSports = false;
@@ -77,8 +77,6 @@ class _EditCourtScreenState extends State<EditCourtScreen> {
       setState(() => loadingSports = false);
     }
   }
-
-  /* ================= SLOTS ================= */
 
   Future<void> _fetchSlots() async {
     try {
@@ -101,6 +99,31 @@ class _EditCourtScreenState extends State<EditCourtScreen> {
     } finally {
       if (mounted) setState(() => loadingSlots = false);
     }
+  }
+
+  Future<void> _pickImage() async {
+    final x = await _picker.pickImage(source: ImageSource.gallery);
+    if (x != null) setState(() => newImages.add(File(x.path)));
+  }
+
+  Widget _networkImage(String path) {
+    final url = path.startsWith('http') ? path : '$_imageBaseUrl$path';
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: Image.network(
+        url,
+        width: 80,
+        height: 80,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => Container(
+          width: 80,
+          height: 80,
+          color: Colors.grey.shade300,
+          child: const Icon(Icons.broken_image),
+        ),
+      ),
+    );
   }
 
   String _to24(TimeOfDay t) =>
@@ -145,15 +168,12 @@ class _EditCourtScreenState extends State<EditCourtScreen> {
     _fetchSlots();
   }
 
-  /* ================= UPDATE ================= */
-
   Future<void> _updateCourt() async {
     if (!_formKey.currentState!.validate()) return;
 
     if (_selectedSportIds.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Select at least one sport')),
-      );
+          const SnackBar(content: Text('Select at least one sport')));
       return;
     }
 
@@ -172,7 +192,7 @@ class _EditCourtScreenState extends State<EditCourtScreen> {
         'sports': jsonEncode(_selectedSportIds.toList()),
       };
 
-      final res = await ApiService.multipartPut(
+      await ApiService.multipartPut(
         '/owner/courts/${widget.court['id']}',
         token,
         fields,
@@ -180,21 +200,11 @@ class _EditCourtScreenState extends State<EditCourtScreen> {
         fileField: 'images',
       );
 
-      if (res.statusCode == 200) {
-        Navigator.pop(context, true);
-      } else {
-        throw Exception(res.body);
-      }
-    } catch (_) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to update court')),
-      );
+      if (mounted) Navigator.pop(context, true);
     } finally {
-      setState(() => isLoading = false);
+      if (mounted) setState(() => isLoading = false);
     }
   }
-
-  /* ================= UI ================= */
 
   @override
   Widget build(BuildContext context) {
@@ -220,18 +230,34 @@ class _EditCourtScreenState extends State<EditCourtScreen> {
                           _field(_nameCtrl, 'Court Name'),
                           _field(_addressCtrl, 'Address'),
                           _field(_cityCtrl, 'City'),
-                          _field(
-                            _mapUrlCtrl,
-                            'Google Maps URL',
-                            keyboard: TextInputType.url,
-                          ),
-                          const SizedBox(height: 10),
+                          _field(_mapUrlCtrl, 'Google Maps URL',
+                              keyboard: TextInputType.url),
                           _sportsSelector(),
-                          _field(
-                            _priceCtrl,
-                            'Price per hour',
-                            keyboard: TextInputType.number,
-                          ),
+                          _field(_priceCtrl, 'Price per hour',
+                              keyboard: TextInputType.number),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    _sectionCard(
+                      title: 'Images',
+                      trailing: IconButton(
+                        icon: const Icon(Icons.add_photo_alternate),
+                        onPressed: _pickImage,
+                      ),
+                      child: Wrap(
+                        spacing: 10,
+                        children: [
+                          ...existingImages.map(_networkImage),
+                          ...newImages.map((f) => ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.file(
+                                  f,
+                                  width: 80,
+                                  height: 80,
+                                  fit: BoxFit.cover,
+                                ),
+                              )),
                         ],
                       ),
                     ),
@@ -267,10 +293,8 @@ class _EditCourtScreenState extends State<EditCourtScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primaryColor,
                         ),
-                        child: const Text(
-                          'Update Court',
-                          style: TextStyle(color: Colors.white),
-                        ),
+                        child: const Text('Update Court',
+                            style: TextStyle(color: Colors.white)),
                       ),
                     ),
                   ],
@@ -280,64 +304,58 @@ class _EditCourtScreenState extends State<EditCourtScreen> {
     );
   }
 
-  /* ================= HELPERS ================= */
-
   Widget _sectionCard({
     required String title,
     Widget? trailing,
     required Widget child,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(children: [
-            Text(title,
-                style:
-                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const Spacer(),
-            if (trailing != null) trailing,
-          ]),
-          const SizedBox(height: 16),
-          child,
-        ],
-      ),
-    );
-  }
+  }) =>
+      Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              Text(title,
+                  style: const TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.bold)),
+              const Spacer(),
+              if (trailing != null) trailing,
+            ]),
+            const SizedBox(height: 16),
+            child,
+          ],
+        ),
+      );
 
   Widget _field(
     TextEditingController c,
     String label, {
     TextInputType keyboard = TextInputType.text,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
-      child: TextFormField(
-        controller: c,
-        keyboardType: keyboard,
-        validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-        decoration: InputDecoration(
-          labelText: label,
-          filled: true,
-          fillColor: const Color(0xFFF2F4F6),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
+  }) =>
+      Padding(
+        padding: const EdgeInsets.only(bottom: 14),
+        child: TextFormField(
+          controller: c,
+          keyboardType: keyboard,
+          validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+          decoration: InputDecoration(
+            labelText: label,
+            filled: true,
+            fillColor: const Color(0xFFF2F4F6),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
           ),
         ),
-      ),
-    );
-  }
+      );
 
   Widget _sportsSelector() {
-    if (loadingSports) {
-      return const CircularProgressIndicator();
-    }
+    if (loadingSports) return const CircularProgressIndicator();
 
     return Wrap(
       spacing: 10,

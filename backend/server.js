@@ -157,7 +157,11 @@ app.use('/api', slotRoutes);
 
 
 // Serve uploaded files
-app.use('/uploads', express.static('uploads'));
+app.use(
+  '/uploads',
+  express.static(path.join(__dirname, 'uploads'))
+);
+
 
 // 404 handler
 app.use((req, res) => {

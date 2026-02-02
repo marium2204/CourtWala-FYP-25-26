@@ -35,26 +35,42 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
     _init();
   }
 
+  // ================= INIT =================
   Future<void> _init() async {
     token = await TokenService.getToken();
-    if (token != null) {
-      await _fetchCourts();
+
+    if (token == null) {
+      // 🔴 IMPORTANT FIX: stop loader if token missing
+      setState(() => isLoading = false);
+      return;
     }
+
+    await _fetchCourts();
   }
 
+  // ================= FETCH COURTS =================
   Future<void> _fetchCourts() async {
+    setState(() => isLoading = true);
+
     try {
       final res = await ApiService.get('/owner/courts', token!);
+
       if (res.statusCode == 200) {
-        final list = jsonDecode(res.body)['data']['courts'] as List;
+        final decoded = jsonDecode(res.body);
+        final list = decoded['data']?['courts'] as List? ?? [];
+
         setState(() {
           courts = list.cast<Map<String, dynamic>>();
-          isLoading = false;
         });
+      } else {
+        debugPrint('Fetch courts failed: ${res.statusCode}');
       }
     } catch (e) {
       debugPrint('Fetch courts error: $e');
-      setState(() => isLoading = false);
+    } finally {
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
     }
   }
 
@@ -80,64 +96,19 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
     );
   }
 
-  Future<void> _confirmDeleteCourt(Map<String, dynamic> court) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Delete Court'),
-        content: const Text(
-          'This will permanently delete this court.\n\nThis action cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true) {
-      _deleteCourt(court['id']);
-    }
-  }
-
-  Future<void> _deleteCourt(String courtId) async {
-    try {
-      final res = await ApiService.delete(
-        '/owner/courts/$courtId',
-        token!,
-      );
-
-      if (res.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Court deleted successfully'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        _fetchCourts(); // refresh list
-      } else {
-        throw Exception(res.body);
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to delete court'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
+  // ================= HOME CONTENT =================
   Widget _homeContent() {
     if (isLoading) {
       return const Center(child: CircularProgressIndicator());
+    }
+
+    if (courts.isEmpty) {
+      return const Center(
+        child: Text(
+          'No courts added yet',
+          style: TextStyle(color: Colors.grey),
+        ),
+      );
     }
 
     return Padding(
@@ -151,15 +122,19 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
               onPressed: () async {
                 await Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const AddEditCourtScreen()),
+                  MaterialPageRoute(
+                    builder: (_) => const AddEditCourtScreen(),
+                  ),
                 );
                 _fetchCourts();
               },
               icon: const Icon(Icons.add, color: Colors.white),
               label: const Text(
                 "Add Court",
-                style:
-                    TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primaryColor,
@@ -171,23 +146,17 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
           ),
           const SizedBox(height: 20),
           Expanded(
-            child: courts.isEmpty
-                ? const Center(
-                    child: Text(
-                      'No courts added yet',
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  )
-                : ListView.builder(
-                    itemCount: courts.length,
-                    itemBuilder: (_, i) => _courtCard(courts[i]),
-                  ),
+            child: ListView.builder(
+              itemCount: courts.length,
+              itemBuilder: (_, i) => _courtCard(courts[i]),
+            ),
           ),
         ],
       ),
     );
   }
 
+  // ================= COURT CARD =================
   Widget _courtCard(Map<String, dynamic> court) {
     final List<Map<String, dynamic>> sports =
         (court['sports'] as List?)?.cast<Map<String, dynamic>>() ?? [];
@@ -209,7 +178,6 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ===== HEADER =====
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -226,8 +194,6 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
                 ),
               ),
               const SizedBox(width: 12),
-
-              // ===== NAME + SPORTS =====
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -240,8 +206,6 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
                       ),
                     ),
                     const SizedBox(height: 6),
-
-                    // ✅ CLEAN SPORTS ROW
                     if (sports.isNotEmpty)
                       Wrap(
                         spacing: 6,
@@ -270,8 +234,6 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
                   ],
                 ),
               ),
-
-              // ===== STATUS =====
               Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -290,12 +252,9 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
               ),
             ],
           ),
-
           const SizedBox(height: 14),
           const Divider(height: 1),
           const SizedBox(height: 14),
-
-          // ===== ACTIONS =====
           _actionButton(
             'Edit Court',
             Icons.edit,
@@ -320,17 +279,12 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 10),
-          _outlinedButton(
-            'Delete Court',
-            Icons.delete_outline,
-            () => _confirmDeleteCourt(court),
-          ),
         ],
       ),
     );
   }
 
+  // ================= OTHER SCREENS =================
   Widget _otherScreens() {
     return switch (_selectedIndex) {
       1 => const CourtOwnerBookingsScreen(),
@@ -340,14 +294,13 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
     };
   }
 
+  // ================= NAV / APPBAR / DRAWER =================
   BottomNavigationBar _bottomNav() => BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
         type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
         selectedItemColor: AppColors.primaryColor,
         unselectedItemColor: Colors.grey.shade600,
-        showUnselectedLabels: true,
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.sports_tennis),
@@ -372,8 +325,10 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
         backgroundColor: AppColors.primaryColor,
         title: Text(
           title,
-          style:
-              const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
         ),
         leading: Builder(
           builder: (context) => IconButton(
@@ -416,14 +371,6 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
                 MaterialPageRoute(builder: (_) => const AboutUsScreen()),
               ),
             ),
-            // ListTile(
-            //   leading: const Icon(Icons.contact_mail_outlined),
-            //   title: const Text("Contact Us"),
-            //   onTap: () => Navigator.push(
-            //     context,
-            //     MaterialPageRoute(builder: (_) => const ContactUsScreen()),
-            //   ),
-            // ),
           ],
         ),
       );
@@ -435,13 +382,18 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
         child: ElevatedButton.icon(
           onPressed: onTap,
           icon: Icon(icon, size: 18, color: Colors.white),
-          label: Text(text,
-              style: const TextStyle(
-                  color: Colors.white, fontWeight: FontWeight.w500)),
+          label: Text(
+            text,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primaryColor,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         ),
       );
@@ -461,8 +413,9 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
           style: OutlinedButton.styleFrom(
             foregroundColor: AppColors.primaryColor,
             side: const BorderSide(color: AppColors.primaryColor),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         ),
       );

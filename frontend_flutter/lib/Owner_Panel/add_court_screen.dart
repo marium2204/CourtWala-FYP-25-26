@@ -39,7 +39,6 @@ class _AddEditCourtScreenState extends State<AddEditCourtScreen> {
 
   final List<Map<String, String>> _slots = [];
 
-  /// 🔥 SPORTS FROM BACKEND
   List<Map<String, dynamic>> _sports = [];
   final Set<String> _selectedSportIds = {};
 
@@ -48,8 +47,6 @@ class _AddEditCourtScreenState extends State<AddEditCourtScreen> {
     super.initState();
     _loadSports();
   }
-
-  /* ================= LOAD SPORTS ================= */
 
   Future<void> _loadSports() async {
     final token = await TokenService.getToken();
@@ -126,15 +123,13 @@ class _AddEditCourtScreenState extends State<AddEditCourtScreen> {
 
     if (_selectedSportIds.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Select at least one sport')),
-      );
+          const SnackBar(content: Text('Select at least one sport')));
       return;
     }
 
     if (_slots.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Add at least one slot')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Add at least one slot')));
       return;
     }
 
@@ -163,6 +158,11 @@ class _AddEditCourtScreenState extends State<AddEditCourtScreen> {
         fileField: 'images',
       );
 
+      if (res.statusCode != 201 && res.statusCode != 200) {
+        final body = jsonDecode(res.body);
+        throw Exception(body['message'] ?? 'Failed to create court');
+      }
+
       final body = jsonDecode(res.body);
       final courtId = body['data']['id'];
 
@@ -173,18 +173,11 @@ class _AddEditCourtScreenState extends State<AddEditCourtScreen> {
       );
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Court submitted successfully'),
-          backgroundColor: Colors.green,
-        ),
-      );
-
       Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Error: $e')));
+          .showSnackBar(SnackBar(content: Text(e.toString())));
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -212,11 +205,9 @@ class _AddEditCourtScreenState extends State<AddEditCourtScreen> {
               _field(_nameController, 'Court Name'),
               _field(_descriptionController, 'Description', maxLines: 3),
               _field(_addressController, 'Address'),
-              _field(
-                _priceController,
-                'Price per hour',
-                keyboardType: TextInputType.number,
-              ),
+              _field(_cityController, 'City'),
+              _field(_priceController, 'Price per hour',
+                  keyboardType: TextInputType.number),
               _field(
                 _mapUrlController,
                 'Google Maps URL',
@@ -239,15 +230,13 @@ class _AddEditCourtScreenState extends State<AddEditCourtScreen> {
               _amenitiesChips(),
               const SizedBox(height: 20),
               _section('Time Slots'),
-              ..._slots.map(
-                (s) => ListTile(
-                  title: Text('${s['startTime']} - ${s['endTime']}'),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
-                    onPressed: () => setState(() => _slots.remove(s)),
-                  ),
-                ),
-              ),
+              ..._slots.map((s) => ListTile(
+                    title: Text('${s['startTime']} - ${s['endTime']}'),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.delete, color: Colors.red),
+                      onPressed: () => setState(() => _slots.remove(s)),
+                    ),
+                  )),
               TextButton.icon(
                 onPressed: _addSlot,
                 icon: const Icon(Icons.add),
@@ -283,8 +272,9 @@ class _AddEditCourtScreenState extends State<AddEditCourtScreen> {
   /* ================= HELPERS ================= */
 
   Widget _section(String title) => Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Text(title, style: AppTextStyles.sectionTitle));
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Text(title, style: AppTextStyles.sectionTitle),
+      );
 
   Widget _field(
     TextEditingController c,
@@ -312,25 +302,8 @@ class _AddEditCourtScreenState extends State<AddEditCourtScreen> {
         ),
       );
 
-  Widget _rowFields(
-    TextEditingController c1,
-    String l1,
-    TextEditingController c2,
-    String l2, {
-    TextInputType keyboardType2 = TextInputType.text,
-  }) =>
-      Row(
-        children: [
-          Expanded(child: _field(c1, l1)),
-          const SizedBox(width: 12),
-          Expanded(child: _field(c2, l2, keyboardType: keyboardType2)),
-        ],
-      );
-
   Widget _sportsSelector() {
-    if (_loadingSports) {
-      return const CircularProgressIndicator();
-    }
+    if (_loadingSports) return const CircularProgressIndicator();
 
     return Wrap(
       spacing: 10,
@@ -358,8 +331,15 @@ class _AddEditCourtScreenState extends State<AddEditCourtScreen> {
           Wrap(
             spacing: 10,
             children: _pickedImages
-                .map((f) =>
-                    Image.file(f, width: 80, height: 80, fit: BoxFit.cover))
+                .map((f) => ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.file(
+                        f,
+                        width: 80,
+                        height: 80,
+                        fit: BoxFit.cover,
+                      ),
+                    ))
                 .toList(),
           ),
           TextButton.icon(

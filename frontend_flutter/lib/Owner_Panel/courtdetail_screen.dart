@@ -1,19 +1,16 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../theme/colors.dart';
 import '../Owner_Panel/edit_court_screen.dart';
+import '../constants/api_constants.dart';
 
 class CourtDetails extends StatelessWidget {
   final Map<String, dynamic> court;
 
-  const CourtDetails({
-    super.key,
-    required this.court,
-  });
+  const CourtDetails({super.key, required this.court});
 
-  // ================= IMAGES =================
+  String get _imageBaseUrl => ApiConstants.baseUrl.replaceFirst('/api', '');
 
   Widget _buildImage() {
     final images = (court['images'] as List?)?.cast<String>() ?? [];
@@ -22,28 +19,16 @@ class CourtDetails extends StatelessWidget {
       return _imagePlaceholder();
     }
 
-    final image = images.first;
+    final raw = images.first;
+    final imageUrl = raw.startsWith('http') ? raw : '$_imageBaseUrl$raw';
 
-    if (image.startsWith('http')) {
-      return Image.network(
-        image,
-        width: double.infinity,
-        height: 180,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => _imagePlaceholder(),
-      );
-    }
-
-    if (image.startsWith('/')) {
-      return Image.file(
-        File(image),
-        width: double.infinity,
-        height: 180,
-        fit: BoxFit.cover,
-      );
-    }
-
-    return _imagePlaceholder();
+    return Image.network(
+      imageUrl,
+      width: double.infinity,
+      height: 180,
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => _imagePlaceholder(),
+    );
   }
 
   Widget _imagePlaceholder() {
@@ -55,8 +40,6 @@ class CourtDetails extends StatelessWidget {
       ),
     );
   }
-
-  // ================= MAP =================
 
   Future<void> _openInMaps(BuildContext context, String url) async {
     final uri = Uri.tryParse(url);
@@ -77,17 +60,14 @@ class CourtDetails extends StatelessWidget {
     final mapUrl = court['mapUrl'];
     final addressText = court['location'];
 
-    /// 🔥 MULTI-SPORT SUPPORT
     final List<Map<String, dynamic>> sports =
         (court['sports'] as List?)?.cast<Map<String, dynamic>>() ?? [];
 
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text(
-          'Court Details',
-          style: TextStyle(color: Colors.white),
-        ),
+        title:
+            const Text('Court Details', style: TextStyle(color: Colors.white)),
         backgroundColor: AppColors.primaryColor,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
@@ -96,151 +76,63 @@ class CourtDetails extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ================= COURT DETAILS =================
-            const Text(
-              'Court Details',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppColors.primaryColor,
-              ),
-            ),
+            const Text('Court Details',
+                style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primaryColor)),
             const SizedBox(height: 12),
-
-            Card(
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _infoLine('Court Name', court['name']),
-                    _infoLine('Description', court['description']),
-                    _infoLine('Address', addressText),
-                    if (mapUrl != null && mapUrl.toString().isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 6),
-                        child: TextButton.icon(
-                          onPressed: () => _openInMaps(context, mapUrl),
-                          icon: const Icon(Icons.map),
-                          label: const Text('Open in Google Maps'),
-                          style: TextButton.styleFrom(
-                            foregroundColor: AppColors.primaryColor,
-                          ),
-                        ),
-                      ),
-                    Row(
-                      children: [
-                        Expanded(child: _infoLine('City', court['city'])),
-                        const SizedBox(width: 12),
-                      ],
-                    ),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _infoLine(
-                            'Price / hour',
-                            '${court['pricePerHour']} PKR',
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // ================= SPORTS =================
-            const Text(
-              'Sports',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppColors.primaryColor,
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            sports.isEmpty
-                ? const Text(
-                    'No sports assigned',
-                    style: TextStyle(color: Colors.grey),
-                  )
-                : Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    children: sports.map((s) {
-                      return Chip(
-                        label: Text(s['name']),
-                        backgroundColor: AppColors.primaryColor,
-                        labelStyle: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      );
-                    }).toList(),
-                  ),
-
-            const SizedBox(height: 24),
-
-            // ================= IMAGES =================
-            const Text(
-              'Images',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppColors.primaryColor,
-              ),
-            ),
-            const SizedBox(height: 12),
-
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
               child: _buildImage(),
             ),
-
             const SizedBox(height: 24),
-
-            // ================= FACILITIES =================
-            const Text(
-              'Facilities',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppColors.primaryColor,
+            _infoLine('Court Name', court['name']),
+            _infoLine('Description', court['description']),
+            _infoLine('Address', addressText),
+            if (mapUrl != null && mapUrl.toString().isNotEmpty)
+              TextButton.icon(
+                onPressed: () => _openInMaps(context, mapUrl),
+                icon: const Icon(Icons.map),
+                label: const Text('Open in Google Maps'),
               ),
-            ),
+            _infoLine('City', court['city']),
+            _infoLine('Price / hour', '${court['pricePerHour']} PKR'),
+            const SizedBox(height: 24),
+            const Text('Sports',
+                style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primaryColor)),
             const SizedBox(height: 12),
-
-            facilities.isEmpty
-                ? const Text(
-                    'No facilities added',
-                    style: TextStyle(color: Colors.grey),
-                  )
-                : Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    children: facilities.map((f) {
-                      return Chip(
+            Wrap(
+              spacing: 10,
+              children: sports
+                  .map((s) => Chip(
+                        label: Text(s['name']),
+                        backgroundColor: AppColors.primaryColor,
+                        labelStyle: const TextStyle(color: Colors.white),
+                      ))
+                  .toList(),
+            ),
+            const SizedBox(height: 24),
+            const Text('Facilities',
+                style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primaryColor)),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 10,
+              children: facilities
+                  .map((f) => Chip(
                         label: Text(f),
                         backgroundColor:
                             AppColors.primaryColor.withOpacity(0.1),
-                        labelStyle: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.primaryColor,
-                        ),
-                      );
-                    }).toList(),
-                  ),
-
+                      ))
+                  .toList(),
+            ),
             const SizedBox(height: 36),
-
-            // ================= ACTION =================
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
@@ -253,20 +145,10 @@ class CourtDetails extends StatelessWidget {
                   );
                 },
                 icon: const Icon(Icons.edit, color: Colors.white),
-                label: const Text(
-                  'Edit Court',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.backgroundColor,
-                  ),
-                ),
+                label: const Text('Edit Court',
+                    style: TextStyle(color: Colors.white)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primaryColor,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
                 ),
               ),
             ),
@@ -276,31 +158,18 @@ class CourtDetails extends StatelessWidget {
     );
   }
 
-  // ================= INFO LINE =================
-
-  Widget _infoLine(String label, dynamic value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 13,
-              color: Colors.grey,
-            ),
-          ),
-          const SizedBox(height: 4),
-          SelectableText(
-            value?.toString() ?? 'N/A',
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _infoLine(String label, dynamic value) => Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label,
+                style: const TextStyle(fontSize: 13, color: Colors.grey)),
+            const SizedBox(height: 4),
+            Text(value?.toString() ?? 'N/A',
+                style:
+                    const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+          ],
+        ),
+      );
 }
