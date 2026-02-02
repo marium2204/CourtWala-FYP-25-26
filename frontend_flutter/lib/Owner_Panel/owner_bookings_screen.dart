@@ -299,7 +299,10 @@ class _CourtOwnerBookingsScreenState extends State<CourtOwnerBookingsScreen>
         return SizedBox(
           width: double.infinity,
           child: ElevatedButton(
-            onPressed: () => _action(b['id'], '/bookings/${b['id']}/cancel'),
+            onPressed: () => _action(
+              b['id'],
+              '/owner/bookings/${b['id']}/cancel',
+            ),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
               shape: RoundedRectangleBorder(

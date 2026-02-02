@@ -5,7 +5,7 @@ const { asyncHandler } = require('../utils/ErrorHandler');
 
 // Controllers
 const DashboardController = require('../controllers/Owner/DashboardController');
-const CourtController = require('../controllers/Owner/CourtController');
+const OwnerCourtController = require('../controllers/Owner/CourtController');
 const BookingController = require('../controllers/Owner/BookingController');
 
 // Apply authentication middleware to all routes
@@ -18,9 +18,10 @@ router.get('/dashboard', DashboardController.getStats);
 
 // Court routes
 const { validateCreateCourt, validateUpdateCourt } = require('../validators/CourtValidator');
-router.get('/courts', CourtController.getMyCourts);
-router.get('/courts/:id', CourtController.getById);
-router.delete('/courts/:id', CourtController.delete);
+router.get('/courts', OwnerCourtController.getMyCourts);
+router.post('/courts', validateCreateCourt, OwnerCourtController.create);
+router.get('/courts/:id', OwnerCourtController.getById);
+router.delete('/courts/:id',OwnerCourtController.delete);
 
 // Booking routes
 router.get('/bookings', BookingController.getMyBookings);

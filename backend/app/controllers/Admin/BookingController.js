@@ -19,14 +19,28 @@ class AdminBookingController {
       status,
       date,
       courtId,
-      page: parseInt(page),
-      limit: parseInt(limit),
+      page: Number(page),
+      limit: Number(limit),
     });
 
     return BaseController.success(
       res,
       result,
       'Bookings retrieved successfully'
+    );
+  });
+
+  /**
+   * ✅ GET booking by ID (Admin)
+   * THIS WAS MISSING — THIS IS THE CRASH FIX
+   */
+  static getById = asyncHandler(async (req, res) => {
+    const booking = await BookingService.getById(req.params.id);
+
+    return BaseController.success(
+      res,
+      booking,
+      'Booking retrieved successfully'
     );
   });
 }

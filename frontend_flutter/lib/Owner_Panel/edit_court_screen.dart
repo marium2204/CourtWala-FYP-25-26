@@ -19,30 +19,38 @@ class EditCourtScreen extends StatefulWidget {
 class _EditCourtScreenState extends State<EditCourtScreen> {
   final _formKey = GlobalKey<FormState>();
 
+  // ---------------- CONTROLLERS ----------------
   late TextEditingController _nameCtrl;
   late TextEditingController _addressCtrl;
   late TextEditingController _cityCtrl;
   late TextEditingController _priceCtrl;
   late TextEditingController _mapUrlCtrl;
+  late TextEditingController _amenitiesCtrl;
 
   bool isLoading = false;
-  bool loadingSlots = true;
   bool loadingSports = true;
+  bool loadingSlots = true;
 
   final ImagePicker _picker = ImagePicker();
 
-  /// NEW IMAGES (FILES)
-  final List<File> newImages = [];
-
-  /// EXISTING IMAGES (URLS)
+  /// Cloudinary URLs already saved
   late List<String> existingImages;
 
-  final List<Map<String, dynamic>> _slots = [];
-  List<Map<String, dynamic>> _sports = [];
-  final Set<String> _selectedSportIds = {};
+  /// New images to upload
+  final List<File> newImages = [];
+
+  /// Sports
+  List<Map<String, dynamic>> sports = [];
+  final Set<String> selectedSportIds = {};
+
+  /// Slots
+  List<Map<String, dynamic>> slots = [];
+  TimeOfDay? slotStart;
+  TimeOfDay? slotEnd;
 
   String get _imageBaseUrl => ApiConstants.baseUrl.replaceFirst('/api', '');
 
+  // ---------------- INIT ----------------
   @override
   void initState() {
     super.initState();
@@ -53,134 +61,113 @@ class _EditCourtScreenState extends State<EditCourtScreen> {
     _priceCtrl =
         TextEditingController(text: widget.court['pricePerHour']?.toString());
     _mapUrlCtrl = TextEditingController(text: widget.court['mapUrl'] ?? '');
+    _amenitiesCtrl = TextEditingController(
+      text: (widget.court['amenities'] as List?)?.join(', ') ?? '',
+    );
 
     existingImages = (widget.court['images'] as List?)?.cast<String>() ?? [];
 
-    if (widget.court['sports'] != null) {
-      for (final s in widget.court['sports']) {
-        _selectedSportIds.add(s['id']);
-      }
+    for (final s in widget.court['sports'] ?? []) {
+      selectedSportIds.add(s['id']);
     }
 
-    _fetchSlots();
     _loadSports();
+    _loadSlots();
   }
 
+  // ---------------- LOAD SPORTS ----------------
   Future<void> _loadSports() async {
     final token = await TokenService.getToken();
     if (token == null) return;
 
-    try {
-      final res = await ApiService.get('/sports', token);
+    final res = await ApiService.get('/sports', token);
+    final body = jsonDecode(res.body);
+
+    setState(() {
+      sports = List<Map<String, dynamic>>.from(body['data']);
+      loadingSports = false;
+    });
+  }
+
+  // ---------------- LOAD SLOTS ----------------
+  Future<void> _loadSlots() async {
+    final token = await TokenService.getToken();
+    if (token == null) return;
+
+    final res = await ApiService.get(
+      '/owner/courts/${widget.court['id']}/slots',
+      token,
+    );
+
+    if (res.statusCode == 200) {
       final body = jsonDecode(res.body);
       setState(() {
-        _sports = List<Map<String, dynamic>>.from(body['data']);
-        loadingSports = false;
+        slots = List<Map<String, dynamic>>.from(body['slots']);
+        loadingSlots = false;
       });
-    } catch (_) {
-      setState(() => loadingSports = false);
     }
   }
 
-  Future<void> _fetchSlots() async {
+  // ---------------- ADD SLOT ----------------
+  Future<void> _addSlot() async {
+    if (slotStart == null || slotEnd == null) return;
+
+    final token = await TokenService.getToken();
+    if (token == null) return;
+
+    await ApiService.post(
+      '/owner/courts/${widget.court['id']}/slots',
+      token,
+      {
+        'slots': [
+          {
+            'startTime': _fmt(slotStart!),
+            'endTime': _fmt(slotEnd!),
+          }
+        ]
+      },
+    );
+
+    slotStart = null;
+    slotEnd = null;
+    await _loadSlots();
+  }
+
+  // ---------------- DELETE SLOT ----------------
+  Future<void> _deleteSlot(String slotId) async {
     try {
       final token = await TokenService.getToken();
       if (token == null) return;
 
-      final res = await ApiService.get(
-        '/owner/courts/${widget.court['id']}/slots',
+      await ApiService.delete(
+        '/owner/courts/${widget.court['id']}/slots/$slotId',
         token,
       );
 
-      if (res.statusCode == 200) {
-        final body = jsonDecode(res.body);
-        setState(() {
-          _slots
-            ..clear()
-            ..addAll(List<Map<String, dynamic>>.from(body['slots']));
-        });
-      }
-    } finally {
-      if (mounted) setState(() => loadingSlots = false);
+      await _loadSlots();
+    } catch (_) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Slot has active bookings and cannot be deleted'),
+        ),
+      );
     }
   }
 
+  // ---------------- IMAGE PICK ----------------
   Future<void> _pickImage() async {
     final x = await _picker.pickImage(source: ImageSource.gallery);
     if (x != null) setState(() => newImages.add(File(x.path)));
   }
 
-  Widget _networkImage(String path) {
-    final url = path.startsWith('http') ? path : '$_imageBaseUrl$path';
-
-    return Stack(
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: Image.network(
-            url,
-            width: 80,
-            height: 80,
-            fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => Container(
-              width: 80,
-              height: 80,
-              color: Colors.grey.shade300,
-              child: const Icon(Icons.broken_image),
-            ),
-          ),
-        ),
-        Positioned(
-          top: 2,
-          right: 2,
-          child: GestureDetector(
-            onTap: () => setState(() => existingImages.remove(path)),
-            child: const CircleAvatar(
-              radius: 10,
-              backgroundColor: Colors.red,
-              child: Icon(Icons.close, size: 12, color: Colors.white),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _fileImage(File f) => Stack(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image.file(
-              f,
-              width: 80,
-              height: 80,
-              fit: BoxFit.cover,
-            ),
-          ),
-          Positioned(
-            top: 2,
-            right: 2,
-            child: GestureDetector(
-              onTap: () => setState(() => newImages.remove(f)),
-              child: const CircleAvatar(
-                radius: 10,
-                backgroundColor: Colors.red,
-                child: Icon(Icons.close, size: 12, color: Colors.white),
-              ),
-            ),
-          ),
-        ],
-      );
-
-  String _to24(TimeOfDay t) =>
-      '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
-
+  // ---------------- UPDATE COURT ----------------
   Future<void> _updateCourt() async {
     if (!_formKey.currentState!.validate()) return;
 
-    if (_selectedSportIds.isEmpty) {
+    if (selectedSportIds.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Select at least one sport')));
+        const SnackBar(content: Text('Select at least one sport')),
+      );
       return;
     }
 
@@ -190,20 +177,25 @@ class _EditCourtScreenState extends State<EditCourtScreen> {
       final token = await TokenService.getToken();
       if (token == null) return;
 
-      final fields = {
-        'name': _nameCtrl.text.trim(),
-        'address': _addressCtrl.text.trim(),
-        'city': _cityCtrl.text.trim(),
-        'mapUrl': _mapUrlCtrl.text.trim(),
-        'pricePerHour': _priceCtrl.text.trim(),
-        'sports': jsonEncode(_selectedSportIds.toList()),
-        'existingImages': jsonEncode(existingImages), // ✅ KEY FIX
-      };
-
       await ApiService.multipartPut(
         '/owner/courts/${widget.court['id']}',
         token,
-        fields,
+        {
+          'name': _nameCtrl.text.trim(),
+          'address': _addressCtrl.text.trim(),
+          'city': _cityCtrl.text.trim(),
+          'mapUrl': _mapUrlCtrl.text.trim(),
+          'pricePerHour': _priceCtrl.text.trim(),
+          'sports': jsonEncode(selectedSportIds.toList()),
+          'amenities': jsonEncode(
+            _amenitiesCtrl.text
+                .split(',')
+                .map((e) => e.trim())
+                .where((e) => e.isNotEmpty)
+                .toList(),
+          ),
+          'existingImages': jsonEncode(existingImages),
+        },
         files: newImages,
         fileField: 'images',
       );
@@ -214,10 +206,10 @@ class _EditCourtScreenState extends State<EditCourtScreen> {
     }
   }
 
+  // ---------------- UI ----------------
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F8FA),
       appBar: AppBar(
         title: const Text('Edit Court'),
         backgroundColor: AppColors.primaryColor,
@@ -231,32 +223,99 @@ class _EditCourtScreenState extends State<EditCourtScreen> {
                 key: _formKey,
                 child: Column(
                   children: [
-                    _sectionCard(
-                      title: 'Images',
-                      trailing: IconButton(
-                        icon: const Icon(Icons.add_photo_alternate),
-                        onPressed: _pickImage,
-                      ),
-                      child: Wrap(
-                        spacing: 10,
-                        children: [
-                          ...existingImages.map(_networkImage),
-                          ...newImages.map(_fileImage),
-                        ],
-                      ),
+                    _section(
+                        'Court Details',
+                        Column(children: [
+                          _input(_nameCtrl, 'Court Name'),
+                          _input(_addressCtrl, 'Address'),
+                          _input(_cityCtrl, 'City'),
+                          _input(_priceCtrl, 'Price / hour',
+                              keyboard: TextInputType.number),
+                          _input(_mapUrlCtrl, 'Google Maps URL'),
+                        ])),
+                    _section('Amenities',
+                        _input(_amenitiesCtrl, 'Parking, Washroom')),
+                    _section(
+                      'Sports',
+                      loadingSports
+                          ? const CircularProgressIndicator()
+                          : Wrap(
+                              spacing: 8,
+                              children: sports.map((s) {
+                                final selected =
+                                    selectedSportIds.contains(s['id']);
+                                return FilterChip(
+                                  label: Text(s['name']),
+                                  selected: selected,
+                                  onSelected: (v) => setState(() {
+                                    v
+                                        ? selectedSportIds.add(s['id'])
+                                        : selectedSportIds.remove(s['id']);
+                                  }),
+                                );
+                              }).toList(),
+                            ),
                     ),
-                    const SizedBox(height: 30),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton(
-                        onPressed: _updateCourt,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primaryColor,
-                        ),
-                        child: const Text('Update Court',
-                            style: TextStyle(color: Colors.white)),
-                      ),
+                    _section(
+                      'Slots',
+                      Column(children: [
+                        Row(children: [
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () async {
+                                slotStart = await showTimePicker(
+                                  context: context,
+                                  initialTime: TimeOfDay.now(),
+                                );
+                                setState(() {});
+                              },
+                              child: Text(slotStart == null
+                                  ? 'Start'
+                                  : slotStart!.format(context)),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () async {
+                                slotEnd = await showTimePicker(
+                                  context: context,
+                                  initialTime: TimeOfDay.now(),
+                                );
+                                setState(() {});
+                              },
+                              child: Text(slotEnd == null
+                                  ? 'End'
+                                  : slotEnd!.format(context)),
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.add),
+                            onPressed: _addSlot,
+                          )
+                        ]),
+                        const SizedBox(height: 12),
+                        loadingSlots
+                            ? const CircularProgressIndicator()
+                            : Column(
+                                children: slots.map((s) {
+                                  return ListTile(
+                                    title: Text(
+                                        '${s['startTime']} - ${s['endTime']}'),
+                                    trailing: IconButton(
+                                      icon: const Icon(Icons.delete,
+                                          color: Colors.red),
+                                      onPressed: () => _deleteSlot(s['id']),
+                                    ),
+                                  );
+                                }).toList(),
+                              )
+                      ]),
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton(
+                      onPressed: _updateCourt,
+                      child: const Text('Update Court'),
                     ),
                   ],
                 ),
@@ -265,30 +324,35 @@ class _EditCourtScreenState extends State<EditCourtScreen> {
     );
   }
 
-  Widget _sectionCard({
-    required String title,
-    Widget? trailing,
-    required Widget child,
-  }) =>
-      Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
+  String _fmt(TimeOfDay t) =>
+      '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+
+  Widget _input(TextEditingController c, String label,
+          {TextInputType keyboard = TextInputType.text}) =>
+      Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: TextFormField(
+          controller: c,
+          keyboardType: keyboard,
+          validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+          decoration: InputDecoration(labelText: label),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(children: [
+      );
+
+  Widget _section(String title, Widget child) => Card(
+        margin: const EdgeInsets.only(bottom: 20),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               Text(title,
                   style: const TextStyle(
-                      fontSize: 18, fontWeight: FontWeight.bold)),
-              const Spacer(),
-              if (trailing != null) trailing,
-            ]),
-            const SizedBox(height: 16),
-            child,
-          ],
+                      fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              child,
+            ],
+          ),
         ),
       );
 }

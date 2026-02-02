@@ -98,6 +98,53 @@ class _ManageCourtsScreenState extends State<ManageCourtsScreen> {
     _fetchCourts();
   }
 
+  Widget _statusActions(Court c) {
+    switch (c.status) {
+      case 'PENDING_APPROVAL':
+        return Row(
+          children: [
+            OutlinedButton(
+              onPressed: () => _updateCourtStatus(c, 'ACTIVE'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.green,
+                side: const BorderSide(color: Colors.green),
+              ),
+              child: const Text('Approve'),
+            ),
+            const SizedBox(width: 12),
+            TextButton(
+              onPressed: () => _updateCourtStatus(c, 'REJECTED'),
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Reject'),
+            ),
+          ],
+        );
+
+      case 'ACTIVE':
+        return OutlinedButton(
+          onPressed: () => _updateCourtStatus(c, 'INACTIVE'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Colors.orange,
+            side: const BorderSide(color: Colors.orange),
+          ),
+          child: const Text('Suspend'),
+        );
+
+      case 'INACTIVE':
+        return OutlinedButton(
+          onPressed: () => _updateCourtStatus(c, 'ACTIVE'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Colors.green,
+            side: const BorderSide(color: Colors.green),
+          ),
+          child: const Text('Activate'),
+        );
+
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
   Color _statusColor(String status) {
     switch (status) {
       case 'ACTIVE':
@@ -316,6 +363,7 @@ class _ManageCourtsScreenState extends State<ManageCourtsScreen> {
                               icon: const Icon(Icons.visibility),
                               label: const Text('View Full Details'),
                             ),
+                            _statusActions(c),
                           ],
                         ),
                       ),

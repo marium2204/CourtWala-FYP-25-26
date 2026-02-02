@@ -7,23 +7,19 @@ WORKDIR /app
 # Install system dependencies needed by Prisma
 RUN apk add --no-cache openssl libc6-compat bash
 
-##railway
-COPY backend/package*.json ./
+# Copy package files
+COPY package*.json ./
 RUN npm install
-COPY backend/prisma ./prisma
+
+# Copy Prisma schema and generate client
+COPY prisma ./prisma
 RUN npx prisma generate
-COPY backend ./
 
-## local
-# COPY package*.json ./
-# COPY prisma ./prisma
-# COPY . .
-
-# Ensure uploads directory exists
-RUN mkdir -p uploads
+# Copy backend source code
+COPY . .
 
 # Expose app port
 EXPOSE 3000
 
-# Start server (production-safe)
+# Start server
 CMD ["npm", "start"]

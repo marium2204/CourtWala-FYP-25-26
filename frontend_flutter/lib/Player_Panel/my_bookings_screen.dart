@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../theme/colors.dart';
 import '../services/api_service.dart';
@@ -124,6 +125,24 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     }
   }
 
+  Future<String?> _fetchCourtMapUrl(String courtId) async {
+    final token = await TokenService.getToken();
+    if (token == null) return null;
+
+    final res = await ApiService.get('/courts/$courtId', token);
+    if (res.statusCode != 200) return null;
+
+    final data = jsonDecode(res.body)['data'];
+    return data['mapUrl'];
+  }
+
+  Future<void> _openMap(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri != null && await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
   // ================= UI =================
   @override
   Widget build(BuildContext context) {
@@ -136,7 +155,6 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
         ),
         backgroundColor: AppColors.primaryColor,
         iconTheme: const IconThemeData(color: Colors.white),
-        elevation: 0,
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -155,8 +173,17 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                     final status = b['status'] ?? 'UNKNOWN';
                     final court = b['court'] as Map<String, dynamic>?;
 
+                    final String name = court?['name'] ?? 'Court deleted';
+                    final String address =
+                        court?['location'] ?? court?['address'] ?? 'N/A';
+                    final String price =
+                        court?['pricePerHour']?.toString() ?? '--';
+                    final String? mapUrl = court?['mapUrl'] ??
+                        court?['locationMapUrl'] ??
+                        court?['googleMapUrl'];
+
                     return Container(
-                      margin: const EdgeInsets.only(bottom: 16),
+                      margin: const EdgeInsets.only(bottom: 18),
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
                         color: Colors.white,
@@ -174,13 +201,63 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                         children: [
                           // Court Name
                           Text(
-                            court?['name'] ?? 'Court deleted',
+                            name,
                             style: const TextStyle(
                               fontSize: 17,
                               fontWeight: FontWeight.bold,
                               color: AppColors.accentColor,
                             ),
                           ),
+
+                          const SizedBox(height: 6),
+
+                          // Address
+                          Row(
+                            children: [
+                              const Icon(Icons.location_on,
+                                  size: 16, color: AppColors.primaryColor),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  address,
+                                  style: const TextStyle(color: Colors.grey),
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          if (court?['id'] != null)
+                            FutureBuilder<String?>(
+                              future: _fetchCourtMapUrl(court!['id']),
+                              builder: (_, snap) {
+                                if (!snap.hasData || snap.data!.isEmpty) {
+                                  return const SizedBox.shrink();
+                                }
+
+                                return Padding(
+                                  padding: const EdgeInsets.only(top: 6),
+                                  child: InkWell(
+                                    onTap: () => _openMap(snap.data!),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: const [
+                                        Icon(Icons.map,
+                                            size: 18,
+                                            color: AppColors.primaryColor),
+                                        SizedBox(width: 6),
+                                        Text(
+                                          'Open in Google Maps',
+                                          style: TextStyle(
+                                            color: AppColors.primaryColor,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
 
                           const SizedBox(height: 8),
 
@@ -205,9 +282,19 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                             ],
                           ),
 
-                          const SizedBox(height: 14),
+                          const SizedBox(height: 12),
 
-                          // Status & Actions
+                          // Price
+                          Text(
+                            "Amount to be paid: PKR $price",
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+
+                          const SizedBox(height: 12),
+
+                          // Status & Action
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
@@ -233,8 +320,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                                       size: 16, color: Colors.white),
                                   label: const Text(
                                     'Cancel',
-                                    style: TextStyle(
-                                        fontSize: 13, color: Colors.white),
+                                    style: TextStyle(color: Colors.white),
                                   ),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: const Color(0xFFC4461F),
@@ -245,8 +331,6 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                                 ),
                             ],
                           ),
-
-                          const SizedBox(height: 6),
                         ],
                       ),
                     );

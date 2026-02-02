@@ -167,7 +167,7 @@ class _AddEditCourtScreenState extends State<AddEditCourtScreen> {
               .where((e) => e.value)
               .map((e) => e.key)
               .toList(),
-          'images': _uploadedImageUrls, // ✅ URLS SENT
+          'images': _uploadedImageUrls,
         },
       );
 

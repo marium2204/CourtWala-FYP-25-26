@@ -54,6 +54,9 @@ flutter:
     - assets/welcome.png
     - assets/role selection.png
     - assets/forgot.png
+    - assets/900W-90-flood-light-illuminate-tennis-court.jpg
+    - assets/black-gradient-football-field-background-inst-design-template-45f0c6eea75ea829f5e7bee1347353fc_69e643f6-94f5-4963-a199-c6198e51ae93_screen.png
+    - assets/tt-1724319499860.webp
 
   fonts:
     - family: Poppins
@@ -62,3 +65,4 @@ flutter:
         - asset: assets/fonts/Poppins-Medium.ttf
         - asset: assets/fonts/Poppins-SemiBold.ttf
         - asset: assets/fonts/Poppins-Bold.ttf
+        

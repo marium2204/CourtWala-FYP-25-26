@@ -46,9 +46,14 @@ exports.getAllSlotsForCourt = async (req, res) => {
 exports.deleteSlot = async (req, res) => {
   try {
     const { slotId } = req.params;
+
     await slotService.deleteSlot(slotId);
+
     return res.json({ message: 'Slot deleted successfully' });
   } catch (error) {
-    return res.status(400).json({ message: error.message });
+    return res.status(400).json({
+      message: error.message,
+    });
   }
+
 };

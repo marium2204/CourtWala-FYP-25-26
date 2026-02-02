@@ -59,21 +59,26 @@ exports.getAllSlots = async (courtId) => {
   });
 
 };
+/**
+ * ✅ DELETE SLOT (ONLY IF NO ACTIVE BOOKINGS)
+ */
 exports.deleteSlot = async (slotId) => {
-  // Check if slot has bookings
-  const bookingCount = await prisma.booking.count({
+  const activeBookingCount = await prisma.booking.count({
     where: {
       slotId,
       status: {
-        in: ['PENDING', 'CONFIRMED'],
+        in: ['PENDING', 'CONFIRMED'], // ✅ ONLY active bookings block deletion
       },
     },
   });
 
-  if (bookingCount > 0) {
-    throw new Error('Slot cannot be deleted because it has active bookings');
+  if (activeBookingCount > 0) {
+    throw new Error(
+      'Slot cannot be deleted because it has active bookings'
+    );
   }
 
+  // ✅ Safe to delete
   return prisma.courtSlot.delete({
     where: { id: slotId },
   });
