@@ -25,4 +25,4 @@ EXPOSE 3000
 CMD ["npm", "start"]
 
 # Run seed ONLY if ALLOW_SEED=true, then start server
-CMD sh -c 'if [ "$ALLOW_SEED" = "true" ]; then echo "🌱 Running seed..."; npm run prisma:seed; fi && npm start'
+CMD sh -c 'if [ "$ALLOW_SEED" = "true" ]; then echo "🌱 Running seed..."; npm run seed; fi  && npm start'
