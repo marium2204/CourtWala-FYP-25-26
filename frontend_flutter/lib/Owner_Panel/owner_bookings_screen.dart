@@ -24,7 +24,6 @@ class _CourtOwnerBookingsScreenState extends State<CourtOwnerBookingsScreen>
     'ALL',
     'PENDING',
     'CONFIRMED',
-    'COMPLETED',
     'CANCELLED',
   ];
 
@@ -232,9 +231,6 @@ class _CourtOwnerBookingsScreenState extends State<CourtOwnerBookingsScreen>
         break;
       case 'CONFIRMED':
         c = Colors.green;
-        break;
-      case 'COMPLETED':
-        c = Colors.blue;
         break;
       case 'CANCELLED':
       case 'REJECTED':

@@ -13,7 +13,6 @@ import 'challenges_screen.dart';
 import 'profile_screen.dart';
 import 'notifications_screen.dart';
 import 'ai_chatbot_screen.dart';
-import 'my_bookings_screen.dart';
 import 'about_us_screen.dart';
 
 class PlayerHomeScreen extends StatefulWidget {

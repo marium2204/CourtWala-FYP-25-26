@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:courtwala/Player_Panel/booking_page.dart';
 import 'package:flutter/material.dart';
 import '../theme/colors.dart';
 import '../services/api_service.dart';
@@ -77,6 +78,172 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
     setState(() => _selectedIndex = index);
   }
 
+  // ================= DELETE COURT =================
+  Future<void> _deleteCourt(String courtId) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Delete Court'),
+        content: const Text(
+          'Are you sure you want to delete this court? This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    final res = await ApiService.delete(
+      '/owner/courts/$courtId',
+      token!,
+    );
+
+    if (res.statusCode == 200) {
+      _fetchCourts();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Court deleted successfully')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to delete court')),
+      );
+    }
+  }
+// ================= BANNER CAROUSEL =================
+
+  Widget _homeBannerCarousel() {
+    final PageController controller = PageController();
+    int currentIndex = 0;
+
+    final banners = [
+      _BannerData(
+        title: "List Your Courts",
+        subtitle: "List courts • Get instant booking",
+        image: "assets/900W-90-flood-light-illuminate-tennis-court.jpg",
+        onTap: () => setState(() => _selectedIndex = 0),
+      ),
+      _BannerData(
+        title: "Accept Bookings",
+        subtitle: "Approve bookings • Let them Compete",
+        image:
+            "assets/black-gradient-football-field-background-inst-design-template-45f0c6eea75ea829f5e7bee1347353fc_69e643f6-94f5-4963-a199-c6198e51ae93_screen.png",
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const CourtOwnerBookingsScreen()),
+        ),
+      ),
+      _BannerData(
+        title: "Chat with CourtWala AI ",
+        subtitle: "Ask • Plan • Get instant help",
+        image: "assets/tt-1724319499860.webp",
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const ChatbotScreen()),
+        ),
+      ),
+    ];
+
+    return StatefulBuilder(
+      builder: (context, setStateSB) {
+        return Column(
+          children: [
+            SizedBox(
+              height: 150,
+              child: PageView.builder(
+                controller: controller,
+                itemCount: banners.length,
+                onPageChanged: (i) => setStateSB(() => currentIndex = i),
+                itemBuilder: (_, i) {
+                  final b = banners[i];
+                  return GestureDetector(
+                    onTap: b.onTap,
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 6),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(20),
+                        image: DecorationImage(
+                          image: AssetImage(b.image),
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.black.withOpacity(0.55),
+                              Colors.black.withOpacity(0.15),
+                            ],
+                            begin: Alignment.bottomCenter,
+                            end: Alignment.topCenter,
+                          ),
+                        ),
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Text(
+                              b.title,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              b.subtitle,
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(
+                banners.length,
+                (i) => AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  width: currentIndex == i ? 14 : 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: currentIndex == i
+                        ? AppColors.primaryColor
+                        : Colors.grey.shade400,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final title = switch (_selectedIndex) {
@@ -114,6 +281,8 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
+          _homeBannerCarousel(),
+          const SizedBox(height: 20),
           SizedBox(
             width: double.infinity,
             height: 52,
@@ -157,14 +326,8 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
 
   // ================= COURT CARD =================
   Widget _courtCard(Map<String, dynamic> court) {
-    final List<Map<String, dynamic>> sports =
-        (court['sports'] as List?)?.cast<Map<String, dynamic>>() ?? [];
-
     final List images = court['images'] is List ? court['images'] : [];
-    final String? imageUrl =
-        images.isNotEmpty && images.first.toString().isNotEmpty
-            ? images.first
-            : null;
+    final String? imageUrl = images.isNotEmpty ? images.first.toString() : null;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -183,121 +346,140 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ✅ COURT IMAGE (ADDED)
+          // Image
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
             child: imageUrl != null
                 ? Image.network(
                     imageUrl,
-                    height: 140,
+                    height: 120,
                     width: double.infinity,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _imagePlaceholder(),
                   )
                 : _imagePlaceholder(),
           ),
           const SizedBox(height: 12),
 
+          // Name + Location
+          Text(
+            court['name'] ?? 'Unnamed Court',
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: AppColors.primaryColor.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.sports_tennis,
-                  color: AppColors.primaryColor,
-                ),
-              ),
-              const SizedBox(width: 12),
+              const Icon(Icons.location_on, size: 14, color: Colors.grey),
+              const SizedBox(width: 4),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      court['name'] ?? 'Unnamed Court',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    if (sports.isNotEmpty)
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 6,
-                        children: sports.map((s) {
-                          return Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.primaryColor.withOpacity(0.08),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              s['name'],
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                                color: AppColors.primaryColor,
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                  ],
-                ),
-              ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(20),
-                ),
                 child: Text(
-                  court['status'] ?? '',
+                  '${court['city'] ?? ''} • ${court['address'] ?? ''}',
                   style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primaryColor,
+                    fontSize: 12,
+                    color: Colors.grey,
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 14),
-          const Divider(height: 1),
-          const SizedBox(height: 14),
-          _actionButton(
-            'Edit Court',
-            Icons.edit,
-            () async {
-              await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => EditCourtScreen(court: court),
+          const SizedBox(height: 8),
+
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 🏷️ SPORTS TAGS
+              Expanded(
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: ((court['sports'] as List?) ?? []).map<Widget>((s) {
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryColor.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        s['name'] ?? '',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.primaryColor,
+                        ),
+                      ),
+                    );
+                  }).toList(),
                 ),
-              );
-              _fetchCourts();
-            },
-          ),
-          const SizedBox(height: 10),
-          _outlinedButton(
-            'View Court',
-            Icons.remove_red_eye,
-            () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => CourtDetails(court: court),
               ),
-            ),
+
+              // 📌 STATUS TAG
+              if (court['status'] != null) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _statusColor(court['status']).withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    court['status'],
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: _statusColor(court['status']),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+
+          const SizedBox(height: 10),
+
+          const SizedBox(height: 10),
+
+          Row(
+            children: [
+              _iconAction(
+                icon: Icons.edit,
+                color: AppColors.primaryColor,
+                onTap: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => EditCourtScreen(court: court),
+                    ),
+                  );
+                  _fetchCourts();
+                },
+              ),
+              const SizedBox(width: 12),
+              _iconAction(
+                icon: Icons.remove_red_eye,
+                color: AppColors.primaryColor,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => CourtDetails(court: court),
+                  ),
+                ),
+              ),
+              const Spacer(),
+              _iconAction(
+                icon: Icons.delete,
+                color: Colors.red,
+                onTap: () => _deleteCourt(court['id']),
+              ),
+            ],
           ),
         ],
       ),
@@ -447,4 +629,53 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
           ),
         ),
       );
+  // ================= HELPERS =================
+}
+
+class _BannerData {
+  final String title;
+  final String subtitle;
+  final String image;
+  final VoidCallback onTap;
+
+  _BannerData({
+    required this.title,
+    required this.subtitle,
+    required this.image,
+    required this.onTap,
+  });
+}
+
+Widget _iconAction({
+  required IconData icon,
+  required Color color,
+  required VoidCallback onTap,
+}) {
+  return InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(10),
+    child: Container(
+      height: 36,
+      width: 36,
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Icon(icon, size: 18, color: color),
+    ),
+  );
+}
+
+Color _statusColor(String status) {
+  switch (status) {
+    case 'ACTIVE':
+      return Colors.green;
+    case 'PENDING':
+    case 'PENDING_APPROVAL':
+      return Colors.orange;
+    case 'BLOCKED':
+      return Colors.red;
+    default:
+      return Colors.grey;
+  }
 }
