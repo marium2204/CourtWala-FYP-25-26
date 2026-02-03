@@ -1,0 +1,3 @@
+ALTER TABLE User
+ADD COLUMN resetOtp VARCHAR(10),
+ADD COLUMN resetOtpExpires DATETIME;

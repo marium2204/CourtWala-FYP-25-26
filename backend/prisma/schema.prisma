@@ -8,9 +8,269 @@ datasource db {
   shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
-// =========================
-// ENUMS
-// =========================
+model User {
+  id                     String                  @id @default(cuid())
+  email                  String                  @unique
+  username               String?                 @unique
+  password               String?
+  firstName              String
+  lastName               String
+  phone                  String?
+  profilePicture         String?
+  role                   UserRole?
+  status                 UserStatus              @default(ACTIVE)
+  googleId               String?                 @unique
+  provider               AuthProvider            @default(EMAIL)
+  emailVerified          Boolean                 @default(false)
+  resetPasswordToken     String?
+  resetPasswordExpires   DateTime?
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  resetOtp               String?                 @db.VarChar(10)
+  resetOtpExpires        DateTime?               @db.DateTime(0)
+  opponentBookings       Booking[]               @relation("Booking_Opponent")
+  bookings               Booking[]               @relation("Booking_Player")
+  courts                 Court[]
+  courtReviews           CourtReview[]
+  receivedMatchRequests  MatchRequest[]          @relation("ReceiverMatches")
+  sentMatchRequests      MatchRequest[]          @relation("SenderMatches")
+  receivedNotifications  Notification[]          @relation("ReceiverNotifications")
+  sentNotifications      Notification[]          @relation("SenderNotifications")
+  playerSports           PlayerSport[]
+  reportedReports        Report[]                @relation("ReportedUserReports")
+  sentReports            Report[]                @relation("ReporterReports")
+  tournamentParticipants TournamentParticipant[]
+
+  @@index([email])
+  @@index([role])
+  @@index([status])
+}
+
+model Sport {
+  id          String        @id @default(cuid())
+  name        String        @unique
+  isActive    Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  courtSports CourtSport[]
+  players     PlayerSport[]
+
+  @@index([isActive])
+}
+
+model PlayerSport {
+  id         String     @id @default(cuid())
+  playerId   String
+  sportId    String
+  skillLevel SkillLevel
+  player     User       @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  sport      Sport      @relation(fields: [sportId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, sportId])
+  @@index([playerId])
+  @@index([sportId])
+}
+
+model Court {
+  id           String        @id @default(cuid())
+  name         String
+  description  String?
+  address      String
+  city         String
+  location     String
+  mapUrl       String
+  pricePerHour Float
+  price        Float
+  amenities    Json?
+  facilities   Json?
+  images       Json?
+  status       CourtStatus   @default(PENDING_APPROVAL)
+  rating       Float         @default(0)
+  totalRatings Int           @default(0)
+  ownerId      String
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  bookings     Booking[]
+  owner        User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  reviews      CourtReview[]
+  slots        CourtSlot[]
+  courtSports  CourtSport[]
+
+  @@index([ownerId])
+  @@index([status])
+  @@index([location])
+  @@index([city])
+}
+
+model CourtSport {
+  id      String @id @default(cuid())
+  courtId String
+  sportId String
+  court   Court  @relation(fields: [courtId], references: [id], onDelete: Cascade)
+  sport   Sport  @relation(fields: [sportId], references: [id], onDelete: Cascade)
+
+  @@unique([courtId, sportId])
+  @@index([courtId])
+  @@index([sportId])
+}
+
+model Booking {
+  id            String        @id @default(cuid())
+  courtId       String
+  playerId      String
+  date          DateTime
+  startTime     String
+  endTime       String
+  status        BookingStatus @default(PENDING)
+  needsOpponent Boolean       @default(false)
+  opponentId    String?
+  slotId        String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  court         Court         @relation(fields: [courtId], references: [id], onDelete: Cascade)
+  opponent      User?         @relation("Booking_Opponent", fields: [opponentId], references: [id])
+  player        User          @relation("Booking_Player", fields: [playerId], references: [id], onDelete: Cascade)
+  slot          CourtSlot?    @relation(fields: [slotId], references: [id])
+
+  @@index([courtId])
+  @@index([playerId])
+  @@index([status])
+  @@index([date])
+  @@index([opponentId], map: "Booking_opponentId_fkey")
+  @@index([slotId], map: "Booking_slotId_fkey")
+}
+
+model MatchRequest {
+  id         String             @id @default(cuid())
+  senderId   String
+  receiverId String
+  bookingId  String?
+  sport      String
+  skillLevel SkillLevel?
+  message    String?
+  status     MatchRequestStatus @default(PENDING)
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+  receiver   User               @relation("ReceiverMatches", fields: [receiverId], references: [id], onDelete: Cascade)
+  sender     User               @relation("SenderMatches", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([status])
+}
+
+model Tournament {
+  id                  String                  @id @default(cuid())
+  name                String
+  description         String?
+  sport               String
+  skillLevel          SkillLevel?
+  startDate           DateTime
+  endDate             DateTime
+  maxParticipants     Int
+  currentParticipants Int                     @default(0)
+  status              String                  @default("UPCOMING")
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+  participants        TournamentParticipant[]
+
+  @@index([sport])
+  @@index([status])
+}
+
+model TournamentParticipant {
+  id           String     @id @default(cuid())
+  tournamentId String
+  playerId     String
+  joinedAt     DateTime   @default(now())
+  player       User       @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, playerId])
+  @@index([playerId], map: "TournamentParticipant_playerId_fkey")
+}
+
+model CourtReview {
+  id        String   @id @default(cuid())
+  courtId   String
+  playerId  String
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  court     Court    @relation(fields: [courtId], references: [id], onDelete: Cascade)
+  player    User     @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([courtId, playerId])
+  @@index([playerId], map: "CourtReview_playerId_fkey")
+}
+
+model Notification {
+  id         String           @id @default(cuid())
+  receiverId String
+  senderId   String?
+  type       NotificationType
+  title      String
+  message    String
+  data       Json?
+  isRead     Boolean          @default(false)
+  createdAt  DateTime         @default(now())
+  receiver   User             @relation("ReceiverNotifications", fields: [receiverId], references: [id], onDelete: Cascade)
+  sender     User?            @relation("SenderNotifications", fields: [senderId], references: [id])
+
+  @@index([receiverId])
+  @@index([isRead])
+  @@index([senderId], map: "Notification_senderId_fkey")
+}
+
+model Announcement {
+  id             String    @id @default(cuid())
+  title          String
+  message        String
+  targetAudience Json?
+  scheduledAt    DateTime?
+  isActive       Boolean   @default(true)
+  createdBy      String
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([isActive])
+}
+
+model Report {
+  id                String       @id @default(cuid())
+  reporterId        String
+  reportedUserId    String?
+  reportedCourtId   String?
+  reportedBookingId String?
+  type              ReportType
+  message           String
+  status            ReportStatus @default(PENDING)
+  resolvedBy        String?
+  resolvedAt        DateTime?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  reportedUser      User?        @relation("ReportedUserReports", fields: [reportedUserId], references: [id])
+  reporter          User         @relation("ReporterReports", fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@index([reporterId])
+  @@index([status])
+  @@index([reportedUserId], map: "Report_reportedUserId_fkey")
+}
+
+model CourtSlot {
+  id        String    @id @default(cuid())
+  courtId   String
+  startTime String
+  endTime   String
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  bookings  Booking[]
+  court     Court     @relation(fields: [courtId], references: [id], onDelete: Cascade)
+
+  @@unique([courtId, startTime, endTime])
+}
 
 enum UserRole {
   PLAYER
@@ -57,15 +317,14 @@ enum NotificationType {
   MATCH_REJECTED
   COURT_APPROVED
   COURT_REJECTED
-  COURT_INACTIVATED   
-  COURT_PENDING      
+  COURT_INACTIVATED
+  COURT_PENDING
   OWNER_APPROVED
   OWNER_REJECTED
   ADMIN_ANNOUNCEMENT
   TOURNAMENT_JOINED
   REPORT_RESOLVED
 }
-
 
 enum ReportType {
   USER
@@ -89,327 +348,4 @@ enum SkillLevel {
   BEGINNER
   INTERMEDIATE
   ADVANCED
-}
-
-// =========================
-// USER
-// =========================
-
-model User {
-  id                   String       @id @default(cuid())
-  email                String       @unique
-  username             String?      @unique
-  password             String?
-  firstName            String
-  lastName             String
-  phone                String?
-  profilePicture       String?
-  role                 UserRole?
-  status               UserStatus   @default(ACTIVE)
-  googleId             String?      @unique
-  provider             AuthProvider @default(EMAIL)
-  emailVerified        Boolean      @default(false)
-  resetPasswordToken   String?
-  resetPasswordExpires DateTime?
-  createdAt            DateTime     @default(now())
-  updatedAt            DateTime     @updatedAt
-
-  courts                 Court[]
-  bookings               Booking[]               @relation("Booking_Player")
-  opponentBookings       Booking[]               @relation("Booking_Opponent")
-  sentMatchRequests      MatchRequest[]          @relation("SenderMatches")
-  receivedMatchRequests  MatchRequest[]          @relation("ReceiverMatches")
-  tournamentParticipants TournamentParticipant[]
-  sentNotifications      Notification[]          @relation("SenderNotifications")
-  receivedNotifications  Notification[]          @relation("ReceiverNotifications")
-  sentReports            Report[]                @relation("ReporterReports")
-  reportedReports        Report[]                @relation("ReportedUserReports")
-  courtReviews           CourtReview[]
-
-  playerSports PlayerSport[]
-
-  @@index([email])
-  @@index([role])
-  @@index([status])
-}
-
-// =========================
-// SPORT (ADMIN MANAGED)
-// =========================
-
-model Sport {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  players     PlayerSport[]
-  courtSports CourtSport[]
-
-  @@index([isActive])
-}
-
-// =========================
-// PLAYER ↔ SPORT ↔ SKILL
-// =========================
-
-model PlayerSport {
-  id         String     @id @default(cuid())
-  playerId   String
-  sportId    String
-  skillLevel SkillLevel
-
-  player User  @relation(fields: [playerId], references: [id], onDelete: Cascade)
-  sport  Sport @relation(fields: [sportId], references: [id], onDelete: Cascade)
-
-  @@unique([playerId, sportId])
-  @@index([playerId])
-  @@index([sportId])
-}
-
-// =========================
-// COURT
-// =========================
-
-model Court {
-  id           String      @id @default(cuid())
-  name         String
-  description  String?
-  address      String
-  city         String
-  location     String
-  mapUrl       String
-  pricePerHour Float
-  price        Float
-  amenities    Json?
-  facilities   Json?
-  images       Json?
-  status       CourtStatus @default(PENDING_APPROVAL)
-  rating       Float       @default(0)
-  totalRatings Int         @default(0)
-  ownerId      String
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-
-  owner       User         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  bookings    Booking[]
-  reviews     CourtReview[]
-  slots       CourtSlot[]
-  courtSports CourtSport[]
-
-  @@index([ownerId])
-  @@index([status])
-  @@index([location])
-  @@index([city])
-}
-
-// =========================
-// COURT ↔ SPORT (MULTI SPORT SUPPORT)
-// =========================
-
-model CourtSport {
-  id      String @id @default(cuid())
-  courtId String
-  sportId String
-
-  court Court @relation(fields: [courtId], references: [id], onDelete: Cascade)
-  sport Sport @relation(fields: [sportId], references: [id], onDelete: Cascade)
-
-  @@unique([courtId, sportId])
-  @@index([courtId])
-  @@index([sportId])
-}
-
-// =========================
-// BOOKING
-// =========================
-
-model Booking {
-  id            String        @id @default(cuid())
-  courtId       String
-  playerId      String
-  date          DateTime
-  startTime     String
-  endTime       String
-  status        BookingStatus @default(PENDING)
-  needsOpponent Boolean       @default(false)
-  opponentId    String?
-  slotId        String?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-
-  court    Court      @relation(fields: [courtId], references: [id], onDelete: Cascade)
-  player   User       @relation("Booking_Player", fields: [playerId], references: [id], onDelete: Cascade)
-  opponent User?      @relation("Booking_Opponent", fields: [opponentId], references: [id])
-  slot     CourtSlot? @relation(fields: [slotId], references: [id])
-
-  @@index([courtId])
-  @@index([playerId])
-  @@index([status])
-  @@index([date])
-}
-
-// =========================
-// MATCH REQUEST
-// =========================
-
-model MatchRequest {
-  id         String             @id @default(cuid())
-  senderId   String
-  receiverId String
-  bookingId  String?
-  sport      String
-  skillLevel SkillLevel?
-  message    String?
-  status     MatchRequestStatus @default(PENDING)
-  createdAt  DateTime           @default(now())
-  updatedAt  DateTime           @updatedAt
-
-  sender   User @relation("SenderMatches", fields: [senderId], references: [id], onDelete: Cascade)
-  receiver User @relation("ReceiverMatches", fields: [receiverId], references: [id], onDelete: Cascade)
-
-  @@index([senderId])
-  @@index([receiverId])
-  @@index([status])
-}
-
-// =========================
-// TOURNAMENT
-// =========================
-
-model Tournament {
-  id                  String   @id @default(cuid())
-  name                String
-  description         String?
-  sport               String
-  skillLevel          SkillLevel?
-  startDate           DateTime
-  endDate             DateTime
-  maxParticipants     Int
-  currentParticipants Int      @default(0)
-  status              String   @default("UPCOMING")
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-
-  participants TournamentParticipant[]
-
-  @@index([sport])
-  @@index([status])
-}
-
-model TournamentParticipant {
-  id           String   @id @default(cuid())
-  tournamentId String
-  playerId     String
-  joinedAt     DateTime @default(now())
-
-  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-  player     User       @relation(fields: [playerId], references: [id], onDelete: Cascade)
-
-  @@unique([tournamentId, playerId])
-}
-
-// =========================
-// COURT REVIEW
-// =========================
-
-model CourtReview {
-  id        String   @id @default(cuid())
-  courtId   String
-  playerId  String
-  rating    Int
-  comment   String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  court  Court @relation(fields: [courtId], references: [id], onDelete: Cascade)
-  player User  @relation(fields: [playerId], references: [id], onDelete: Cascade)
-
-  @@unique([courtId, playerId])
-}
-
-// =========================
-// NOTIFICATION
-// =========================
-
-model Notification {
-  id         String           @id @default(cuid())
-  receiverId String
-  senderId   String?
-  type       NotificationType
-  title      String
-  message    String
-  data       Json?
-  isRead     Boolean          @default(false)
-  createdAt  DateTime         @default(now())
-
-  receiver User  @relation("ReceiverNotifications", fields: [receiverId], references: [id], onDelete: Cascade)
-  sender   User? @relation("SenderNotifications", fields: [senderId], references: [id], onDelete: SetNull)
-
-  @@index([receiverId])
-  @@index([isRead])
-}
-
-// =========================
-// ANNOUNCEMENT
-// =========================
-
-model Announcement {
-  id             String    @id @default(cuid())
-  title          String
-  message        String
-  targetAudience Json?
-  scheduledAt    DateTime?
-  isActive       Boolean   @default(true)
-  createdBy      String
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-
-  @@index([isActive])
-}
-
-// =========================
-// REPORT
-// =========================
-
-model Report {
-  id                String       @id @default(cuid())
-  reporterId        String
-  reportedUserId    String?
-  reportedCourtId   String?
-  reportedBookingId String?
-  type              ReportType
-  message           String
-  status            ReportStatus @default(PENDING)
-  resolvedBy        String?
-  resolvedAt        DateTime?
-  createdAt         DateTime     @default(now())
-  updatedAt         DateTime     @updatedAt
-
-  reporter     User  @relation("ReporterReports", fields: [reporterId], references: [id], onDelete: Cascade)
-  reportedUser User? @relation("ReportedUserReports", fields: [reportedUserId], references: [id], onDelete: SetNull)
-
-  @@index([reporterId])
-  @@index([status])
-}
-
-// =========================
-// COURT SLOT
-// =========================
-
-model CourtSlot {
-  id        String   @id @default(cuid())
-  courtId   String
-  startTime String
-  endTime   String
-  isActive  Boolean  @default(true)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  court    Court     @relation(fields: [courtId], references: [id], onDelete: Cascade)
-  bookings Booking[]
-
-  @@unique([courtId, startTime, endTime])
 }

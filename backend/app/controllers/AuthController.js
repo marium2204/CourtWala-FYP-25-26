@@ -14,9 +14,6 @@ class AuthController extends BaseController {
   static register = asyncHandler(async (req, res) => {
     const data = { ...req.body };
 
-    if (req.file) {
-      data.profilePicture = getFileUrl(req.file.filename);
-    }
 
     const result = await AuthService.register(data);
     return BaseController.success(
@@ -74,19 +71,19 @@ class AuthController extends BaseController {
   });
 
   /* =========================
-     PASSWORD RESET
-  ========================= */
-  static requestPasswordReset = asyncHandler(async (req, res) => {
-    const { email } = req.body;
-    await AuthService.generatePasswordResetToken(email);
-    return BaseController.success(res, null, 'Password reset email sent');
-  });
+   PASSWORD RESET (OTP)
+========================= */
+static requestPasswordReset = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  await AuthService.sendResetOtp(email);
+  return BaseController.success(res, null, 'OTP sent to email');
+});
 
-  static resetPassword = asyncHandler(async (req, res) => {
-    const { token, password } = req.body;
-    await AuthService.resetPassword(token, password);
-    return BaseController.success(res, null, 'Password reset successful');
-  });
+static resetPassword = asyncHandler(async (req, res) => {
+  const { email, otp, password } = req.body;
+  await AuthService.resetPasswordWithOtp(email, otp, password);
+  return BaseController.success(res, null, 'Password reset successful');
+});
 
   /* =========================
      CURRENT USER

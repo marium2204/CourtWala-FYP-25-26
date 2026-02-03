@@ -67,30 +67,33 @@ const validateLogin = [
 ];
 
 /* =========================
-   PASSWORD RESET REQUEST
+   PASSWORD RESET REQUEST (SEND OTP)
 ========================= */
 const validatePasswordResetRequest = [
   body('email')
     .isEmail()
-    .withMessage('Please provide a valid email address'),
+    .withMessage('Valid email is required'),
 
   handleValidationErrors,
 ];
 
-/* =========================
-   PASSWORD RESET
-========================= */
+
 const validatePasswordReset = [
-  body('token')
-    .notEmpty()
-    .withMessage('Reset token is required'),
+  body('email')
+    .isEmail()
+    .withMessage('Valid email is required'),
+
+  body('otp')
+    .isLength({ min: 6, max: 6 })
+    .withMessage('OTP must be 6 digits'),
 
   body('password')
     .isLength({ min: 6 })
-    .withMessage('Password must be at least 6 characters long'),
+    .withMessage('Password must be at least 6 characters'),
 
   handleValidationErrors,
 ];
+
 
 module.exports = {
   validateRegister,
