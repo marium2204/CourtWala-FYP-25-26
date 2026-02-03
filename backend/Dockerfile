@@ -7,22 +7,19 @@ WORKDIR /app
 # Install system dependencies needed by Prisma
 RUN apk add --no-cache openssl libc6-compat bash
 
-# Copy backend package files
-COPY backend/package*.json ./
+# Copy package files
+COPY package*.json ./
 RUN npm install
 
 # Copy Prisma schema and generate client
-COPY backend/prisma ./prisma
+COPY prisma ./prisma
 RUN npx prisma generate
 
 # Copy backend source code
-COPY backend ./
+COPY . .
 
 # Expose app port
 EXPOSE 3000
 
 # Start server
 CMD ["npm", "start"]
-
-# Run seed ONLY if ALLOW_SEED=true, then start server
-CMD sh -c 'if [ "$ALLOW_SEED" = "true" ]; then echo "🌱 Running seed..."; npm run seed; fi  && npm start'

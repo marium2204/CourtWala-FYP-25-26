@@ -280,18 +280,6 @@ class _BookingPageState extends State<BookingPage> {
 
           const SizedBox(height: 24),
 
-          // ================= FIND OPPONENT =================
-          SwitchListTile(
-            value: _findOpponent,
-            onChanged: (v) => setState(() => _findOpponent = v),
-            title: const Text("Find an opponent",
-                style: TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: const Text("We'll help match you with another player"),
-            activeColor: AppColors.primaryColor,
-          ),
-
-          const SizedBox(height: 32),
-
           // ================= CONFIRM =================
           SizedBox(
             width: double.infinity,

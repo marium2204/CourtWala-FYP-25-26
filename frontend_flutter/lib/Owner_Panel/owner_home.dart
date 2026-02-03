@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:courtwala/Player_Panel/booking_page.dart';
 import 'package:flutter/material.dart';
 import '../theme/colors.dart';
 import '../services/api_service.dart';
@@ -48,16 +47,30 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
     await _fetchCourts();
   }
 
-  // ================= FETCH COURTS =================
   Future<void> _fetchCourts() async {
     setState(() => isLoading = true);
 
     try {
       final res = await ApiService.get('/owner/courts', token!);
 
+      debugPrint('COURTS STATUS: ${res.statusCode}');
+      debugPrint('COURTS BODY: ${res.body}');
+
       if (res.statusCode == 200) {
         final decoded = jsonDecode(res.body);
-        final list = decoded['data']?['courts'] as List? ?? [];
+
+        List list = [];
+
+        // ✅ SUPPORT MULTIPLE BACKEND SHAPES
+        if (decoded is Map) {
+          if (decoded['data'] is Map && decoded['data']['courts'] is List) {
+            list = decoded['data']['courts'];
+          } else if (decoded['courts'] is List) {
+            list = decoded['courts'];
+          } else if (decoded['data'] is List) {
+            list = decoded['data'];
+          }
+        }
 
         setState(() {
           courts = list.cast<Map<String, dynamic>>();
@@ -72,10 +85,6 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
         setState(() => isLoading = false);
       }
     }
-  }
-
-  void _onItemTapped(int index) {
-    setState(() => _selectedIndex = index);
   }
 
   // ================= DELETE COURT =================
@@ -262,19 +271,9 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
     );
   }
 
-  // ================= HOME CONTENT =================
   Widget _homeContent() {
     if (isLoading) {
       return const Center(child: CircularProgressIndicator());
-    }
-
-    if (courts.isEmpty) {
-      return const Center(
-        child: Text(
-          'No courts added yet',
-          style: TextStyle(color: Colors.grey),
-        ),
-      );
     }
 
     return Padding(
@@ -283,6 +282,8 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
         children: [
           _homeBannerCarousel(),
           const SizedBox(height: 20),
+
+          // ✅ ALWAYS SHOW ADD BUTTON
           SizedBox(
             width: double.infinity,
             height: 52,
@@ -312,16 +313,35 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
               ),
             ),
           ),
+
           const SizedBox(height: 20),
-          Expanded(
-            child: ListView.builder(
-              itemCount: courts.length,
-              itemBuilder: (_, i) => _courtCard(courts[i]),
+
+          // ✅ EMPTY STATE INSIDE CONTENT (NOT FULL SCREEN)
+          if (courts.isEmpty)
+            const Expanded(
+              child: Center(
+                child: Text(
+                  'No courts added yet',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+            )
+          else
+            Expanded(
+              child: ListView.builder(
+                itemCount: courts.length,
+                itemBuilder: (_, i) => _courtCard(courts[i]),
+              ),
             ),
-          ),
         ],
       ),
     );
+  }
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
   }
 
   // ================= COURT CARD =================

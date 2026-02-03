@@ -14,6 +14,7 @@ import 'profile_screen.dart';
 import 'notifications_screen.dart';
 import 'ai_chatbot_screen.dart';
 import 'about_us_screen.dart';
+import 'my_bookings_screen.dart';
 
 class PlayerHomeScreen extends StatefulWidget {
   const PlayerHomeScreen({super.key});
@@ -382,7 +383,7 @@ class _PlayerHomeScreenState extends State<PlayerHomeScreen> {
               leading: const Icon(Icons.book_online),
               title: const Text('My Bookings'),
               onTap: () => Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const PlayerHomeScreen())),
+                  MaterialPageRoute(builder: (_) => const MyBookingsScreen())),
             ),
             ListTile(
               leading: const Icon(Icons.info_outline),

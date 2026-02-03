@@ -1,10 +1,10 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import '../services/token_service.dart';
 import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
 
 import '../constants/api_constants.dart';
+import '../services/token_service.dart';
 import '../theme/colors.dart';
 
 class ChatbotScreen extends StatefulWidget {
@@ -59,31 +59,22 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     _scrollToBottom();
 
     try {
-      final isMyBookings = text.toLowerCase().contains('my booking');
       final token = await TokenService.getToken();
-
-      if (isMyBookings && token == null) {
-        await _typeBotMessage('Please log in to view your bookings.', 'AI');
-        return;
-      }
-
-      final uri = isMyBookings
-          ? Uri.parse('${ApiConstants.baseUrl}/chat/my-bookings')
-          : Uri.parse('${ApiConstants.baseUrl}/chat');
 
       final headers = {
         'Content-Type': 'application/json',
-        if (isMyBookings) 'Authorization': 'Bearer $token',
+        if (token != null) 'Authorization': 'Bearer $token',
       };
 
       final res = await http.post(
-        uri,
+        Uri.parse('${ApiConstants.baseUrl}/chat'),
         headers: headers,
         body: jsonEncode({'message': text}),
       );
 
       if (res.statusCode == 200) {
         final body = jsonDecode(res.body);
+
         await _typeBotMessage(
           body['reply'] ?? 'No response',
           body['type'] ?? 'AI',
@@ -91,10 +82,12 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
       } else {
         _addError();
       }
-    } catch (_) {
+    } catch (e) {
       _addError();
     } finally {
-      setState(() => _botTyping = false);
+      if (mounted) {
+        setState(() => _botTyping = false);
+      }
     }
   }
 
@@ -112,7 +105,8 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     });
 
     for (int i = 0; i < text.length; i++) {
-      await Future.delayed(const Duration(milliseconds: 18));
+      await Future.delayed(const Duration(milliseconds: 16));
+      if (!mounted) return;
       setState(() {
         _messages[index]['text'] += text[i];
       });
@@ -121,11 +115,13 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   }
 
   void _addError() {
-    _messages.add({
-      'text': '⚠️ AI service unavailable.',
-      'isUser': false,
-      'type': 'AI',
-      'time': DateTime.now(),
+    setState(() {
+      _messages.add({
+        'text': '⚠️ AI service unavailable.',
+        'isUser': false,
+        'type': 'AI',
+        'time': DateTime.now(),
+      });
     });
   }
 
@@ -230,7 +226,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.15),
+            color: Colors.black.withOpacity(0.12),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -322,24 +318,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                 fillColor: _isDarkMode ? const Color(0xFF1A1E27) : Colors.white,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(30),
-                  borderSide: BorderSide(
-                    color:
-                        _isDarkMode ? Colors.grey.shade700 : Colors.transparent,
-                  ),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(30),
-                  borderSide: BorderSide(
-                    color:
-                        _isDarkMode ? Colors.grey.shade700 : Colors.transparent,
-                  ),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(30),
-                  borderSide: BorderSide(
-                    color: AppColors.primaryColor,
-                    width: 1.2,
-                  ),
+                  borderSide: BorderSide.none,
                 ),
               ),
             ),

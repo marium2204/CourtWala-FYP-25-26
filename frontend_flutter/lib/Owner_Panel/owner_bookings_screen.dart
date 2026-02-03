@@ -24,7 +24,7 @@ class _CourtOwnerBookingsScreenState extends State<CourtOwnerBookingsScreen>
     'ALL',
     'PENDING',
     'CONFIRMED',
-    'CANCELLED',
+    'REJECTED',
   ];
 
   @override
@@ -158,21 +158,6 @@ class _CourtOwnerBookingsScreenState extends State<CourtOwnerBookingsScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ✅ COURT IMAGE (ADDED)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: imageUrl != null
-                    ? Image.network(
-                        imageUrl,
-                        height: 140,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _imagePlaceholder(),
-                      )
-                    : _imagePlaceholder(),
-              ),
-              const SizedBox(height: 12),
-
               _statusBadge(status),
               const SizedBox(height: 10),
               Text(

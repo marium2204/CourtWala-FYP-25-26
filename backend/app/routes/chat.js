@@ -3,14 +3,9 @@ const OpenAI = require("openai");
 const { PrismaClient } = require("@prisma/client");
 require("dotenv").config();
 
-
-const BookingService = require("../services/BookingService");
-const { authenticate } = require("../middleware/AuthMiddleware.js");
-
 const router = express.Router();
 const prisma = new PrismaClient();
 
-// OpenAI client
 const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
@@ -18,198 +13,149 @@ const client = new OpenAI({
 /**
  * ================= PROMPT =================
  */
-const SYSTEM_PROMPT = `
-You are CourtWala AI, an assistant for a sports and court booking platform.
+const AI_PROMPT = `
+You are CourtWala AI, a domain-restricted assistant.
 
-Rules:
-1. You ONLY answer sports, courts, bookings, matches, and facility-related questions.
-2. NEVER invent courts, bookings, or matches.
-3. If real data is provided, use ONLY that data.
-4. If no data exists, clearly say so.
-5. Respect user privacy.
-6. Keep answers short and clear.
+DOMAIN RULES (VERY IMPORTANT):
+1. You are ONLY allowed to answer questions related to:
+   - Sports (rules, meanings, scoring, gameplay)
+   - Courts and sports facilities
+2. If a question is NOT related to sports or courts, you MUST politely refuse.
+   Examples you MUST refuse:
+   - math questions (2+2)
+   - colors of objects (banana color)
+   - meanings of non-sports objects (chair, table)
+3. You ARE allowed to answer:
+   - "What is sport?"
+   - "Meaning of badminton"
+   - "Football rules"
+
+LANGUAGE:
+- Understand English, Roman Urdu, and mixed language
+- Handle spelling mistakes intelligently
+
+DATA RULES:
+- NEVER invent courts, prices, locations, or bookings
+- If app data is required, respond with:
+  "__FETCH_COURTS__"
+  followed by optional filters:
+  sport=<sport or empty>
+  city=<city or empty>
+
+VERY IMPORTANT RULE:
+If the user asks ANYTHING that implies listing, showing, finding, or filtering courts
+(e.g.:
+- "courts in karachi"
+- "courts in courtwala"
+- "show courts"
+- "badminton courts"
+- "available courts")
+you MUST treat it as APP DATA REQUEST.
+
+FOR APP DATA REQUESTS:
+Respond ONLY in this exact format:
+
+__FETCH_COURTS__
+sport=<sport or empty>
+city=<city or empty>
+
+If a filter is not mentioned, leave it empty.
+DO NOT explain.
+DO NOT refuse.
+DO NOT answer in text.
+
+STYLE:
+- Short, clear, friendly
+- If refusing, explain briefly why
 `.trim();
-
-/**
- * ================= INTENT DETECTION =================
- */
-function detectIntent(message) {
-  const msg = message.toLowerCase();
-
-  if (msg.includes("near me") || msg.includes("nearby"))
-    return "NEARBY_COURTS";
-
-  if (msg.includes("my booking")) return "MY_BOOKINGS";
-  if (msg.includes("court")) return "COURTS";
-  if (msg.includes("booking")) return "BOOKINGS";
-  if (msg.includes("match")) return "MATCHES";
-  if (msg.includes("hi") || msg.includes("hello")) return "GREETING";
-
-  return "GENERAL";
-}
 
 /**
  * ================= PUBLIC CHAT =================
  */
 router.post("/", async (req, res) => {
-  const { message, city } = req.body;
+  const { message } = req.body;
 
   if (!message || typeof message !== "string") {
-    return res.status(400).json({ reply: "Message is required." });
+    return res.status(400).json({
+      type: "AI",
+      reply: "Message is required.",
+    });
   }
 
   try {
-    const intent = detectIntent(message);
+    const completion = await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      max_completion_tokens: 220,
+      messages: [
+        { role: "system", content: AI_PROMPT },
+        { role: "user", content: message },
+      ],
+    });
+
+    const aiReply = completion.choices[0].message.content.trim();
 
     /**
-     * ========== BLOCK PRIVATE BOOKINGS ==========
+     * ===== AI REQUESTING COURTS =====
      */
-    if (intent === "MY_BOOKINGS") {
-      return res.json({
-        type: "AI",
-        reply: "Please log in to view your bookings.",
-      });
-    }
+    if (aiReply.startsWith("__FETCH_COURTS__")) {
+      const sportMatch = aiReply.match(/sport=(.*)/i);
+      const cityMatch = aiReply.match(/city=(.*)/i);
 
-    /**
-     * ========== COURTS (DB) ==========
-     */
-    if (intent === "COURTS") {
+      const sport =
+        sportMatch && sportMatch[1].trim()
+          ? sportMatch[1].trim().toLowerCase()
+          : null;
+
+      const city =
+        cityMatch && cityMatch[1].trim()
+          ? cityMatch[1].trim().toLowerCase()
+          : null;
+
       const courts = await prisma.court.findMany({
-        take: 5,
-        where: { status: "ACTIVE" },
+        where: {
+          status: "ACTIVE",
+          ...(sport
+            ? { sportType: { contains: sport } } // ✅ FIXED
+            : {}),
+          ...(city
+            ? { city: { contains: city } } // ✅ FIXED
+            : {}),
+        },
+        take: 10,
       });
 
       return res.json({
         type: "DATA",
         reply:
           courts.length === 0
-            ? "No courts available."
+            ? "No courts found matching your criteria."
             : courts
                 .map(
                   c => `🏟 ${c.name}
-📍 ${c.location}`
+📍 ${c.location}, ${c.city}
+🏸 Sport: ${c.sportType}
+💰 PKR ${c.pricePerHour}
+🗺 ${c.mapUrl || "Map not available"}`
                 )
                 .join("\n\n"),
       });
     }
 
     /**
-     * ========== BOOKINGS (GLOBAL) ==========
+     * ===== NORMAL AI RESPONSE =====
      */
-    if (intent === "BOOKINGS") {
-      const bookings = await prisma.booking.findMany({
-        take: 5,
-        include: { court: true },
-      });
-
-      return res.json({
-        type: "DATA",
-        reply:
-          bookings.length === 0
-            ? "No bookings found."
-            : bookings
-                .map(
-                  b => `🏟 ${b.court.name}
-📅 ${new Date(b.date).toDateString()}
-⏰ ${b.startTime} - ${b.endTime}`
-                )
-                .join("\n\n"),
-      });
-    }
-
-    /**
-     * ========== MATCHES ==========
-     */
-    if (intent === "MATCHES") {
-      const matches = await prisma.match.findMany({ take: 5 });
-
-      return res.json({
-        type: "DATA",
-        reply:
-          matches.length === 0
-            ? "No matches scheduled."
-            : matches
-                .map(
-                  m => `⚔ ${m.teamA} vs ${m.teamB}
-📅 ${new Date(m.date).toDateString()}`
-                )
-                .join("\n\n"),
-      });
-    }
-
-    /**
-     * ========== OPENAI FALLBACK ==========
-     */
-    const completion = await client.chat.completions.create({
-      model: "gpt-4o-mini",
-      max_completion_tokens: 200,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: message },
-      ],
-    });
-
     return res.json({
       type: "AI",
-      reply: completion.choices[0].message.content,
+      reply: aiReply,
     });
 
   } catch (error) {
     console.error("Chatbot error:", error);
     return res.status(500).json({
+      type: "AI",
       reply: "AI service unavailable.",
     });
   }
-});
-
-/**
- * ================= 🔐 MY BOOKINGS (AUTH ONLY) =================
- */
-router.post("/my-bookings", authenticate, async (req, res) => {
-  const { id, role } = req.user;
-
-  let result;
-
-  if (role === "PLAYER") {
-    result = await BookingService.getPlayerBookings(id, {
-      page: 1,
-      limit: 5,
-    });
-  } else if (role === "OWNER") {
-    result = await BookingService.getOwnerBookings(id, {
-      page: 1,
-      limit: 5,
-    });
-  } else {
-    return res.json({
-      type: "AI",
-      reply: "Bookings are not available for this role.",
-    });
-  }
-
-  const bookings = result.bookings || [];
-
-  return res.json({
-    type: "DATA",
-    reply:
-      bookings.length === 0
-        ? role === "OWNER"
-          ? "No bookings have been made on your courts yet."
-          : "You have no bookings."
-        : bookings
-            .map(b =>
-              role === "OWNER"
-                ? `🏟 ${b.court.name}
-👤 ${b.player.firstName} ${b.player.lastName}
-📅 ${new Date(b.date).toDateString()}
-⏰ ${b.startTime} - ${b.endTime}`
-                : `🏟 ${b.court.name}
-📅 ${new Date(b.date).toDateString()}
-⏰ ${b.startTime} - ${b.endTime}`
-            )
-            .join("\n\n"),
-  });
 });
 
 module.exports = router;
