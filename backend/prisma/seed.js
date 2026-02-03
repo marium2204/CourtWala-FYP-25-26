@@ -5,6 +5,10 @@ const bcrypt = require('bcryptjs');
 async function main() {
   console.log('🌱 Seeding CourtWala Production-like Database...\n');
 
+  if (process.env.NODE_ENV === 'production' && process.env.ALLOW_SEED !== 'true') {
+  throw new Error('❌ Seeding blocked in production');
+}
+
   // =========================
   // CLEAN DATABASE (ORDER MATTERS)
   // =========================

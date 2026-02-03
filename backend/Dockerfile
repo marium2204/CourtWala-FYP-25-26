@@ -23,3 +23,6 @@ EXPOSE 3000
 
 # Start server
 CMD ["npm", "start"]
+
+# Run seed ONLY if ALLOW_SEED=true, then start server
+CMD sh -c 'if [ "$ALLOW_SEED" = "true" ]; then echo "🌱 Running seed..."; npm run seed; fi && npm start'
