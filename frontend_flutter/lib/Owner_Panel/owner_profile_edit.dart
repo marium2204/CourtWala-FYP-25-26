@@ -47,6 +47,12 @@ class _OwnerEditProfileScreenState extends State<OwnerEditProfileScreen> {
 
     if (image != null) {
       setState(() => _avatarFile = File(image.path));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Profile image selected"),
+          duration: Duration(seconds: 3),
+        ),
+      );
     }
   }
 

@@ -39,7 +39,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
     if (response.statusCode == 200) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('OTP sent to your email')),
+        const SnackBar(
+          content: Text("OTP sent successfully"),
+          duration: Duration(seconds: 3),
+        ),
       );
 
       Navigator.push(

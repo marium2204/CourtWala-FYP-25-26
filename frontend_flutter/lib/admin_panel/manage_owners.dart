@@ -94,6 +94,12 @@ class _ManageOwnersScreenState extends State<ManageOwnersScreen> {
       {},
     );
     setState(() => owner.status = 'ACTIVE');
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Court owner approved successfully"),
+        duration: Duration(seconds: 3),
+      ),
+    );
   }
 
   Future<void> _rejectOwner(CourtOwner owner) async {
@@ -103,6 +109,12 @@ class _ManageOwnersScreenState extends State<ManageOwnersScreen> {
       {'reason': 'Rejected by admin'},
     );
     setState(() => owner.status = 'REJECTED');
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Court owner rejected"),
+        duration: Duration(seconds: 3),
+      ),
+    );
   }
 
   Color _statusColor(String status) {

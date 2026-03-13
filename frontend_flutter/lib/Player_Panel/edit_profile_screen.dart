@@ -101,14 +101,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     setState(() => _savingSports = false);
 
     if (body['success'] == true) {
-      Navigator.pop(context, true);
-    } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(body['message'] ?? 'Failed to save sports'),
-          backgroundColor: Colors.red,
+        const SnackBar(
+          content: Text('Sports & skills updated'),
+          duration: Duration(seconds: 3),
         ),
       );
+
+      Navigator.pop(context, true);
     }
   }
 

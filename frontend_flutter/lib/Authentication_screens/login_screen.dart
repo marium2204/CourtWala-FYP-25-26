@@ -60,6 +60,12 @@ class _LoginScreenState extends State<LoginScreen> {
         final user = decoded['data']['user'];
 
         await TokenService.saveToken(token);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Login successful"),
+            duration: Duration(seconds: 3),
+          ),
+        );
 
         if (!mounted) return;
         _navigateByRoleAndStatus(user['role'], user['status']);
@@ -106,6 +112,12 @@ class _LoginScreenState extends State<LoginScreen> {
       final user = decoded['data']['user'];
 
       await TokenService.saveToken(token);
+      ScaffoldMessenger.of(context).showSnackBar(
+  const SnackBar(
+    content: Text("Google login successful"),
+    duration: Duration(seconds: 3),
+  ),
+);
 
       if (!mounted) return;
       _navigateByRoleAndStatus(user['role'], user['status']);

@@ -127,6 +127,12 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
       {'status': status},
     );
     setState(() => user.status = status);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("User status updated to $status"),
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 
   List<UserModel> get filteredUsers {

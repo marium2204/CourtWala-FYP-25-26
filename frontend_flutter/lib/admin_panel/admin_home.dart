@@ -104,6 +104,12 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     if (confirm != true) return;
 
     await TokenService.clear();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(" Admin Logged out successfully"),
+        duration: Duration(seconds: 3),
+      ),
+    );
     _goToSplash();
   }
 

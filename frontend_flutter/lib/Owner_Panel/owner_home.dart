@@ -121,8 +121,9 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
 
     if (res.statusCode == 200) {
       _fetchCourts();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Court deleted successfully')),
+      const SnackBar(
+        content: Text('Court deleted successfully'),
+        duration: Duration(seconds: 3),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(

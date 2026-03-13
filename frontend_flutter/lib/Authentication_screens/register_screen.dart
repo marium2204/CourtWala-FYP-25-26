@@ -46,6 +46,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final picked = await _picker.pickImage(source: ImageSource.gallery);
     if (picked != null) {
       setState(() => profileImage = File(picked.path));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Profile image selected"),
+          duration: Duration(seconds: 3),
+        ),
+      );
     }
   }
 
@@ -116,6 +122,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       if (res.statusCode == 201 && body['success'] == true) {
         await TokenService.saveToken(body['data']['token']);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Registration successful"),
+            duration: Duration(seconds: 3),
+          ),
+        );
 
         if (!mounted) return;
         Navigator.pushAndRemoveUntil(
@@ -154,6 +166,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       if (res.statusCode == 200 && body['success'] == true) {
         await TokenService.saveToken(body['data']['token']);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Google login successful"),
+            duration: Duration(seconds: 3),
+          ),
+        );
 
         if (!mounted) return;
         Navigator.pushAndRemoveUntil(

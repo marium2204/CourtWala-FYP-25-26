@@ -74,6 +74,12 @@ class _AddEditCourtScreenState extends State<AddEditCourtScreen> {
         await _picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
     if (image != null) {
       setState(() => _pickedImages.add(File(image.path)));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Image added successfully"),
+          duration: Duration(seconds: 3),
+        ),
+      );
     }
   }
 
@@ -97,6 +103,12 @@ class _AddEditCourtScreenState extends State<AddEditCourtScreen> {
         'startTime': _to24Hour(start),
         'endTime': _to24Hour(end),
       });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Time slot added"),
+          duration: Duration(seconds: 3),
+        ),
+      );
     });
   }
 
@@ -183,6 +195,12 @@ class _AddEditCourtScreenState extends State<AddEditCourtScreen> {
         '/owner/courts/$courtId/slots',
         token,
         {'slots': _slots},
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Court submitted successfully"),
+          duration: Duration(seconds: 3),
+        ),
       );
 
       if (!mounted) return;

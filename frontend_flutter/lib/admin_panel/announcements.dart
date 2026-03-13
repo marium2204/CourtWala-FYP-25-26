@@ -309,6 +309,13 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                                 );
 
                                 _fetchAnnouncements();
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                        "Announcement created successfully"),
+                                    duration: Duration(seconds: 3),
+                                  ),
+                                );
                               },
                               child: const Text('Create'),
                             ),

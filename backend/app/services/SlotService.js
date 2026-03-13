@@ -2,7 +2,9 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 /**
- * Court Owner creates slots (once)
+ * =============================
+ * Court Owner creates slots
+ * =============================
  */
 exports.createSlots = async (courtId, slots) => {
   return prisma.courtSlot.createMany({
@@ -15,10 +17,15 @@ exports.createSlots = async (courtId, slots) => {
   });
 };
 
+
 /**
- * Player fetches slots for a specific date
+ * =============================
+ * Player fetches slots for a date
+ * =============================
  */
 exports.getAvailableSlots = async (courtId, date) => {
+
+  // Get all slots for the court
   const allSlots = await prisma.courtSlot.findMany({
     where: {
       courtId,
@@ -29,6 +36,7 @@ exports.getAvailableSlots = async (courtId, date) => {
     },
   });
 
+  // Get bookings for that date
   const bookings = await prisma.booking.findMany({
     where: {
       courtId,
@@ -38,36 +46,55 @@ exports.getAvailableSlots = async (courtId, date) => {
       },
     },
     select: {
-      slotId: true,
+      startTime: true,
+      endTime: true,
     },
   });
 
-  const bookedSlotIds = bookings.map((b) => b.slotId);
+  // Mark slots as booked if times match
+  return allSlots.map((slot) => {
 
-  return allSlots.map((slot) => ({
-    id: slot.id,
-    startTime: slot.startTime,
-    endTime: slot.endTime,
-    available: !bookedSlotIds.includes(slot.id),
-  }));
+    const isBooked = bookings.some(
+      (b) =>
+        b.startTime === slot.startTime &&
+        b.endTime === slot.endTime
+    );
+
+    return {
+      id: slot.id,
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+      available: !isBooked,
+    };
+  });
 };
 
+
+/**
+ * =============================
+ * Owner fetches all slots
+ * =============================
+ */
 exports.getAllSlots = async (courtId) => {
   return prisma.courtSlot.findMany({
     where: { courtId },
     orderBy: { startTime: 'asc' },
   });
-
 };
+
+
 /**
- * ✅ DELETE SLOT (ONLY IF NO ACTIVE BOOKINGS)
+ * =============================
+ * Delete slot (only if unused)
+ * =============================
  */
 exports.deleteSlot = async (slotId) => {
+
   const activeBookingCount = await prisma.booking.count({
     where: {
       slotId,
       status: {
-        in: ['PENDING', 'CONFIRMED'], // ✅ ONLY active bookings block deletion
+        in: ['PENDING', 'CONFIRMED'],
       },
     },
   });
@@ -78,9 +105,7 @@ exports.deleteSlot = async (slotId) => {
     );
   }
 
-  // ✅ Safe to delete
   return prisma.courtSlot.delete({
     where: { id: slotId },
   });
 };
-

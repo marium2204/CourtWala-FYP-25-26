@@ -199,7 +199,12 @@ class _EditCourtScreenState extends State<EditCourtScreen> {
         files: newImages,
         fileField: 'images',
       );
-
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Court updated successfully"),
+          duration: Duration(seconds: 3),
+        ),
+      );
       if (mounted) Navigator.pop(context, true);
     } finally {
       if (mounted) setState(() => isLoading = false);

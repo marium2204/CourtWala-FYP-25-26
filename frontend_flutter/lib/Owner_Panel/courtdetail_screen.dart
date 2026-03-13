@@ -92,6 +92,12 @@ class _CourtDetailsState extends State<CourtDetails> {
 
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Opening location in Google Maps"),
+          duration: Duration(seconds: 3),
+        ),
+      );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Could not open Google Maps')),

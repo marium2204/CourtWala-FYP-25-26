@@ -96,6 +96,12 @@ class _ManageCourtsScreenState extends State<ManageCourtsScreen> {
       {'status': status},
     );
     _fetchCourts();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("Court status updated to $status"),
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 
   Widget _statusActions(Court c) {

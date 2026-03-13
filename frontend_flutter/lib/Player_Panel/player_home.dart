@@ -78,15 +78,23 @@ class _PlayerHomeScreenState extends State<PlayerHomeScreen> {
     setState(() => _selectedIndex = index);
   }
 
-  Future<void> _logout() async {
-    await TokenService.clear();
-    if (!mounted) return;
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (_) => const AuthGate()),
-      (_) => false,
-    );
-  }
+ Future<void> _logout() async {
+  await TokenService.clear();
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(
+      content: Text('Logged out successfully'),
+      duration: Duration(seconds: 3),
+    ),
+  );
+
+  if (!mounted) return;
+  Navigator.pushAndRemoveUntil(
+    context,
+    MaterialPageRoute(builder: (_) => const AuthGate()),
+    (_) => false,
+  );
+}
 
   void _applySearch() {
     final query = _searchController.text.toLowerCase().trim();
