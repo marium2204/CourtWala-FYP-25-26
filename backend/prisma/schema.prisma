@@ -118,6 +118,7 @@ model Booking {
   id            String        @id @default(cuid())
   courtId       String
   playerId      String
+  sport         String
   date          DateTime
   startTime     String
   endTime       String

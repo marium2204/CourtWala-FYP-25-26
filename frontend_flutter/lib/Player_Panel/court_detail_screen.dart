@@ -275,7 +275,7 @@ class _CourtDetailScreenState extends State<CourtDetailScreen> {
                         courtName: court!['name'],
                         description: description,
                         location: addressText,
-                        sport: sports.map((s) => s['name']).join(', '),
+                        sports: sports.map((s) => s['name'].toString()).toList(),
                         price: court!['pricePerHour'].toString(),
                         image: firstImage,
                       ),

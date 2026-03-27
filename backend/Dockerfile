@@ -18,8 +18,11 @@ RUN npx prisma generate
 # Copy backend source code
 COPY . .
 
+# Make entrypoint executable
+RUN chmod +x docker-entrypoint.sh
+
 # Expose app port
 EXPOSE 3000
 
 # Start server
-CMD ["npm", "start"]
+ENTRYPOINT ["./docker-entrypoint.sh"]

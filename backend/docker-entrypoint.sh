@@ -27,7 +27,7 @@ done
 
 # Seed database (will skip if already seeded due to upsert in seed.js)
 echo "🌱 Seeding database..."
-npm run prisma:seed || echo "⚠️  Seeding completed or skipped"
+npm run seed || echo "⚠️  Seeding completed or skipped"
 
 # Start the application
 echo "🎯 Starting application server..."

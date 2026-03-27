@@ -8,7 +8,7 @@ class BookingService {
    * Create booking request
    */
   static async create(data, playerId) {
-    const { courtId, date, startTime, endTime, needsOpponent = false } = data;
+    const { courtId, sport, date, startTime, endTime, needsOpponent = false } = data;
 
     const court = await prisma.court.findUnique({
       where: { id: courtId },
@@ -61,6 +61,7 @@ class BookingService {
       data: {
         courtId,
         playerId,
+        sport,
         date: new Date(bookingDate),
         startTime,
         endTime,

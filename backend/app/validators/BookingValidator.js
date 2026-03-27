@@ -17,6 +17,9 @@ const validateCreateBooking = [
   body('courtId')
     .notEmpty()
     .withMessage('Court ID is required'),
+  body('sport')
+    .notEmpty()
+    .withMessage('Sport is required'),
   body('date')
     .notEmpty()
     .withMessage('Date is required')

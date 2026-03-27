@@ -261,6 +261,24 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
 
                           const SizedBox(height: 8),
 
+                          // Sport
+                          Row(
+                            children: [
+                              const Icon(Icons.sports_tennis,
+                                  size: 16, color: AppColors.primaryColor),
+                              const SizedBox(width: 6),
+                              Text(
+                                "Sport: ${b['sport'] ?? 'N/A'}",
+                                style: const TextStyle(
+                                  color: Colors.black87,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 8),
+
                           // Date & Time
                           Row(
                             children: [

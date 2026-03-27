@@ -11,7 +11,7 @@ class BookingPage extends StatefulWidget {
   final String courtName;
   final String description;
   final String location;
-  final String sport;
+  final List<String> sports;
   final String price;
   final String? image;
   final Function(int)? onBookingComplete;
@@ -22,7 +22,7 @@ class BookingPage extends StatefulWidget {
     required this.courtName,
     required this.description,
     required this.location,
-    required this.sport,
+    required this.sports,
     required this.price,
     this.image,
     this.onBookingComplete,
@@ -33,6 +33,7 @@ class BookingPage extends StatefulWidget {
 }
 
 class _BookingPageState extends State<BookingPage> {
+  String? _selectedSport;
   DateTime? _selectedDate;
   List<Map<String, dynamic>> _selectedSlots = [];
   bool _findOpponent = false;
@@ -96,6 +97,16 @@ class _BookingPageState extends State<BookingPage> {
 
   // ================= CREATE BOOKING =================
   Future<void> _confirmBooking() async {
+    if (_selectedSport == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Please select a sport"),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
     if (_selectedDate == null || _selectedSlots.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -120,6 +131,7 @@ class _BookingPageState extends State<BookingPage> {
           token,
           {
             'courtId': widget.courtid,
+            'sport': _selectedSport,
             'date': date,
             'startTime': slot['startTime'],
             'endTime': slot['endTime'],
@@ -206,7 +218,7 @@ class _BookingPageState extends State<BookingPage> {
                   const SizedBox(height: 6),
                   Text("📍 ${widget.location}",
                       style: const TextStyle(color: Colors.grey)),
-                  Text("🏅 ${widget.sport}",
+                  Text("🏅 ${widget.sports.join(', ')}",
                       style: const TextStyle(color: Colors.grey)),
                   const SizedBox(height: 10),
                   Text(
@@ -219,6 +231,36 @@ class _BookingPageState extends State<BookingPage> {
                   ),
                 ],
               ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // ================= SPORT =================
+            const Text(
+              "Select Sport",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: widget.sports.map((sport) {
+                final isSelected = _selectedSport == sport;
+                return ChoiceChip(
+                  label: Text(sport),
+                  selected: isSelected,
+                  selectedColor: AppColors.primaryColor,
+                  backgroundColor: Colors.white,
+                  labelStyle: TextStyle(
+                    color: isSelected ? Colors.white : Colors.black,
+                  ),
+                  onSelected: (_) {
+                    setState(() {
+                      _selectedSport = sport;
+                    });
+                  },
+                );
+              }).toList(),
             ),
 
             const SizedBox(height: 24),

@@ -171,6 +171,7 @@ class _CourtOwnerBookingsScreenState extends State<CourtOwnerBookingsScreen>
               const SizedBox(height: 6),
               _infoRow('Player',
                   "${b['player']['firstName']} ${b['player']['lastName']}"),
+              _infoRow('Sport', b['sport']?.toString() ?? 'N/A'),
               _infoRow('Date', _formatDate(b['date'])),
               _infoRow('Time', '${b['startTime']} - ${b['endTime']}'),
               _infoRow('Price', 'PKR ${b['court']['pricePerHour']}'),
