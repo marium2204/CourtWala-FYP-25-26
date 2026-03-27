@@ -41,7 +41,8 @@ class OwnerBookingController extends BaseController {
    * Reject booking
    */
   static reject = asyncHandler(async (req, res) => {
-    const booking = await BookingService.reject(req.params.id, req.user.id);
+    const { reason } = req.body;
+    const booking = await BookingService.reject(req.params.id, req.user.id, reason);
     return BaseController.success(res, booking, 'Booking rejected successfully');
   });
 

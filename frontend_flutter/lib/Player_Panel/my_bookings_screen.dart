@@ -312,6 +312,30 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
 
                           const SizedBox(height: 12),
 
+                          if (status == 'REJECTED' && b['rejectionReason'] != null)
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              margin: const EdgeInsets.only(bottom: 12),
+                              decoration: BoxDecoration(
+                                color: Colors.red.withOpacity(0.05),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: Colors.red.withOpacity(0.3)),
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Icon(Icons.error_outline, color: Colors.red, size: 20),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      "Reason: ${b['rejectionReason']}",
+                                      style: const TextStyle(color: Colors.red, fontSize: 13),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+
                           // Status & Action
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,

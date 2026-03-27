@@ -8,7 +8,7 @@ class BookingService {
    * Create booking request
    */
   static async create(data, playerId) {
-    const { courtId, sport, date, startTime, endTime, needsOpponent = false } = data;
+    const { courtId, sport, date, startTime, endTime, needsOpponent = false, paymentScreenshot, advanceAmountPaid, totalPrice } = data;
 
     const court = await prisma.court.findUnique({
       where: { id: courtId },
@@ -29,7 +29,7 @@ class BookingService {
       where: {
         courtId,
         date: new Date(bookingDate),
-        status: { in: ['PENDING', 'CONFIRMED'] },
+        status: { in: ['PENDING', 'PENDING_APPROVAL', 'CONFIRMED'] },
         OR: [
           {
             AND: [
@@ -66,7 +66,10 @@ class BookingService {
         startTime,
         endTime,
         needsOpponent,
-        status: 'PENDING',
+        paymentScreenshot,
+        advanceAmountPaid: parseFloat(advanceAmountPaid),
+        totalPrice: parseFloat(totalPrice),
+        status: 'PENDING_APPROVAL',
       },
       include: {
         court: {
@@ -244,7 +247,7 @@ class BookingService {
       throw new AppError('You do not have permission to approve this booking', 403);
     }
 
-    if (booking.status !== 'PENDING') {
+    if (booking.status !== 'PENDING' && booking.status !== 'PENDING_APPROVAL') {
       throw new AppError('Booking cannot be approved', 400);
     }
 
@@ -272,20 +275,23 @@ class BookingService {
   /**
    * Reject booking (Owner)
    */
-  static async reject(id, ownerId) {
+  static async reject(id, ownerId, reason) {
     const booking = await this.getById(id);
 
     if (booking.court.owner.id !== ownerId) {
       throw new AppError('You do not have permission to reject this booking', 403);
     }
 
-    if (booking.status !== 'PENDING') {
+    if (booking.status !== 'PENDING' && booking.status !== 'PENDING_APPROVAL') {
       throw new AppError('Booking cannot be rejected', 400);
     }
 
     return prisma.booking.update({
       where: { id },
-      data: { status: 'REJECTED' },
+      data: { 
+        status: 'REJECTED',
+        rejectionReason: reason
+      },
     });
   }
 

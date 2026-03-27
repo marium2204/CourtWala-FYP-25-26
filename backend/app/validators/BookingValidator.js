@@ -39,6 +39,15 @@ const validateCreateBooking = [
     .optional()
     .isBoolean()
     .withMessage('needsOpponent must be a boolean'),
+  body('paymentScreenshot')
+    .notEmpty()
+    .withMessage('Payment screenshot is required'),
+  body('advanceAmountPaid')
+    .isNumeric()
+    .withMessage('Advance amount paid is required'),
+  body('totalPrice')
+    .isNumeric()
+    .withMessage('Total price is required'),
   handleValidationErrors,
 ];
 

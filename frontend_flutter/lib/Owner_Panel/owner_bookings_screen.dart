@@ -22,7 +22,7 @@ class _CourtOwnerBookingsScreenState extends State<CourtOwnerBookingsScreen>
 
   final List<String> tabs = [
     'ALL',
-    'PENDING',
+    'PENDING_APPROVAL',
     'CONFIRMED',
     'REJECTED',
   ];
@@ -68,6 +68,65 @@ class _CourtOwnerBookingsScreenState extends State<CourtOwnerBookingsScreen>
 
     await ApiService.post(endpoint, token, {});
     _fetchBookings();
+  }
+
+  Future<void> _rejectBookingPrompt(String bookingId) async {
+    final reasonController = TextEditingController();
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Reject Booking'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Please provide a reason for rejecting this booking:'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: reasonController,
+              decoration: const InputDecoration(
+                hintText: 'e.g., Invalid Screenshot',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 2,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Reject', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      final token = await TokenService.getToken();
+      if (token == null) return;
+      await ApiService.post('/owner/bookings/$bookingId/reject', token, {'reason': reasonController.text});
+      _fetchBookings();
+    }
+  }
+
+  void _showImageDialog(String imageUrl) {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: InteractiveViewer(
+          panEnabled: true,
+          boundaryMargin: const EdgeInsets.all(20),
+          minScale: 0.5,
+          maxScale: 4,
+          child: Image.network(imageUrl, fit: BoxFit.contain),
+        ),
+      ),
+    );
   }
 
   // ================= FILTER =================
@@ -174,7 +233,21 @@ class _CourtOwnerBookingsScreenState extends State<CourtOwnerBookingsScreen>
               _infoRow('Sport', b['sport']?.toString() ?? 'N/A'),
               _infoRow('Date', _formatDate(b['date'])),
               _infoRow('Time', '${b['startTime']} - ${b['endTime']}'),
-              _infoRow('Price', 'PKR ${b['court']['pricePerHour']}'),
+              _infoRow('Price (per hr)', 'PKR ${b['court']['pricePerHour']}'),
+              if (b['advanceAmountPaid'] != null)
+                _infoRow('Advance Paid', 'PKR ${b['advanceAmountPaid']}'),
+              if (b['totalPrice'] != null)
+                _infoRow('Total Price', 'PKR ${b['totalPrice']}'),
+              
+              if (b['paymentScreenshot'] != null)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: () => _showImageDialog(b['paymentScreenshot']),
+                    icon: const Icon(Icons.receipt, size: 18),
+                    label: const Text('View Payment Receipt'),
+                  ),
+                ),
               const SizedBox(height: 14),
               _actions(b),
             ],
@@ -212,7 +285,7 @@ class _CourtOwnerBookingsScreenState extends State<CourtOwnerBookingsScreen>
   Widget _statusBadge(String status) {
     Color c;
     switch (status) {
-      case 'PENDING':
+      case 'PENDING_APPROVAL':
         c = Colors.orange;
         break;
       case 'CONFIRMED':
@@ -246,7 +319,7 @@ class _CourtOwnerBookingsScreenState extends State<CourtOwnerBookingsScreen>
   // ================= ACTION BUTTONS =================
   Widget _actions(Map<String, dynamic> b) {
     switch (b['status']) {
-      case 'PENDING':
+      case 'PENDING_APPROVAL':
         return Row(
           children: [
             Expanded(
@@ -264,8 +337,7 @@ class _CourtOwnerBookingsScreenState extends State<CourtOwnerBookingsScreen>
             const SizedBox(width: 12),
             Expanded(
               child: ElevatedButton(
-                onPressed: () =>
-                    _action(b['id'], '/owner/bookings/${b['id']}/reject'),
+                onPressed: () => _rejectBookingPrompt(b['id']),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.red,
                   shape: RoundedRectangleBorder(

@@ -115,23 +115,27 @@ model CourtSport {
 }
 
 model Booking {
-  id            String        @id @default(cuid())
-  courtId       String
-  playerId      String
-  sport         String
-  date          DateTime
-  startTime     String
-  endTime       String
-  status        BookingStatus @default(PENDING)
-  needsOpponent Boolean       @default(false)
-  opponentId    String?
-  slotId        String?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  court         Court         @relation(fields: [courtId], references: [id], onDelete: Cascade)
-  opponent      User?         @relation("Booking_Opponent", fields: [opponentId], references: [id])
-  player        User          @relation("Booking_Player", fields: [playerId], references: [id], onDelete: Cascade)
-  slot          CourtSlot?    @relation(fields: [slotId], references: [id])
+  id                String        @id @default(cuid())
+  courtId           String
+  playerId          String
+  sport             String
+  date              DateTime
+  startTime         String
+  endTime           String
+  status            BookingStatus @default(PENDING_APPROVAL)
+  needsOpponent     Boolean       @default(false)
+  opponentId        String?
+  slotId            String?
+  paymentScreenshot String
+  advanceAmountPaid Float
+  totalPrice        Float
+  rejectionReason   String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  court             Court         @relation(fields: [courtId], references: [id], onDelete: Cascade)
+  opponent          User?         @relation("Booking_Opponent", fields: [opponentId], references: [id])
+  player            User          @relation("Booking_Player", fields: [playerId], references: [id], onDelete: Cascade)
+  slot              CourtSlot?    @relation(fields: [slotId], references: [id])
 
   @@index([courtId])
   @@index([playerId])
@@ -295,6 +299,7 @@ enum CourtStatus {
 
 enum BookingStatus {
   PENDING
+  PENDING_APPROVAL
   CONFIRMED
   REJECTED
   CANCELLED

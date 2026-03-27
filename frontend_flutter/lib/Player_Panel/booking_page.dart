@@ -1,6 +1,7 @@
 import 'dart:convert';
-import 'package:courtwala/player_Panel/my_bookings_screen.dart';
 import 'package:flutter/material.dart';
+
+import 'payment_screen.dart';
 
 import '../theme/colors.dart';
 import '../services/api_service.dart';
@@ -95,8 +96,7 @@ class _BookingPageState extends State<BookingPage> {
     }
   }
 
-  // ================= CREATE BOOKING =================
-  Future<void> _confirmBooking() async {
+  void _proceedToPayment() {
     if (_selectedSport == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -117,57 +117,21 @@ class _BookingPageState extends State<BookingPage> {
       return;
     }
 
-    setState(() => _creatingBooking = true);
-
-    try {
-      final token = await TokenService.getToken();
-      if (token == null) return;
-
-      final date = _selectedDate!.toIso8601String().split('T').first;
-
-      for (final slot in _selectedSlots) {
-        final res = await ApiService.post(
-          '/player/bookings',
-          token,
-          {
-            'courtId': widget.courtid,
-            'sport': _selectedSport,
-            'date': date,
-            'startTime': slot['startTime'],
-            'endTime': slot['endTime'],
-            'findOpponent': _findOpponent,
-          },
-        );
-
-        if (res.statusCode != 200 && res.statusCode != 201) {
-          final body = jsonDecode(res.body);
-          throw Exception(body['message'] ?? 'Booking failed');
-        }
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Booking confirmed'),
-          duration: Duration(seconds: 3),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PaymentScreen(
+          courtId: widget.courtid,
+          courtName: widget.courtName,
+          pricePerHour: double.tryParse(widget.price) ?? 0,
+          selectedSport: _selectedSport!,
+          selectedDate: _selectedDate!,
+          selectedSlots: _selectedSlots,
+          findOpponent: _findOpponent,
+          onBookingComplete: widget.onBookingComplete,
         ),
-      );
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const MyBookingsScreen()),
-      );
-
-      widget.onBookingComplete?.call(_findOpponent ? 3 : 0);
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString().replaceAll('Exception:', '')),
-          backgroundColor: Colors.red,
-        ),
-      );
-    } finally {
-      if (mounted) setState(() => _creatingBooking = false);
-    }
+      ),
+    );
   }
 
   String _formatSlot(Map<String, dynamic> slot) {
@@ -358,23 +322,21 @@ class _BookingPageState extends State<BookingPage> {
               width: double.infinity,
               height: 52,
               child: ElevatedButton(
-                onPressed: _creatingBooking ? null : _confirmBooking,
+                onPressed: _proceedToPayment,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primaryColor,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
                 ),
-                child: _creatingBooking
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text(
-                        "Confirm Booking",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                child: const Text(
+                  "Proceed to Payment",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
             ),
           ],
