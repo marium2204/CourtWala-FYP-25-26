@@ -15,6 +15,7 @@ import 'notifications_screen.dart';
 import 'ai_chatbot_screen.dart';
 import 'about_us_screen.dart';
 import 'my_bookings_screen.dart';
+import 'my_matches_screen.dart';
 
 class PlayerHomeScreen extends StatefulWidget {
   const PlayerHomeScreen({super.key});
@@ -134,16 +135,16 @@ class _PlayerHomeScreenState extends State<PlayerHomeScreen> {
         image: "assets/900W-90-flood-light-illuminate-tennis-court.jpg",
         onTap: () => setState(() => _selectedIndex = 0),
       ),
-      _BannerData(
-        title: "Challenge a Player",
-        subtitle: "Find opponents • Compete • Win",
-        image:
-            "assets/black-gradient-football-field-background-inst-design-template-45f0c6eea75ea829f5e7bee1347353fc_69e643f6-94f5-4963-a199-c6198e51ae93_screen.png",
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const ChallengesScreen()),
-        ),
-      ),
+      // _BannerData(
+      //   title: "Challenge a Player",
+      //   subtitle: "Find opponents • Compete • Win",
+      //   image:
+      //       "assets/black-gradient-football-field-background-inst-design-template-45f0c6eea75ea829f5e7bee1347353fc_69e643f6-94f5-4963-a199-c6198e51ae93_screen.png",
+      //   onTap: () => Navigator.push(
+      //     context,
+      //     MaterialPageRoute(builder: (_) => const ChallengesScreen()),
+      //   ),
+      // ),
       _BannerData(
         title: "Chat with CourtWala AI ",
         subtitle: "Ask • Plan • Get instant help",
@@ -254,8 +255,8 @@ class _PlayerHomeScreenState extends State<PlayerHomeScreen> {
       appBar: _appBar(),
       body: _selectedIndex == 1
           ? const MatchmakingScreen()
-          : _selectedIndex == 2
-              ? const ChallengesScreen()
+          // : _selectedIndex == 2
+          //     ? const ChallengesScreen()
               : _selectedIndex == 3
                   ? const CommunityScreen()
                   : _courtsContent(),
@@ -357,8 +358,8 @@ class _PlayerHomeScreenState extends State<PlayerHomeScreen> {
           BottomNavigationBarItem(icon: Icon(Icons.sports), label: "Courts"),
           BottomNavigationBarItem(
               icon: Icon(Icons.people), label: "Matchmaking"),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.whatshot), label: "Challenges"),
+          // BottomNavigationBarItem(
+          //     icon: Icon(Icons.whatshot), label: "Challenges"),
           BottomNavigationBarItem(
               icon: Icon(Icons.chat_bubble_outline), label: "Community"),
         ],
@@ -392,6 +393,12 @@ class _PlayerHomeScreenState extends State<PlayerHomeScreen> {
               title: const Text('My Bookings'),
               onTap: () => Navigator.push(context,
                   MaterialPageRoute(builder: (_) => const MyBookingsScreen())),
+            ),
+            ListTile(
+              leading: const Icon(Icons.sports_kabaddi),
+              title: const Text('My Matches'),
+              onTap: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const MyMatchesScreen())),
             ),
             ListTile(
               leading: const Icon(Icons.info_outline),

@@ -130,6 +130,8 @@ model Booking {
   advanceAmountPaid Float
   totalPrice        Float
   rejectionReason   String?
+  playersPerSide    Int?
+  matchType         MatchType?
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
   court             Court         @relation(fields: [courtId], references: [id], onDelete: Cascade)
@@ -354,4 +356,10 @@ enum SkillLevel {
   BEGINNER
   INTERMEDIATE
   ADVANCED
+}
+
+enum MatchType {
+  SINGLES
+  DOUBLES
+  TEAM
 }

@@ -43,6 +43,25 @@ class _BookingPageState extends State<BookingPage> {
 
   final List<Map<String, dynamic>> _slots = [];
 
+  int? _playersPerSide;
+
+  List<int> _getAllowedPlayersPerSide() {
+    if (_selectedSport == null) return [];
+    final s = _selectedSport!.toLowerCase();
+    if (s.contains('cricket')) return [6, 7, 8];
+    if (s.contains('foot') || s.contains('futsal')) return [5, 6];
+    return [1, 2];
+  }
+
+  String? _getMatchType() {
+    if (_selectedSport == null || !_findOpponent || _playersPerSide == null) return null;
+    final s = _selectedSport!.toLowerCase();
+    if (s.contains('cricket') || s.contains('foot') || s.contains('futsal')) return 'TEAM';
+    if (_playersPerSide == 1) return 'SINGLES';
+    if (_playersPerSide == 2) return 'DOUBLES';
+    return null;
+  }
+
   // ================= PICK DATE =================
   Future<void> _pickDate() async {
     final now = DateTime.now();
@@ -117,6 +136,16 @@ class _BookingPageState extends State<BookingPage> {
       return;
     }
 
+    if (_findOpponent && _playersPerSide == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Please select a match format"),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -128,6 +157,8 @@ class _BookingPageState extends State<BookingPage> {
           selectedDate: _selectedDate!,
           selectedSlots: _selectedSlots,
           findOpponent: _findOpponent,
+          playersPerSide: _playersPerSide,
+          matchType: _getMatchType(),
           onBookingComplete: widget.onBookingComplete,
         ),
       ),
@@ -221,6 +252,8 @@ class _BookingPageState extends State<BookingPage> {
                   onSelected: (_) {
                     setState(() {
                       _selectedSport = sport;
+                      _findOpponent = false;
+                      _playersPerSide = null;
                     });
                   },
                 );
@@ -316,6 +349,54 @@ class _BookingPageState extends State<BookingPage> {
               ),
 
             const SizedBox(height: 24),
+
+            // ================= MATCHMAKING =================
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text("Find Opponents?", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              subtitle: const Text("List this booking as a public challenge"),
+              value: _findOpponent,
+              activeColor: AppColors.primaryColor,
+              onChanged: _selectedSport == null ? null : (val) {
+                setState(() {
+                  _findOpponent = val;
+                  _playersPerSide = null;
+                });
+              },
+            ),
+
+            if (_findOpponent && _selectedSport != null)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 12),
+                  const Text("Format", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 10,
+                    children: _getAllowedPlayersPerSide().map((num) {
+                      final isSelected = _playersPerSide == num;
+                      String label = '$num vs $num';
+                      final s = _selectedSport!.toLowerCase();
+                      if (s.contains('tennis') || s.contains('badminton') || s.contains('padel')) {
+                        label = num == 1 ? 'Singles' : 'Doubles';
+                      }
+                      return ChoiceChip(
+                        label: Text(label),
+                        selected: isSelected,
+                        selectedColor: AppColors.primaryColor,
+                        backgroundColor: Colors.white,
+                        labelStyle: TextStyle(color: isSelected ? Colors.white : Colors.black),
+                        onSelected: (val) {
+                          setState(() => _playersPerSide = num);
+                        },
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+
+            const SizedBox(height: 32),
 
             // ================= CONFIRM =================
             SizedBox(

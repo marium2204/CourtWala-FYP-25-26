@@ -48,6 +48,14 @@ const validateCreateBooking = [
   body('totalPrice')
     .isNumeric()
     .withMessage('Total price is required'),
+  body('playersPerSide')
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage('playersPerSide must be an integer > 0'),
+  body('matchType')
+    .optional()
+    .isIn(['SINGLES', 'DOUBLES', 'TEAM'])
+    .withMessage('matchType must be SINGLES, DOUBLES, or TEAM'),
   handleValidationErrors,
 ];
 

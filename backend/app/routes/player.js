@@ -34,6 +34,8 @@ router.post('/profile/change-password', validateChangePassword, ProfileControlle
 // Booking routes
 const { validateCreateBooking } = require('../validators/BookingValidator');
 router.post('/bookings', validateCreateBooking, BookingController.create);
+router.get('/bookings/available-matches', BookingController.getAvailableMatches);
+router.post('/bookings/:id/join', BookingController.joinMatch);
 router.get('/bookings', BookingController.getMyBookings);
 router.get('/bookings/:id', BookingController.getById);
 router.post('/bookings/:id/cancel', BookingController.cancel);

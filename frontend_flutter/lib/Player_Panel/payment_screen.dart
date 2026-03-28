@@ -17,6 +17,8 @@ class PaymentScreen extends StatefulWidget {
   final DateTime selectedDate;
   final List<Map<String, dynamic>> selectedSlots;
   final bool findOpponent;
+  final int? playersPerSide;
+  final String? matchType;
   final Function(int)? onBookingComplete;
 
   const PaymentScreen({
@@ -28,6 +30,8 @@ class PaymentScreen extends StatefulWidget {
     required this.selectedDate,
     required this.selectedSlots,
     required this.findOpponent,
+    this.playersPerSide,
+    this.matchType,
     this.onBookingComplete,
   });
 
@@ -100,6 +104,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
             'paymentScreenshot': imageUrl,
             'advanceAmountPaid': advanceAmount,
             'totalPrice': totalPrice,
+            if (widget.playersPerSide != null) 'playersPerSide': widget.playersPerSide,
+            if (widget.matchType != null) 'matchType': widget.matchType,
           },
         );
 

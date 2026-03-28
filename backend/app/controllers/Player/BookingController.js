@@ -12,6 +12,22 @@ class BookingController extends BaseController {
   });
 
   /**
+   * Get available matches
+   */
+  static getAvailableMatches = asyncHandler(async (req, res) => {
+    const result = await BookingService.getAvailableMatches(req.query);
+    return BaseController.success(res, result, 'Available matches retrieved successfully');
+  });
+
+  /**
+   * Join match
+   */
+  static joinMatch = asyncHandler(async (req, res) => {
+    const booking = await BookingService.joinMatch(req.params.id, req.user.id);
+    return BaseController.success(res, booking, 'Successfully joined the match');
+  });
+
+  /**
    * Get player's bookings
    */
   static getMyBookings = asyncHandler(async (req, res) => {

@@ -8,7 +8,7 @@ class BookingService {
    * Create booking request
    */
   static async create(data, playerId) {
-    const { courtId, sport, date, startTime, endTime, needsOpponent = false, paymentScreenshot, advanceAmountPaid, totalPrice } = data;
+    const { courtId, sport, date, startTime, endTime, findOpponent = false, paymentScreenshot, advanceAmountPaid, totalPrice, playersPerSide, matchType } = data;
 
     const court = await prisma.court.findUnique({
       where: { id: courtId },
@@ -65,10 +65,12 @@ class BookingService {
         date: new Date(bookingDate),
         startTime,
         endTime,
-        needsOpponent,
+        needsOpponent: findOpponent,
         paymentScreenshot,
         advanceAmountPaid: parseFloat(advanceAmountPaid),
         totalPrice: parseFloat(totalPrice),
+        playersPerSide: playersPerSide ? parseInt(playersPerSide) : null,
+        matchType: matchType || null,
         status: 'PENDING_APPROVAL',
       },
       include: {
@@ -116,6 +118,7 @@ class BookingService {
   static async getAll(filters = {}) {
     const {
       playerId,
+      participantId,
       ownerId,
       courtId,
       status,
@@ -128,6 +131,9 @@ class BookingService {
 
     const where = {
       ...(playerId && { playerId }),
+      ...(participantId && {
+        OR: [{ playerId: participantId }, { opponentId: participantId }],
+      }),
       ...(courtId && { courtId }),
       ...(status && { status }),
       ...(date && { date: new Date(date) }),
@@ -182,6 +188,78 @@ class BookingService {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  /**
+   * Get available matches logic
+   */
+  static async getAvailableMatches(filters = {}) {
+    const { sport, limit = 20, page = 1 } = filters;
+    const skip = (page - 1) * limit;
+
+    const where = {
+      status: 'CONFIRMED',
+      needsOpponent: true,
+      opponentId: null,
+      ...(sport && { sport }),
+    };
+
+    const [bookings, total] = await Promise.all([
+      prisma.booking.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { date: 'asc' },
+        include: {
+          court: {
+            select: { id: true, name: true, location: true, city: true },
+          },
+          player: {
+            select: { id: true, firstName: true, lastName: true, profilePicture: true },
+          },
+        },
+      }),
+      prisma.booking.count({ where }),
+    ]);
+
+    return {
+      bookings,
+      pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
+  }
+
+  /**
+   * Join match logic
+   */
+  static async joinMatch(id, playerId) {
+    const booking = await this.getById(id);
+
+    if (booking.status !== 'CONFIRMED' || !booking.needsOpponent || booking.opponentId !== null) {
+      throw new AppError('This match is no longer available to join', 400);
+    }
+    if (booking.playerId === playerId) {
+      throw new AppError('You cannot join your own match', 400);
+    }
+
+    const updatedBooking = await prisma.booking.update({
+      where: { id },
+      data: {
+        opponentId: playerId,
+        needsOpponent: false,
+      },
+      include: { player: true, opponent: true, court: true },
+    });
+
+    await NotificationService.create({
+      receiverId: booking.playerId,
+      senderId: playerId,
+      type: 'MATCH_ACCEPTED',
+      title: 'Match Found!',
+      message: `${updatedBooking.opponent.firstName} has accepted your ${booking.sport} challenge for ${booking.startTime}`,
+      data: { bookingId: id },
+    });
+
+    return updatedBooking;
   }
 
   /**
@@ -321,7 +399,7 @@ class BookingService {
   }
 
   static async getPlayerBookings(playerId, filters = {}) {
-    return this.getAll({ ...filters, playerId });
+    return this.getAll({ ...filters, participantId: playerId });
   }
 
   static async getOwnerBookings(ownerId, filters = {}) {
