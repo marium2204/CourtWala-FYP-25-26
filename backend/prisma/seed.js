@@ -42,12 +42,12 @@ async function main() {
   // =========================
   // ADMIN (STRONG CREDENTIALS)
   // =========================
-  const adminPassword = await bcrypt.hash('Adm!n@CourtWala#2026', 12);
+  const systemPassword = await bcrypt.hash('CourtWala123', 10);
 
   const admin = await prisma.user.create({
     data: {
       email: 'admin@courtwala.pk',
-      password: adminPassword,
+      password: systemPassword,
       firstName: 'System',
       lastName: 'Administrator',
       role: 'ADMIN',
@@ -56,7 +56,47 @@ async function main() {
     },
   });
 
-  console.log('✅ Admin created');
+  const owner = await prisma.user.create({
+    data: {
+      email: 'owner@courtwala.com',
+      password: systemPassword,
+      firstName: 'John',
+      lastName: 'Owner',
+      role: 'COURT_OWNER',
+      provider: 'EMAIL',
+      emailVerified: true,
+      bankDetails: {
+        create: [
+          {
+            provider: 'JazzCash',
+            accountName: 'John Owner Court',
+            accountNumber: '03001234567',
+            isActive: true,
+          },
+          {
+            provider: 'EasyPaisa',
+            accountName: 'John Owner',
+            accountNumber: '03451234567',
+            isActive: true,
+          }
+        ]
+      }
+    },
+  });
+
+  const player = await prisma.user.create({
+    data: {
+      email: 'player@courtwala.com',
+      password: systemPassword,
+      firstName: 'Jane',
+      lastName: 'Player',
+      role: 'PLAYER',
+      provider: 'EMAIL',
+      emailVerified: true,
+    },
+  });
+
+  console.log('✅ Users & Default Bank Details created');
 }
 main()
   .catch(console.error)

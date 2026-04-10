@@ -16,6 +16,7 @@ class MyBookingsScreen extends StatefulWidget {
 class _MyBookingsScreenState extends State<MyBookingsScreen> {
   bool _loading = true;
   final List<Map<String, dynamic>> _bookings = [];
+  String? _currentUserId;
 
   @override
   void initState() {
@@ -27,7 +28,10 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
   Future<void> _fetchBookings() async {
     try {
       final token = await TokenService.getToken();
+      final userId = await TokenService.getUserId();
       if (token == null) return;
+      
+      _currentUserId = userId;
 
       final res = await ApiService.get('/Player/bookings', token);
 
@@ -302,12 +306,66 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
 
                           const SizedBox(height: 12),
 
-                          // Price
-                          Text(
-                            "Amount to be paid: PKR $price",
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                            ),
+                          // Price Logic Engine
+                          Builder(
+                            builder: (context) {
+                              final double baseTotal = (b['totalPrice'] ?? 0.0).toDouble();
+                              final double baseAdvance = (b['advanceAmountPaid'] ?? 0.0).toDouble();
+                              
+                              // Safely extract MySQL booleans that may serialize as 1, "1", or "true"
+                              final bool findOpponent = b['findOpponent'] == true || 
+                                                        b['findOpponent'] == 1 || 
+                                                        b['findOpponent'].toString() == 'true' || 
+                                                        b['findOpponent'].toString() == '1';
+                                                        
+                              final bool hasOpponent = b['opponentId'] != null;
+                              final bool isOpponent = b['opponentId'] == _currentUserId;
+
+                              String depositDisplay = "";
+                              String remainingDisplay = "";
+
+                              if (findOpponent || hasOpponent) {
+                                // Matchmaking logic: 50% split costs
+                                final double splitTotal = baseTotal / 2;
+
+                                if (isOpponent) {
+                                  // Opponent joined via matchmaking: paid nothing upfront, owes their half completely.
+                                  depositDisplay = "Deposit Paid: PKR 0";
+                                  remainingDisplay = "Amount to be paid: PKR ${splitTotal.toStringAsFixed(0)}";
+                                } else {
+                                  // Original Court Booker
+                                  depositDisplay = "Deposit Paid: PKR ${baseAdvance.toStringAsFixed(0)}";
+                                  
+                                  if (hasOpponent) {
+                                    // Opponent found -> Booker just owes their half minus their original advance
+                                    final bookerOwes = splitTotal - baseAdvance;
+                                    remainingDisplay = "Amount to be paid: PKR ${(bookerOwes > 0 ? bookerOwes : 0).toStringAsFixed(0)}";
+                                  } else {
+                                    // Still waiting -> Owe full remainder if no one joins
+                                    remainingDisplay = "Amount to be paid: PKR ${(baseTotal - baseAdvance).toStringAsFixed(0)} (Full until someone joins)";
+                                  }
+                                }
+                              } else {
+                                // Standard Sole Booking logic
+                                depositDisplay = "Deposit Paid: PKR ${baseAdvance.toStringAsFixed(0)}";
+                                remainingDisplay = "Amount to be paid: PKR ${(baseTotal - baseAdvance).toStringAsFixed(0)}";
+                              }
+
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    depositDisplay,
+                                    style: const TextStyle(fontWeight: FontWeight.w500, color: Colors.green),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    remainingDisplay,
+                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                ],
+                              );
+                            },
                           ),
 
                           const SizedBox(height: 12),

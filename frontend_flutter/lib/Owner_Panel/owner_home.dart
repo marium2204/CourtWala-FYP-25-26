@@ -14,6 +14,8 @@ import '../Player_Panel/ai_chatbot_screen.dart';
 import '../Player_Panel/notifications_screen.dart';
 import '../Player_Panel/about_us_screen.dart';
 import '../Player_Panel/community_screen.dart';
+import '../Authentication_screens/login_screen.dart';
+import 'bank_details_screen.dart';
 
 class CourtOwnerHomeScreen extends StatefulWidget {
   const CourtOwnerHomeScreen({super.key});
@@ -601,6 +603,31 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
                 context,
                 MaterialPageRoute(builder: (_) => const AboutUsScreen()),
               ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.account_balance, color: AppColors.primaryColor),
+              title: const Text("Bank Details"),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const BankDetailsScreen()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.logout, color: Colors.redAccent),
+              title: const Text('Logout', style: TextStyle(color: Colors.redAccent)),
+              onTap: () async {
+                await TokenService.clear();
+                if (mounted) {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                    (route) => false,
+                  );
+                }
+              },
             ),
           ],
         ),

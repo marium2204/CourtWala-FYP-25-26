@@ -10,6 +10,7 @@ const MatchmakingController = require('../controllers/Player/MatchmakingControll
 const TournamentController = require('../controllers/Player/TournamentController');
 const ProfileController = require('../controllers/Player/ProfileController');
 const ReportController = require('../controllers/Player/ReportController');
+const BankDetailController = require('../controllers/Owner/BankDetailController');
 
 // Validators
 const { validateUpdateProfile, validateChangePassword } = require('../validators/ProfileValidator');
@@ -18,6 +19,9 @@ const { validateSendMatchRequest } = require('../validators/MatchmakingValidator
 // Apply authentication middleware to all routes
 router.use(authenticate);
 router.use(authorize('PLAYER'));
+
+// Active Financial Nodes
+router.get('/bank-details/:courtId', BankDetailController.getActiveByCourt);
 
 // Profile routes
 router.get('/profile', ProfileController.getProfile);

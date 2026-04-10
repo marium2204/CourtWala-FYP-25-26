@@ -7,6 +7,7 @@ const { asyncHandler } = require('../utils/ErrorHandler');
 const DashboardController = require('../controllers/Owner/DashboardController');
 const OwnerCourtController = require('../controllers/Owner/CourtController');
 const BookingController = require('../controllers/Owner/BookingController');
+const BankDetailController = require('../controllers/Owner/BankDetailController');
 
 // Apply authentication middleware to all routes
 router.use(authenticate);
@@ -15,6 +16,11 @@ router.use(authorize('COURT_OWNER'));
 // Dashboard routes
 router.get('/dashboard', DashboardController.getStats);
 
+// Bank Detail routes
+router.get('/bank-details', BankDetailController.getMyBankDetails);
+router.post('/bank-details', BankDetailController.create);
+router.put('/bank-details/:id', BankDetailController.update);
+router.delete('/bank-details/:id', BankDetailController.delete);
 
 // Court routes
 const { validateCreateCourt, validateUpdateCourt } = require('../validators/CourtValidator');

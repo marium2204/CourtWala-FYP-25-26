@@ -45,11 +45,15 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
   late double totalPrice;
   late double advanceAmount;
+  
+  List<Map<String, dynamic>> _bankDetails = [];
+  bool _isLoadingBanks = true;
 
   @override
   void initState() {
     super.initState();
     _calculateTotals();
+    _fetchBankDetails();
   }
 
   void _calculateTotals() {
@@ -65,6 +69,29 @@ class _PaymentScreenState extends State<PaymentScreen> {
     advanceAmount = total * 0.20;
   }
 
+  Future<void> _fetchBankDetails() async {
+    try {
+      final token = await TokenService.getToken();
+      if (token == null) return;
+      final res = await ApiService.get('/player/bank-details/${widget.courtId}', token);
+      final body = jsonDecode(res.body);
+
+      if (body['success'] == true) {
+        if (mounted) {
+          setState(() {
+            _bankDetails = List<Map<String, dynamic>>.from(body['data']['bankDetails'] ?? []);
+            _isLoadingBanks = false;
+          });
+        }
+      } else {
+        if (mounted) setState(() => _isLoadingBanks = false);
+      }
+    } catch (e) {
+      debugPrint("Error fetching banks: $e");
+      if (mounted) setState(() => _isLoadingBanks = false);
+    }
+  }
+
   Future<void> _pickImage() async {
     final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
@@ -73,7 +100,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
   }
 
   Future<void> _submitVerification() async {
-    if (_paymentImage == null) return;
+    if (_paymentImage == null || _bankDetails.isEmpty) return;
 
     setState(() => _isSubmitting = true);
 
@@ -91,6 +118,14 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
       // 2. Submit booking for all slots
       for (final slot in widget.selectedSlots) {
+        final start = slot['startTime'].toString().split(':');
+        final end = slot['endTime'].toString().split(':');
+        final startHr = int.parse(start[0]) + (int.parse(start[1]) / 60);
+        final endHr = int.parse(end[0]) + (int.parse(end[1]) / 60);
+        
+        final double slotTotalPrice = widget.pricePerHour * (endHr - startHr);
+        final double slotAdvance = slotTotalPrice * 0.20;
+
         final res = await ApiService.post(
           '/player/bookings',
           token,
@@ -102,8 +137,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
             'endTime': slot['endTime'],
             'findOpponent': widget.findOpponent,
             'paymentScreenshot': imageUrl,
-            'advanceAmountPaid': advanceAmount,
-            'totalPrice': totalPrice,
+            'advanceAmountPaid': slotAdvance,
+            'totalPrice': slotTotalPrice,
             if (widget.playersPerSide != null) 'playersPerSide': widget.playersPerSide,
             if (widget.matchType != null) 'matchType': widget.matchType,
           },
@@ -205,32 +240,67 @@ class _PaymentScreenState extends State<PaymentScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.blue.withOpacity(0.2)),
-              ),
-              child: Column(
-                children: [
-                  const Icon(Icons.info_outline, color: Colors.blue, size: 30),
-                  const SizedBox(height: 12),
-                  Text(
-                    "To request this booking, transfer 20% of the total amount (Rs. ${advanceAmount.toStringAsFixed(0)}) to:",
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 16),
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    "03001234567", // Simulated placeholder account
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24, letterSpacing: 2),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text("JazzCash / EasyPaisa", style: TextStyle(color: Colors.grey)),
-                ],
-              ),
-            ),
+            _isLoadingBanks 
+                ? const Center(child: CircularProgressIndicator())
+                : _bankDetails.isEmpty 
+                    ? Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withOpacity(0.05),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.red.withOpacity(0.2)),
+                        ),
+                        child: Column(
+                          children: const [
+                            Icon(Icons.warning, color: Colors.red, size: 30),
+                            SizedBox(height: 12),
+                            Text(
+                              "The court owner has not provided any active bank details. You cannot proceed with this booking right now.",
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: Colors.red, fontSize: 14),
+                            ),
+                          ],
+                        ),
+                      )
+                    : Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withOpacity(0.05),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.blue.withOpacity(0.2)),
+                        ),
+                        child: Column(
+                          children: [
+                            const Icon(Icons.info_outline, color: Colors.blue, size: 30),
+                            const SizedBox(height: 12),
+                            Text(
+                              "To request this booking, transfer 20% of the total amount (Rs. ${advanceAmount.toStringAsFixed(0)}) to any of the following accounts:",
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(fontSize: 16),
+                            ),
+                            const SizedBox(height: 16),
+                            ..._bankDetails.map((b) => Container(
+                              margin: const EdgeInsets.only(bottom: 12),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.blue.shade100),
+                              ),
+                              child: Column(
+                                children: [
+                                  Text(
+                                    b['accountNumber']?.toString() ?? '',
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22, letterSpacing: 1.5),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text("${b['provider']} - ${b['accountName']}", style: const TextStyle(color: Colors.grey, fontSize: 14, fontWeight: FontWeight.w600)),
+                                ],
+                              ),
+                            )).toList(),
+                          ],
+                        ),
+                      ),
             const SizedBox(height: 24),
             const Text(
               "Upload Payment Screenshot",

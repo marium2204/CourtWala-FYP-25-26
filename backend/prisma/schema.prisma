@@ -40,10 +40,26 @@ model User {
   reportedReports        Report[]                @relation("ReportedUserReports")
   sentReports            Report[]                @relation("ReporterReports")
   tournamentParticipants TournamentParticipant[]
+  bankDetails            BankDetail[]
 
   @@index([email])
   @@index([role])
   @@index([status])
+}
+
+model BankDetail {
+  id            String   @id @default(cuid())
+  ownerId       String
+  provider      String   // e.g., 'JazzCash', 'EasyPaisa', 'Meezan Bank'
+  accountName   String
+  accountNumber String
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  owner         User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId])
 }
 
 model Sport {
