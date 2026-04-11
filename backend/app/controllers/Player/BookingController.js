@@ -23,7 +23,8 @@ class BookingController extends BaseController {
    * Join match
    */
   static joinMatch = asyncHandler(async (req, res) => {
-    const booking = await BookingService.joinMatch(req.params.id, req.user.id);
+    const targetTeam = req.body?.team || null;
+    const booking = await BookingService.joinMatch(req.params.id, req.user.id, targetTeam);
     return BaseController.success(res, booking, 'Successfully joined the match');
   });
 

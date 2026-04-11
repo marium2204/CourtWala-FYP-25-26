@@ -325,11 +325,12 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                               String remainingDisplay = "";
 
                               if (findOpponent || hasOpponent) {
-                                // Matchmaking logic: 50% split costs
-                                final double splitTotal = baseTotal / 2;
+                                // Matchmaking logic: Split costs
+                                final bool isDoubles = b['matchType'] == 'DOUBLES';
+                                final double splitTotal = isDoubles ? (baseTotal / 4) : (baseTotal / 2);
 
                                 if (isOpponent) {
-                                  // Opponent joined via matchmaking: paid nothing upfront, owes their half completely.
+                                  // Opponent joined via matchmaking: paid nothing upfront, owes their split completely.
                                   depositDisplay = "Deposit Paid: PKR 0";
                                   remainingDisplay = "Amount to be paid: PKR ${splitTotal.toStringAsFixed(0)}";
                                 } else {
@@ -337,12 +338,13 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                                   depositDisplay = "Deposit Paid: PKR ${baseAdvance.toStringAsFixed(0)}";
                                   
                                   if (hasOpponent) {
-                                    // Opponent found -> Booker just owes their half minus their original advance
+                                    // Opponent found -> Booker just owes their split minus their original advance
+                                    // Wait, for doubles, there might be multiple opponents. The split remains their individual portion.
                                     final bookerOwes = splitTotal - baseAdvance;
                                     remainingDisplay = "Amount to be paid: PKR ${(bookerOwes > 0 ? bookerOwes : 0).toStringAsFixed(0)}";
                                   } else {
                                     // Still waiting -> Owe full remainder if no one joins
-                                    remainingDisplay = "Amount to be paid: PKR ${(baseTotal - baseAdvance).toStringAsFixed(0)} (Full until someone joins)";
+                                    remainingDisplay = "Amount to be paid: PKR ${(baseTotal - baseAdvance).toStringAsFixed(0)} (Full until others join)";
                                   }
                                 }
                               } else {

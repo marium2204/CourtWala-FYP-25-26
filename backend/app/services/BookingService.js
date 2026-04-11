@@ -100,6 +100,16 @@ class BookingService {
       },
     });
 
+    if (matchType === 'DOUBLES') {
+      await prisma.bookingParticipant.create({
+        data: {
+          bookingId: booking.id,
+          playerId,
+          team: 'TEAM_A',
+        },
+      });
+    }
+
     await NotificationService.create({
       receiverId: court.ownerId,
       senderId: playerId,
@@ -132,7 +142,11 @@ class BookingService {
     const where = {
       ...(playerId && { playerId }),
       ...(participantId && {
-        OR: [{ playerId: participantId }, { opponentId: participantId }],
+        OR: [
+          { playerId: participantId }, 
+          { opponentId: participantId },
+          { participants: { some: { playerId: participantId } } }
+        ],
       }),
       ...(courtId && { courtId }),
       ...(status && { status }),
@@ -174,6 +188,9 @@ class BookingService {
               profilePicture: true,
             },
           },
+          participants: {
+            include: { player: { select: { id: true, firstName: true, lastName: true, profilePicture: true } } }
+          },
         },
       }),
       prisma.booking.count({ where }),
@@ -200,7 +217,6 @@ class BookingService {
     const where = {
       status: 'CONFIRMED',
       needsOpponent: true,
-      opponentId: null,
       ...(sport && { sport }),
     };
 
@@ -217,6 +233,9 @@ class BookingService {
           player: {
             select: { id: true, firstName: true, lastName: true, profilePicture: true },
           },
+          participants: {
+            include: { player: { select: { id: true, firstName: true, lastName: true, profilePicture: true } } }
+          },
         },
       }),
       prisma.booking.count({ where }),
@@ -231,35 +250,87 @@ class BookingService {
   /**
    * Join match logic
    */
-  static async joinMatch(id, playerId) {
+  static async joinMatch(id, playerId, targetTeam = null) {
     const booking = await this.getById(id);
 
-    if (booking.status !== 'CONFIRMED' || !booking.needsOpponent || booking.opponentId !== null) {
+    if (booking.status !== 'CONFIRMED' || !booking.needsOpponent) {
       throw new AppError('This match is no longer available to join', 400);
     }
     if (booking.playerId === playerId) {
       throw new AppError('You cannot join your own match', 400);
     }
 
-    const updatedBooking = await prisma.booking.update({
-      where: { id },
-      data: {
-        opponentId: playerId,
-        needsOpponent: false,
-      },
-      include: { player: true, opponent: true, court: true },
-    });
+    if (booking.matchType === 'DOUBLES') {
+      const participants = booking.participants || [];
+      const teamACount = participants.filter(p => p.team === 'TEAM_A').length;
+      const teamBCount = participants.filter(p => p.team === 'TEAM_B').length;
 
-    await NotificationService.create({
-      receiverId: booking.playerId,
-      senderId: playerId,
-      type: 'MATCH_ACCEPTED',
-      title: 'Match Found!',
-      message: `${updatedBooking.opponent.firstName} has accepted your ${booking.sport} challenge for ${booking.startTime}`,
-      data: { bookingId: id },
-    });
+      if (participants.some(p => p.playerId === playerId)) {
+        throw new AppError('You are already part of this match', 400);
+      }
 
-    return updatedBooking;
+      if (participants.length >= 4) {
+        throw new AppError('This match is already full', 400);
+      }
+
+      let assignedTeam = 'TEAM_B';
+      if (targetTeam === 'TEAM_A') {
+        if (teamACount >= 2) throw new AppError('Partner slot is already taken', 400);
+        assignedTeam = 'TEAM_A';
+      } else if (targetTeam === 'TEAM_B') {
+        if (teamBCount >= 2) throw new AppError('Opponents slots are already full', 400);
+        assignedTeam = 'TEAM_B';
+      } else {
+        if (teamBCount < 2) assignedTeam = 'TEAM_B';
+        else assignedTeam = 'TEAM_A';
+      }
+
+      await prisma.bookingParticipant.create({
+        data: { bookingId: id, playerId, team: assignedTeam }
+      });
+
+      const updatedCount = participants.length + 1;
+      const needsOpponent = updatedCount < 4;
+
+      const updatedBooking = await prisma.booking.update({
+        where: { id },
+        data: { needsOpponent },
+        include: { player: true, opponent: true, court: true, participants: true },
+      });
+
+      await NotificationService.create({
+        receiverId: booking.playerId,
+        senderId: playerId,
+        type: 'MATCH_ACCEPTED',
+        title: 'Player Joined!',
+        message: `A new player has joined your ${booking.sport} Doubles match!`,
+        data: { bookingId: id },
+      });
+
+      return updatedBooking;
+
+    } else {
+      // SINGLES / TEAM logic
+      const updatedBooking = await prisma.booking.update({
+        where: { id },
+        data: {
+          opponentId: playerId,
+          needsOpponent: false,
+        },
+        include: { player: true, opponent: true, court: true },
+      });
+
+      await NotificationService.create({
+        receiverId: booking.playerId,
+        senderId: playerId,
+        type: 'MATCH_ACCEPTED',
+        title: 'Match Found!',
+        message: `${updatedBooking.opponent.firstName} has accepted your ${booking.sport} challenge for ${booking.startTime}`,
+        data: { bookingId: id },
+      });
+
+      return updatedBooking;
+    }
   }
 
   /**
@@ -304,6 +375,9 @@ class BookingService {
             lastName: true,
             profilePicture: true,
           },
+        },
+        participants: {
+          include: { player: { select: { id: true, firstName: true, lastName: true, profilePicture: true } } }
         },
       },
     });

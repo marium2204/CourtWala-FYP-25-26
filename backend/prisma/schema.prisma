@@ -41,6 +41,7 @@ model User {
   sentReports            Report[]                @relation("ReporterReports")
   tournamentParticipants TournamentParticipant[]
   bankDetails            BankDetail[]
+  bookingParticipants    BookingParticipant[]
 
   @@index([email])
   @@index([role])
@@ -50,14 +51,14 @@ model User {
 model BankDetail {
   id            String   @id @default(cuid())
   ownerId       String
-  provider      String   // e.g., 'JazzCash', 'EasyPaisa', 'Meezan Bank'
+  provider      String // e.g., 'JazzCash', 'EasyPaisa', 'Meezan Bank'
   accountName   String
   accountNumber String
   isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-  
-  owner         User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
   @@index([ownerId])
 }
@@ -131,15 +132,15 @@ model CourtSport {
 }
 
 model Booking {
-  id                String        @id @default(cuid())
+  id                String               @id @default(cuid())
   courtId           String
   playerId          String
   sport             String
   date              DateTime
   startTime         String
   endTime           String
-  status            BookingStatus @default(PENDING_APPROVAL)
-  needsOpponent     Boolean       @default(false)
+  status            BookingStatus        @default(PENDING_APPROVAL)
+  needsOpponent     Boolean              @default(false)
   opponentId        String?
   slotId            String?
   paymentScreenshot String
@@ -148,12 +149,13 @@ model Booking {
   rejectionReason   String?
   playersPerSide    Int?
   matchType         MatchType?
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
-  court             Court         @relation(fields: [courtId], references: [id], onDelete: Cascade)
-  opponent          User?         @relation("Booking_Opponent", fields: [opponentId], references: [id])
-  player            User          @relation("Booking_Player", fields: [playerId], references: [id], onDelete: Cascade)
-  slot              CourtSlot?    @relation(fields: [slotId], references: [id])
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  court             Court                @relation(fields: [courtId], references: [id], onDelete: Cascade)
+  opponent          User?                @relation("Booking_Opponent", fields: [opponentId], references: [id])
+  player            User                 @relation("Booking_Player", fields: [playerId], references: [id], onDelete: Cascade)
+  slot              CourtSlot?           @relation(fields: [slotId], references: [id])
+  participants      BookingParticipant[]
 
   @@index([courtId])
   @@index([playerId])
@@ -161,6 +163,26 @@ model Booking {
   @@index([date])
   @@index([opponentId], map: "Booking_opponentId_fkey")
   @@index([slotId], map: "Booking_slotId_fkey")
+}
+
+model BookingParticipant {
+  id        String   @id @default(cuid())
+  bookingId String
+  playerId  String
+  team      TeamRole
+  joinedAt  DateTime @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  player  User    @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([bookingId, playerId])
+  @@index([bookingId])
+  @@index([playerId], map: "BookingParticipant_playerId_fkey")
+}
+
+enum TeamRole {
+  TEAM_A
+  TEAM_B
 }
 
 model MatchRequest {

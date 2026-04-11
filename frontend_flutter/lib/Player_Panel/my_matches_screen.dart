@@ -210,15 +210,18 @@ class _MyMatchesScreenState extends State<MyMatchesScreen> with SingleTickerProv
                             Text(
                               "${_formatDate(m['date'] ?? '')} | ${m['startTime']} - ${m['endTime']}",
                               style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                              overflow: TextOverflow.ellipsis,
                             ),
                             const SizedBox(height: 4),
                             Text(
                               "${m['court']?['name'] ?? ''}",
                               style: const TextStyle(fontSize: 14, color: Colors.grey),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ],
                         ),
                       ),
+                      const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
@@ -234,43 +237,71 @@ class _MyMatchesScreenState extends State<MyMatchesScreen> with SingleTickerProv
                 // TEAMS SECTION
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: [
-                                _playerAvatar(hostName, hostPic),
-                                if (isDoubles) _emptyAvatar(),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            const Text("Team A", style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey)),
-                          ],
+                  child: Builder(builder: (context) {
+                    List<Widget> teamAWidgets = [];
+                    List<Widget> teamBWidgets = [];
+
+                    if (isDoubles) {
+                      final participants = m['participants'] as List? ?? [];
+                      final teamA = participants.where((p) => p['team'] == 'TEAM_A').toList();
+                      final teamB = participants.where((p) => p['team'] == 'TEAM_B').toList();
+
+                      for (var i = 0; i < 2; i++) {
+                        if (i < teamA.length) {
+                          final pInfo = teamA[i]['player'];
+                          teamAWidgets.add(_playerAvatar(pInfo['firstName'] ?? 'Player', pInfo['profilePicture']));
+                        } else {
+                          teamAWidgets.add(_emptyAvatar());
+                        }
+
+                        if (i < teamB.length) {
+                          final pInfo = teamB[i]['player'];
+                          teamBWidgets.add(_playerAvatar(pInfo['firstName'] ?? 'Player', pInfo['profilePicture']));
+                        } else {
+                          teamBWidgets.add(_emptyAvatar());
+                        }
+                      }
+                    } else {
+                      // Singular or Team Captain logic
+                      teamAWidgets.add(_playerAvatar(hostName, hostPic));
+                      
+                      if (opponent != null) {
+                        teamBWidgets.add(_playerAvatar(opponentName, opponentPic));
+                      } else {
+                        teamBWidgets.add(_emptyAvatar());
+                      }
+                    }
+
+                    return Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                children: teamAWidgets.map((w) => Expanded(child: w)).toList(),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(isDoubles ? "Team A" : "Host", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey)),
+                            ],
+                          ),
                         ),
-                      ),
-                      const Text("VS", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
-                      Expanded(
-                        child: Column(
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: [
-                                opponent != null 
-                                    ? _playerAvatar(opponentName, opponentPic)
-                                    : _emptyAvatar(),
-                                if (isDoubles) _emptyAvatar(),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            const Text("Team B", style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey)),
-                          ],
+                        const Text("VS", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+                        Expanded(
+                          child: Column(
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                children: teamBWidgets.map((w) => Expanded(child: w)).toList(),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(isDoubles ? "Team B" : "Opponent", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey)),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    );
+                  }),
                 ),
 
                 const SizedBox(height: 16),
