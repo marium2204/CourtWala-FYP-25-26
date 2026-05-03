@@ -26,6 +26,7 @@ router.delete('/bank-details/:id', BankDetailController.delete);
 const { validateCreateCourt, validateUpdateCourt } = require('../validators/CourtValidator');
 router.get('/courts', OwnerCourtController.getMyCourts);
 router.post('/courts', validateCreateCourt, OwnerCourtController.create);
+router.put('/courts/:id', validateUpdateCourt, OwnerCourtController.update);
 router.get('/courts/:id', OwnerCourtController.getById);
 router.delete('/courts/:id',OwnerCourtController.delete);
 

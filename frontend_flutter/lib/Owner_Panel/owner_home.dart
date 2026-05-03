@@ -472,20 +472,22 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
 
           Row(
             children: [
-              _iconAction(
-                icon: Icons.edit,
-                color: AppColors.primaryColor,
-                onTap: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => EditCourtScreen(court: court),
-                    ),
-                  );
-                  _fetchCourts();
-                },
-              ),
-              const SizedBox(width: 12),
+              if (court['status'] != 'REJECTED') ...[
+                _iconAction(
+                  icon: Icons.edit,
+                  color: AppColors.primaryColor,
+                  onTap: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => EditCourtScreen(court: court),
+                      ),
+                    );
+                    _fetchCourts();
+                  },
+                ),
+                const SizedBox(width: 12),
+              ],
               _iconAction(
                 icon: Icons.remove_red_eye,
                 color: AppColors.primaryColor,
@@ -497,11 +499,12 @@ class _CourtOwnerHomeScreenState extends State<CourtOwnerHomeScreen> {
                 ),
               ),
               const Spacer(),
-              _iconAction(
-                icon: Icons.delete,
-                color: Colors.red,
-                onTap: () => _deleteCourt(court['id']),
-              ),
+              if (court['status'] != 'REJECTED')
+                _iconAction(
+                  icon: Icons.delete,
+                  color: Colors.red,
+                  onTap: () => _deleteCourt(court['id']),
+                ),
             ],
           ),
         ],
@@ -722,6 +725,7 @@ Color _statusColor(String status) {
     case 'PENDING_APPROVAL':
       return Colors.orange;
     case 'BLOCKED':
+    case 'REJECTED':
       return Colors.red;
     default:
       return Colors.grey;

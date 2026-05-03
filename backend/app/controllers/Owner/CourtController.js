@@ -23,9 +23,9 @@ class OwnerCourtController extends BaseController {
   static create = asyncHandler(async (req, res) => {
     const data = { ...req.body };
 
-    if (req.files && req.files.length > 0) {
-      data.images = req.files.map(file => getFileUrl(file.filename));
-    }
+    // Note: We expect images to be uploaded to Cloudinary on the frontend 
+    // and URLs passed in req.body.images as an array.
+
 
     if (data.amenities && typeof data.amenities === 'string') {
       try {
@@ -35,6 +35,14 @@ class OwnerCourtController extends BaseController {
           .split(',')
           .map(item => item.trim())
           .filter(Boolean);
+      }
+    }
+
+    if (data.sports && typeof data.sports === 'string') {
+      try {
+        data.sports = JSON.parse(data.sports);
+      } catch {
+        data.sports = [];
       }
     }
 
@@ -58,9 +66,6 @@ class OwnerCourtController extends BaseController {
   static update = asyncHandler(async (req, res) => {
     const data = { ...req.body };
 
-    if (req.files && req.files.length > 0) {
-      data.images = req.files.map(file => getFileUrl(file.filename));
-    }
 
     if (data.amenities && typeof data.amenities === 'string') {
       try {
@@ -70,6 +75,14 @@ class OwnerCourtController extends BaseController {
           .split(',')
           .map(item => item.trim())
           .filter(Boolean);
+      }
+    }
+
+    if (data.sports && typeof data.sports === 'string') {
+      try {
+        data.sports = JSON.parse(data.sports);
+      } catch {
+        data.sports = [];
       }
     }
 

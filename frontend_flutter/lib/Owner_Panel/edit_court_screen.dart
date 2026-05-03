@@ -7,6 +7,7 @@ import '../theme/colors.dart';
 import '../services/api_service.dart';
 import '../services/token_service.dart';
 import '../constants/api_constants.dart';
+import '../services/image_upload_service.dart';
 
 class EditCourtScreen extends StatefulWidget {
   final Map<String, dynamic> court;
@@ -177,7 +178,21 @@ class _EditCourtScreenState extends State<EditCourtScreen> {
       final token = await TokenService.getToken();
       if (token == null) return;
 
-      await ApiService.multipartPut(
+      // 1. Upload new images to Cloudinary
+      final List<String> uploadedUrls = [];
+      for (final file in newImages) {
+        final url = await ImageUploadService.uploadToCloudinary(
+          file,
+          folder: 'courtwala/courts',
+        );
+        if (url != null) uploadedUrls.add(url);
+      }
+
+      // 2. Combine with existing
+      final finalImages = [...existingImages, ...uploadedUrls];
+
+      // 3. Send JSON PUT request
+      final res = await ApiService.put(
         '/owner/courts/${widget.court['id']}',
         token,
         {
@@ -186,26 +201,35 @@ class _EditCourtScreenState extends State<EditCourtScreen> {
           'city': _cityCtrl.text.trim(),
           'mapUrl': _mapUrlCtrl.text.trim(),
           'pricePerHour': _priceCtrl.text.trim(),
-          'sports': jsonEncode(selectedSportIds.toList()),
-          'amenities': jsonEncode(
-            _amenitiesCtrl.text
-                .split(',')
-                .map((e) => e.trim())
-                .where((e) => e.isNotEmpty)
-                .toList(),
-          ),
-          'existingImages': jsonEncode(existingImages),
+          'sports': selectedSportIds.toList(),
+          'amenities': _amenitiesCtrl.text
+              .split(',')
+              .map((e) => e.trim())
+              .where((e) => e.isNotEmpty)
+              .toList(),
+          'existingImages': finalImages, // Send the full list
+          'images': [], // Clear the file field
         },
-        files: newImages,
-        fileField: 'images',
       );
+
+      if (res.statusCode == 200 || res.statusCode == 201) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Court updated successfully"),
+            duration: Duration(seconds: 3),
+          ),
+        );
+        if (mounted) Navigator.pop(context, true);
+      } else {
+        final body = jsonDecode(res.body);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(body['message'] ?? 'Failed to update court')),
+        );
+      }
+    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Court updated successfully"),
-          duration: Duration(seconds: 3),
-        ),
+        SnackBar(content: Text('Error: $e')),
       );
-      if (mounted) Navigator.pop(context, true);
     } finally {
       if (mounted) setState(() => isLoading = false);
     }

@@ -57,6 +57,8 @@ services:
       - ./uploads:/app/uploads       
       - ./prisma:/app/prisma          
       - ./config:/app/config
+      - ./app:/app/app
+      - ./server.js:/app/server.js
     depends_on:
       db:
         condition: service_healthy

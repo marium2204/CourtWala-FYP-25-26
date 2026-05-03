@@ -362,9 +362,12 @@ static async update(id, data, ownerId) {
     updateData.status = 'PENDING_APPROVAL';
   }
 
-  await prisma.$transaction([
-    prisma.courtSport.deleteMany({ where: { courtId: id } }),
-    prisma.court.update({
+  const result = await prisma.$transaction(async (tx) => {
+    // Delete existing sports
+    await tx.courtSport.deleteMany({ where: { courtId: id } });
+
+    // Update court and create new sports
+    return tx.court.update({
       where: { id },
       data: {
         ...updateData,
@@ -372,10 +375,20 @@ static async update(id, data, ownerId) {
           create: (sports || []).map(sportId => ({ sportId })),
         },
       },
-    }),
-  ]);
+      include: {
+        courtSports: {
+          include: {
+            sport: { select: { id: true, name: true } },
+          },
+        },
+      },
+    });
+  });
 
-  return true;
+  return {
+    ...result,
+    sports: result.courtSports.map(cs => cs.sport),
+  };
 }
 
 

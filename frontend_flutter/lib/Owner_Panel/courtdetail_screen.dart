@@ -202,27 +202,28 @@ class _CourtDetailsState extends State<CourtDetails> {
                   .toList(),
             ),
             const SizedBox(height: 36),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => EditCourtScreen(court: widget.court),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.edit, color: Colors.white),
-                label: const Text(
-                  'Edit Court',
-                  style: TextStyle(color: Colors.white),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryColor,
+            if (widget.court['status'] != 'REJECTED')
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => EditCourtScreen(court: widget.court),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.edit, color: Colors.white),
+                  label: const Text(
+                    'Edit Court',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryColor,
+                  ),
                 ),
               ),
-            ),
           ],
         ),
       ),
