@@ -253,13 +253,11 @@ class _PlayerHomeScreenState extends State<PlayerHomeScreen> {
       backgroundColor: const Color(0xFFF6F8FA),
       drawer: _drawer(),
       appBar: _appBar(),
-      body: _selectedIndex == 1
-          ? const MatchmakingScreen()
-          // : _selectedIndex == 2
-          //     ? const ChallengesScreen()
-              : _selectedIndex == 3
-                  ? const CommunityScreen()
-                  : _courtsContent(),
+      body: _selectedIndex == 0
+          ? _courtsContent()
+          : _selectedIndex == 1
+              ? const MatchmakingScreen()
+              : const CommunityScreen(),
       bottomNavigationBar: _bottomNav(),
     );
   }

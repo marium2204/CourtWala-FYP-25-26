@@ -26,6 +26,12 @@ dependencies:
   http_parser: ^4.0.2
   url_launcher: ^6.2.1
   app_links: ^6.4.1
+  cached_network_image: ^3.4.0
+  timeago: ^3.7.1
+  video_player: ^2.11.1
+  chewie: ^1.13.1
+  video_thumbnail: ^0.5.6
+  path_provider: ^2.1.5
 
 
 

@@ -17,17 +17,18 @@ class ImageUploadService {
   }
 
   static Future<String?> uploadToCloudinary(
-    File imageFile, {
+    File file, {
     String folder = "courtwala",
+    String resourceType = "image",
   }) async {
     final request = http.MultipartRequest(
       "POST",
-      Uri.parse(CloudinaryConfig.baseUploadUrl),
+      Uri.parse(CloudinaryConfig.getUploadUrl(resourceType)),
     )
       ..fields['upload_preset'] = CloudinaryConfig.uploadPreset
       ..fields['folder'] = folder
       ..files.add(
-        await http.MultipartFile.fromPath('file', imageFile.path),
+        await http.MultipartFile.fromPath('file', file.path),
       );
 
     final response = await request.send();

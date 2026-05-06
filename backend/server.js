@@ -36,6 +36,7 @@ app.use('/api/notifications', require('./app/routes/notifications'));
 app.use('/api/sports', require('./app/routes/sport'));
 const chatRoutes = require('./app/routes/chat');
 app.use('/api/chat', chatRoutes);
+app.use('/api/community', require('./app/routes/community'));
 const slotRoutes = require('./app/routes/slots');
 app.use('/api', slotRoutes);
 app.use('/api', require('./app/routes/testemail'));
